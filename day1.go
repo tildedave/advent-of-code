@@ -17,7 +17,7 @@ func getDigit(s string) int {
 		return int(s[0]) - 48
 	}
 	// possibility two, it's a spelled out word.
-	spelledOutDigits := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	spelledOutDigits := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
 	for d := 0; d < len(spelledOutDigits); d++ {
 		englishDigit := spelledOutDigits[d]
 		if len(s) >= len(englishDigit) {
