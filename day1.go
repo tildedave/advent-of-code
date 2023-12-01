@@ -11,6 +11,24 @@ func isDigit(b byte) bool {
 	return 48 <= b && b <= 57
 }
 
+func getDigit(s string) int {
+	// possibility one, start of string is an actual digit.
+	if isDigit(s[0]) {
+		return int(s[0]) - 48
+	}
+	// possibility two, it's a spelled out word.
+	spelledOutDigits := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+	for d := 0; d < len(spelledOutDigits); d++ {
+		englishDigit := spelledOutDigits[d]
+		if len(s) >= len(englishDigit) {
+			if s[0:len(englishDigit)] == englishDigit {
+				return d
+			}
+		}
+	}
+	return -1
+}
+
 func main() {
 	f, err := os.Open("./input-day1.txt")
 	if err != nil {
@@ -26,16 +44,14 @@ func main() {
 
 		line := scanner.Text()
 		for i := 0; i < len(line); i++ {
-			b := line[i]
-			if isDigit(b) {
-				firstDigit = int(b) - 48
+			firstDigit = getDigit(line[i:])
+			if firstDigit != -1 {
 				break
 			}
 		}
 		for i := len(line) - 1; i >= 0; i-- {
-			b := line[i]
-			if isDigit(b) {
-				secondDigit = int(b) - 48
+			secondDigit = getDigit(line[i:])
+			if secondDigit != -1 {
 				break
 			}
 		}
