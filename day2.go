@@ -23,36 +23,49 @@ func parseResult(result string) map[string]int {
 	return m
 }
 
+func isPossible(bag map[string]int, results []map[string]int) bool {
+	for _, m := range results {
+		for color, num := range m {
+			if bag[color] < num {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func minimumBag(results []map[string]int) map[string]int {
+	minBag := make(map[string]int, 0)
+	for _, m := range results {
+		for color, num := range m {
+			minBag[color] = max(minBag[color], num)
+		}
+	}
+	return minBag
+}
+
+func bagPower(bag map[string]int) int {
+	total := 1
+	for _, v := range bag {
+		total *= v
+	}
+	return total
+}
+
 func day2(f *os.File) {
 	scanner := bufio.NewScanner(f)
-	var bag = map[string]int{
-		"red":   12,
-		"green": 13,
-		"blue":  14,
-	}
-
 	var sum int = 0
 	for scanner.Scan() {
 		text := scanner.Text()
 		game := strings.Split(text, ": ")
-		gameNum, err := strconv.ParseInt(strings.Split(game[0], " ")[1], 10, 32)
-		if err != nil {
-			log.Fatal(err)
-		}
 		results := strings.Split(game[1], "; ")
-		var possible = true
+		parsedResults := make([]map[string]int, 0)
 		for _, result := range results {
 			m := parseResult(result)
-			for color, num := range m {
-				if bag[color] < num {
-					possible = false
-					break
-				}
-			}
+			parsedResults = append(parsedResults, m)
 		}
-		if possible {
-			sum += int(gameNum)
-		}
+		minBag := minimumBag(parsedResults)
+		sum += bagPower(minBag)
 	}
 	fmt.Println(sum)
 }
