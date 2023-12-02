@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -29,13 +28,7 @@ func getDigit(s string) int {
 	return -1
 }
 
-func main() {
-	f, err := os.Open("./input-day1.txt")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
+func day1(f *os.File) {
 	scanner := bufio.NewScanner(f)
 	sum := 0
 	for scanner.Scan() {
