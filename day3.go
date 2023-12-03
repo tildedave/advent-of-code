@@ -40,25 +40,26 @@ func extractNumber(parsedInput []string, row int, col int) (int64, int, int) {
 func day3(f *os.File) {
 	scanner := bufio.NewScanner(f)
 	var parsedInput []string
-	partNums := make(map[int64]map[string]bool, 0)
 	for scanner.Scan() {
 		line := scanner.Text()
 		parsedInput = append(parsedInput, line)
 	}
+	totalGearRatio := 0
 	for row, line := range parsedInput {
 		for col := 0; col < len(line); col++ {
 			chr := line[col]
-			if !isSymbol(chr) {
+			if chr != byte('*') {
 				continue
 			}
 
-			// found symbol, test all adjacent areas.
+			// found gear, test all adjacent areas.
 			// we probably need to worry about duplicates, so we should
 			// insert this into some array that we can de-dupe later.
 			canLookUp := row > 0
 			canLookDown := row < len(line)-1
 			canLookLeft := col > 0
 			canLookRight := col < len(line)-1
+			adjacent := make(map[int64]map[string]bool, 0)
 			for dir := START_DIR; dir <= END_DIR; dir++ {
 				candidateRow := row
 				candidateCol := col
@@ -89,19 +90,22 @@ func day3(f *os.File) {
 
 				if isDigit(parsedInput[candidateRow][candidateCol]) {
 					num, start, finish := extractNumber(parsedInput, candidateRow, candidateCol)
-					if partNums[num] == nil {
-						partNums[num] = make(map[string]bool, 0)
+					if adjacent[num] == nil {
+						adjacent[num] = make(map[string]bool, 0)
 					}
-					partNums[num][fmt.Sprintf("%d-%d-%d", candidateRow, start, finish)] = true
+					adjacent[num][fmt.Sprintf("%d-%d-%d", candidateRow, start, finish)] = true
 				}
+			}
+
+			if len(adjacent) == 2 {
+				// only 2 counts
+				gearRatio := 1
+				for k := range adjacent {
+					gearRatio *= int(k)
+				}
+				totalGearRatio += gearRatio
 			}
 		}
 	}
-	sum := 0
-	for k, v := range partNums {
-		for range v {
-			sum += int(k)
-		}
-	}
-	fmt.Println(sum)
+	fmt.Println(totalGearRatio)
 }
