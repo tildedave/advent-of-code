@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -16,12 +15,8 @@ func TestAlignRanges(t *testing.T) {
 		if len(ars) == 0 && len(unalignedRanges) == 0 {
 			continue
 		}
-		fmt.Println("results", ars, unalignedRanges)
 		if totalLength(ars)+totalLength(unalignedRanges) != c.length {
-			fmt.Println(r, c)
 			t.Fatalf("Inconsistent lengths")
 		}
-		fmt.Println(ars)
-		fmt.Println(unalignedRanges)
 	}
 }

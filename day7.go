@@ -31,8 +31,6 @@ func getScore(c byte) int {
 		return 13
 	case 'Q':
 		return 12
-	case 'J':
-		return 11
 	case 'T':
 		return 10
 	case '9':
@@ -51,6 +49,8 @@ func getScore(c byte) int {
 		return 3
 	case '2':
 		return 2
+	case 'J':
+		return 1
 	}
 	log.Fatal("Invalid card passed")
 	return -1
@@ -63,12 +63,17 @@ func getType(entries string) int {
 	}
 	pairCount := 0
 	hasThreeOfAKind := false
-	for _, v := range count {
+	hasFourOfAKind := false
+	jokerCount := count['J']
+	for k, v := range count {
+		if k == 'J' {
+			continue
+		}
 		if v == 5 {
 			return FIVE_OF_A_KIND
 		}
 		if v == 4 {
-			return FOUR_OF_A_KIND
+			hasFourOfAKind = true
 		}
 		if v == 3 {
 			hasThreeOfAKind = true
@@ -77,17 +82,69 @@ func getType(entries string) int {
 			pairCount += 1
 		}
 	}
-	if pairCount == 1 && hasThreeOfAKind {
-		return FULL_HOUSE
+	if hasFourOfAKind {
+		if jokerCount == 0 {
+			return FOUR_OF_A_KIND
+		}
+		if jokerCount == 1 {
+			return FIVE_OF_A_KIND
+		}
+		log.Fatal("Impossible")
 	}
 	if hasThreeOfAKind {
+		if jokerCount == 2 {
+			return FIVE_OF_A_KIND
+		}
+		if jokerCount == 1 {
+			return FOUR_OF_A_KIND
+		}
+		if jokerCount > 0 {
+			log.Fatal("Impossible")
+		}
+		if pairCount == 1 {
+			return FULL_HOUSE
+		}
 		return THREE_OF_A_KIND
 	}
 	if pairCount == 2 {
+		if jokerCount == 1 {
+			return FULL_HOUSE
+		}
+		if jokerCount > 1 {
+			log.Fatal("Impossible")
+		}
 		return TWO_PAIR
 	}
 	if pairCount == 1 {
+		if jokerCount == 1 {
+			return THREE_OF_A_KIND
+		}
+		if jokerCount == 2 {
+			return FOUR_OF_A_KIND
+		}
+		if jokerCount == 3 {
+			return FIVE_OF_A_KIND
+		}
+		if jokerCount > 3 {
+			log.Fatal("Impossible")
+		}
 		return ONE_PAIR
+	}
+	// No pairs
+	if jokerCount == 5 {
+		return FIVE_OF_A_KIND
+	}
+	if jokerCount == 1 {
+		return ONE_PAIR
+	}
+	if jokerCount == 2 {
+		return THREE_OF_A_KIND
+	}
+	if jokerCount == 3 {
+		return FOUR_OF_A_KIND
+	}
+	if jokerCount == 4 {
+		return FIVE_OF_A_KIND
 	}
 	return HIGH_CARD
 }
@@ -114,7 +171,7 @@ func day7(f *os.File) {
 			return h1Type < h2Type
 		}
 
-		// type are equal, figure out later
+		// type are equal, use tie-break
 		for i := 0; i < len(h1.entries); i++ {
 			h1Score := getScore(h1.entries[i])
 			h2Score := getScore(h2.entries[i])
@@ -122,7 +179,7 @@ func day7(f *os.File) {
 				return h1Score < h2Score
 			}
 		}
-		log.Fatal("Unable to break tie between %s and %s", h1.entries, h2.entries)
+		log.Fatal("Should not happen")
 		return false
 	})
 	sum := 0
