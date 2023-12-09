@@ -29,6 +29,8 @@ func computeMissing(il []int) int {
 	}
 	diff := differences(il)
 	n := computeMissing(diff)
+	// Star 1
+	// return il[len(il)-1] + n
 	return il[0] - n
 }
 
