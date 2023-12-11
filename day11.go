@@ -27,7 +27,7 @@ func formattedSpace(space [][]int) string {
 	return str
 }
 
-func cosmicExpansion(space [][]int) [][]int {
+func cosmicExpansion(space [][]int) (map[int]bool, map[int]bool) {
 	// expand columns first, then expand rows
 	expandRows := make(map[int]bool)
 	expandColumns := make(map[int]bool, 0)
@@ -59,27 +59,7 @@ func cosmicExpansion(space [][]int) [][]int {
 		}
 	}
 
-	newSpace := make([][]int, 0)
-	newWidth := len(space[0]) + len(expandColumns)
-	for i := 0; i < len(space); i++ {
-		newRow := make([]int, newWidth)
-		// j indexes into old space
-		newJ := 0
-		for j := 0; j < len(space[0]); j++ {
-			newRow[newJ] = space[i][j]
-			if expandColumns[j] {
-				newJ++
-			}
-			newJ++
-		}
-		newSpace = append(newSpace, newRow)
-		if expandRows[i] {
-			newRowCopy := make([]int, newWidth)
-			copy(newRowCopy, newRow)
-			newSpace = append(newSpace, newRow)
-		}
-	}
-	return newSpace
+	return expandRows, expandColumns
 }
 
 func getGalaxyLocations(space [][]int) []galaxyLocation {
@@ -101,10 +81,46 @@ func absInt(i int) int {
 	return i
 }
 
-func taxiCab(l1 galaxyLocation, l2 galaxyLocation) int {
-	return absInt(l1.x-l2.x) + absInt(l1.y-l2.y)
+func galaxyDistance(l1 galaxyLocation, l2 galaxyLocation, expandedRows map[int]bool, expandedColumns map[int]bool, expansionFactor int) int {
+	distance := taxicab(l1, l2)
+	if l1.x != l2.x {
+		var startX int
+		var endX int
+		if l1.x < l2.x {
+			startX = l1.x
+			endX = l2.x
+		} else {
+			startX = l2.x
+			endX = l1.x
+		}
+		for x := startX; x < endX; x++ {
+			if expandedRows[x] {
+				distance += expansionFactor
+			}
+		}
+	}
+	if l1.y != l2.y {
+		var startY int
+		var endY int
+		if l1.y < l2.y {
+			startY = l1.y
+			endY = l2.y
+		} else {
+			startY = l2.y
+			endY = l1.y
+		}
+		for y := startY; y < endY; y++ {
+			if expandedColumns[y] {
+				distance += expansionFactor
+			}
+		}
+	}
+	return distance
 }
 
+func taxicab(l1 galaxyLocation, l2 galaxyLocation) int {
+	return absInt(l1.x-l2.x) + absInt(l1.y-l2.y)
+}
 func day11(f *os.File) {
 	scanner := bufio.NewScanner(f)
 	space := make([][]int, 0)
@@ -122,15 +138,17 @@ func day11(f *os.File) {
 			}
 		}
 	}
-	expandedSpace := cosmicExpansion(space)
-	locations := getGalaxyLocations(expandedSpace)
+	expandedRows, expandedColumns := cosmicExpansion(space)
+	locations := getGalaxyLocations(space)
+	expansionFactor := 1_000_000 - 1
 	// Galaxy n + 1 is at location n.
 	// Since we're on a 2d grid, distances between two galaxies is just the
 	// taxicab metric.
 	totalDistance := 0
 	for _, l1 := range locations {
 		for _, l2 := range locations {
-			totalDistance += taxiCab(l1, l2)
+			dist := galaxyDistance(l1, l2, expandedRows, expandedColumns, expansionFactor)
+			totalDistance += dist
 		}
 	}
 	fmt.Println(totalDistance / 2)
