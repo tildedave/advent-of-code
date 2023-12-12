@@ -20,7 +20,7 @@ const SOUTH = -1
 const EAST = 2
 const WEST = -2
 
-const UNKNOWN = 0
+const UNKNOWN_LOOP_STATE = 0
 const IN_LOOP = 1
 const INSIDE = 2
 const OUTSIDE = 3
@@ -66,7 +66,7 @@ func formattedRegions(loop [][]int) string {
 				line += "O"
 			case IN_LOOP:
 				line += "L"
-			case UNKNOWN:
+			case UNKNOWN_LOOP_STATE:
 				line += "?"
 			}
 		}
@@ -197,7 +197,7 @@ func floodFill(maze [][]int, loop [][]int, i int, j int) {
 			// Is it valid that we could flow north from this square?
 			sq := maze[i-1][j]
 			if sq == GROUND || sq == VERTICAL || sq == NE_BEND_L || sq == NW_BEND_J {
-				if loop[i-1][j] == UNKNOWN {
+				if loop[i-1][j] == UNKNOWN_LOOP_STATE {
 					queue = append(queue, []int{i - 1, j})
 				}
 			}
@@ -205,7 +205,7 @@ func floodFill(maze [][]int, loop [][]int, i int, j int) {
 		if canSouth {
 			sq := maze[i+1][j]
 			if sq == GROUND || sq == VERTICAL || sq == SE_BEND_F || sq == SW_BEND_7 {
-				if loop[i+1][j] == UNKNOWN {
+				if loop[i+1][j] == UNKNOWN_LOOP_STATE {
 					queue = append(queue, []int{i + 1, j})
 				}
 			}
@@ -213,7 +213,7 @@ func floodFill(maze [][]int, loop [][]int, i int, j int) {
 		if canEast {
 			sq := maze[i][j+1]
 			if sq == GROUND || sq == HORIZONTAL || sq == SW_BEND_7 || sq == NW_BEND_J {
-				if loop[i][j+1] == UNKNOWN {
+				if loop[i][j+1] == UNKNOWN_LOOP_STATE {
 					queue = append(queue, []int{i, j + 1})
 				}
 			}
@@ -221,7 +221,7 @@ func floodFill(maze [][]int, loop [][]int, i int, j int) {
 		if canWest {
 			sq := maze[i][j-1]
 			if sq == GROUND || sq == HORIZONTAL || sq == SW_BEND_7 || sq == NW_BEND_J {
-				if loop[i][j-1] == UNKNOWN {
+				if loop[i][j-1] == UNKNOWN_LOOP_STATE {
 					queue = append(queue, []int{i, j - 1})
 				}
 			}
@@ -376,7 +376,7 @@ func day10(f *os.File) {
 	}
 	for i := 0; i < len(maze); i++ {
 		for j := 0; j < len(maze[0]); j++ {
-			if loop[i][j] == UNKNOWN {
+			if loop[i][j] == UNKNOWN_LOOP_STATE {
 				loop[i][j] = INSIDE
 			}
 		}
