@@ -32,12 +32,6 @@ func verticalSummary(grid [][]int) []int {
 	return ret
 }
 
-func reverse(l []int) {
-	for i, j := 0, len(l)-1; i < j; i, j = i+1, j-1 {
-		l[i], l[j] = l[j], l[i]
-	}
-}
-
 func isSmudged(x int, y int) bool {
 	return bits.OnesCount(uint(x^y)) == 1
 }
@@ -48,22 +42,19 @@ func hasSmudgedReflection(summary []int) int {
 	for i := 0; i < len(summary); i++ {
 		numSmudges := 0
 		if i+1 < len(summary) && (summary[i] == summary[i+1] || isSmudged(summary[i], summary[i+1])) {
-			// starting point
+			// starting point for a possible reflection
 			h1, h2 := i, i+1
 			foundInvalid := false
-			// i, j is a potential reflection.  let's now check outwards
-			// from it.
 			for h1 >= 0 && h2 < len(summary) {
-				smudgedEquals := isSmudged(summary[h1], summary[h2])
-				if summary[h1] != summary[h2] && !smudgedEquals {
-					foundInvalid = true
-					break
-				}
-				if smudgedEquals {
-					numSmudges += 1
-					if numSmudges > 1 {
+				if summary[h1] != summary[h2] {
+					if isSmudged(summary[h1], summary[h2]) {
+						numSmudges += 1
+						if numSmudges > 1 {
+							foundInvalid = true
+							break
+						}
+					} else {
 						foundInvalid = true
-						break
 					}
 				}
 				h1 -= 1
