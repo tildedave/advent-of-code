@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/bits"
 	"os"
 	"strings"
 )
@@ -37,25 +38,38 @@ func reverse(l []int) {
 	}
 }
 
-func hasReflection(summary []int) int {
+func isSmudged(x int, y int) bool {
+	return bits.OnesCount(uint(x^y)) == 1
+}
+
+func hasSmudgedReflection(summary []int) int {
 	// We have to find any palindromic subsequence such that one of the ends
 	// of it is the end of the array.
 	for i := 0; i < len(summary); i++ {
-		if i+1 < len(summary) && summary[i] == summary[i+1] {
+		numSmudges := 0
+		if i+1 < len(summary) && (summary[i] == summary[i+1] || isSmudged(summary[i], summary[i+1])) {
 			// starting point
 			h1, h2 := i, i+1
 			foundInvalid := false
 			// i, j is a potential reflection.  let's now check outwards
 			// from it.
 			for h1 >= 0 && h2 < len(summary) {
-				if summary[h1] != summary[h2] {
+				smudgedEquals := isSmudged(summary[h1], summary[h2])
+				if summary[h1] != summary[h2] && !smudgedEquals {
 					foundInvalid = true
 					break
+				}
+				if smudgedEquals {
+					numSmudges += 1
+					if numSmudges > 1 {
+						foundInvalid = true
+						break
+					}
 				}
 				h1 -= 1
 				h2 += 1
 			}
-			if !foundInvalid {
+			if !foundInvalid && numSmudges == 1 {
 				return i + 1
 			}
 		}
@@ -91,8 +105,8 @@ func day13(f *os.File) {
 
 	total := 0
 	for _, grid := range grids {
-		h := hasReflection(horizontalSummary(grid))
-		v := hasReflection(verticalSummary(grid))
+		h := hasSmudgedReflection(horizontalSummary(grid))
+		v := hasSmudgedReflection(verticalSummary(grid))
 		if h != -1 {
 			total += h * 100
 		}
