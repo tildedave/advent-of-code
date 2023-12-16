@@ -38,21 +38,14 @@ func key(q []int) string {
 	return fmt.Sprintf("%d-%d-%d", q[0], q[1], q[2])
 }
 
-func day16(f *os.File) {
-	scanner := bufio.NewScanner(f)
-	grid := make([][]byte, 0)
+func count(grid [][]byte, x int, y int, dir int) int {
 	seen := make([][]bool, 0)
-	i := 0
-	for scanner.Scan() {
-		line := scanner.Text()
-		row := make([]byte, len(line))
-		copy(row, line)
-		grid = append(grid, row)
-		seen = append(seen, make([]bool, len(line)))
-		i++
+	for i := 0; i < len(grid); i++ {
+		seen = append(seen, make([]bool, len(grid[0])))
 	}
+
 	queue := make([][]int, 0)
-	queue = append(queue, []int{0, 0, DIR_RIGHT})
+	queue = append(queue, []int{x, y, dir})
 	queueSeen := make(map[string]bool)
 	for len(queue) > 0 {
 		x, y, dir := queue[0][0], queue[0][1], queue[0][2]
@@ -134,5 +127,40 @@ func day16(f *os.File) {
 			}
 		}
 	}
-	fmt.Println(count)
+	return count
+}
+
+func day16(f *os.File) {
+	scanner := bufio.NewScanner(f)
+	grid := make([][]byte, 0)
+	i := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		row := make([]byte, len(line))
+		copy(row, line)
+		grid = append(grid, row)
+		i++
+	}
+	maxCount := 0
+	for i := 0; i < len(grid); i++ {
+		c := count(grid, i, 0, DIR_RIGHT)
+		if c > maxCount {
+			maxCount = c
+		}
+		c = count(grid, i, len(grid[0])-1, DIR_LEFT)
+		if c > maxCount {
+			maxCount = c
+		}
+	}
+	for j := 0; j < len(grid); j++ {
+		c := count(grid, 0, j, DIR_DOWN)
+		if c > maxCount {
+			maxCount = c
+		}
+		c = count(grid, len(grid)-1, j, DIR_UP)
+		if c > maxCount {
+			maxCount = c
+		}
+	}
+	fmt.Println(maxCount)
 }
