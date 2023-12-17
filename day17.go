@@ -58,14 +58,15 @@ func day17(f *os.File) {
 	distance := make(map[GraphNode]int)
 	queue := &NodeHeap{}
 	heap.Init(queue)
+	maxConsecutiveSteps := 10
+	minStepsBeforeTurning := 4
 
 	for i := 0; i < len(grid); i++ {
-		for j := 0; j < len(grid); j++ {
-			for s := 1; s <= 3; s++ {
-				distance[GraphNode{i, j, DIR_UP, s}] = math.MaxInt
-				distance[GraphNode{i, j, DIR_DOWN, s}] = math.MaxInt
-				distance[GraphNode{i, j, DIR_LEFT, s}] = math.MaxInt
-				distance[GraphNode{i, j, DIR_RIGHT, s}] = math.MaxInt
+		for j := 0; j < len(grid[0]); j++ {
+			for s := 1; s <= maxConsecutiveSteps; s++ {
+				for _, dir := range []int{DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT} {
+					distance[GraphNode{i, j, dir, s}] = math.MaxInt
+				}
 			}
 		}
 	}
@@ -80,15 +81,20 @@ func day17(f *os.File) {
 		// fmt.Println(queue.Len())
 		node, queueDistance := n.node, n.priority
 		existingDistance := distance[node]
+		if existingDistance == 0 {
+			fmt.Println(node)
+			fmt.Println(distance)
+			panic("Should never have had existingDistance = 0")
+		}
 		if queueDistance < existingDistance {
 			distance[node] = queueDistance
 			// so now we look at the edges of this node.
 			// we can go straight, left, right, but we can't go straight if
 			// we're at.
-			canUp := node.x > 0 && node.dir != DIR_DOWN && (node.dir != DIR_UP || node.numSteps < 3)
-			canDown := node.x < len(grid)-1 && node.dir != DIR_UP && (node.dir != DIR_DOWN || node.numSteps < 3)
-			canLeft := node.y > 0 && node.dir != DIR_RIGHT && (node.dir != DIR_LEFT || node.numSteps < 3)
-			canRight := node.y < len(grid[0])-1 && node.dir != DIR_LEFT && (node.dir != DIR_RIGHT || node.numSteps < 3)
+			canUp := node.x > 0 && node.dir != DIR_DOWN && (node.dir != DIR_UP || node.numSteps < maxConsecutiveSteps) && (node.dir == DIR_UP || node.numSteps >= minStepsBeforeTurning)
+			canDown := node.x < len(grid)-1 && node.dir != DIR_UP && (node.dir != DIR_DOWN || node.numSteps < maxConsecutiveSteps) && (node.dir == DIR_DOWN || node.numSteps >= minStepsBeforeTurning)
+			canLeft := node.y > 0 && node.dir != DIR_RIGHT && (node.dir != DIR_LEFT || node.numSteps < maxConsecutiveSteps) && (node.dir == DIR_LEFT || node.numSteps >= minStepsBeforeTurning)
+			canRight := node.y < len(grid[0])-1 && node.dir != DIR_LEFT && (node.dir != DIR_RIGHT || node.numSteps < maxConsecutiveSteps) && (node.dir == DIR_RIGHT || node.numSteps >= minStepsBeforeTurning)
 			// so now for each of these push them onto the queue with the
 			// appropriate cost
 			if canUp {
@@ -135,10 +141,12 @@ func day17(f *os.File) {
 	}
 
 	minDistance := math.MaxInt
-	for s := 1; s <= 3; s++ {
+	for s := 1; s <= maxConsecutiveSteps; s++ {
 		for _, d := range []int{DIR_LEFT, DIR_RIGHT, DIR_UP, DIR_DOWN} {
-			dist := distance[GraphNode{len(grid) - 1, len(grid[0]) - 1, d, s}]
+			n := GraphNode{len(grid) - 1, len(grid[0]) - 1, d, s}
+			dist := distance[n]
 			if dist < minDistance {
+				fmt.Println(n)
 				minDistance = dist
 			}
 		}
