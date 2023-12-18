@@ -165,7 +165,7 @@ func validDistances(maze [][]int, x int, y int) []int {
 	return valid
 }
 
-func floodFill(maze [][]int, loop [][]int, i int, j int) {
+func floodFillDay10(maze [][]int, loop [][]int, i int, j int) {
 	// Constraints: starts from an "outside" square
 	queue := make([][]int, 0)
 	queue = append(queue, []int{i, j})
@@ -370,7 +370,7 @@ func day10(f *os.File) {
 	for i := 0; i < len(maze); i++ {
 		for j := 0; j < len(maze[0]); j++ {
 			if loop[i][j] == OUTSIDE {
-				floodFill(maze, loop, i, j)
+				floodFillDay10(maze, loop, i, j)
 			}
 		}
 	}
