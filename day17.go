@@ -141,12 +141,11 @@ func day17(f *os.File) {
 	}
 
 	minDistance := math.MaxInt
-	for s := 1; s <= maxConsecutiveSteps; s++ {
+	for s := 4; s <= maxConsecutiveSteps; s++ {
 		for _, d := range []int{DIR_LEFT, DIR_RIGHT, DIR_UP, DIR_DOWN} {
 			n := GraphNode{len(grid) - 1, len(grid[0]) - 1, d, s}
 			dist := distance[n]
 			if dist < minDistance {
-				fmt.Println(n)
 				minDistance = dist
 			}
 		}
