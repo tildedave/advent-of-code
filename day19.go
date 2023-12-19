@@ -20,6 +20,30 @@ type workflow = struct {
 	dest  string
 }
 
+type queueEntry = struct {
+	criteria map[string][]int
+	label    string
+}
+
+func makeCriteria(x []int, m []int, a []int, s []int) map[string][]int {
+	criteria := make(map[string][]int)
+	criteria["x"] = []int{1, 4000}
+	criteria["m"] = []int{1, 4000}
+	criteria["a"] = []int{1, 4000}
+	criteria["s"] = []int{1, 4000}
+
+	return criteria
+}
+
+func copyCriteria(criteria map[string][]int) map[string][]int {
+	ret := make(map[string][]int)
+	for k, v := range criteria {
+		ret[k] = make([]int, len(v))
+		copy(ret[k], criteria[k])
+	}
+	return ret
+}
+
 func day19(f *os.File) {
 	scanner := bufio.NewScanner(f)
 	workflows := make(map[string]workflow)
@@ -85,27 +109,64 @@ func day19(f *os.File) {
 		}
 	}
 
+	criteria := makeCriteria([]int{1, 4000}, []int{1, 4000}, []int{1, 4000}, []int{1, 4000})
+	queue := make([]queueEntry, 0)
+	queue = append(queue, queueEntry{criteria, "in"})
+	accepted := make([]map[string][]int, 0)
+
+	for len(queue) > 0 {
+		item := queue[0]
+		queue = queue[1:]
+		currentCriteria := copyCriteria(item.criteria)
+
+		if item.label == "R" {
+			continue
+		}
+
+		if item.label == "A" {
+			accepted = append(accepted, currentCriteria)
+			continue
+		}
+
+		isConsistent := true
+		for _, v := range currentCriteria {
+			if !(v[0] < v[1]) {
+				fmt.Println("currentCriteria inconsistent, continuing")
+				isConsistent = false
+				continue
+			}
+		}
+		if !isConsistent {
+			continue
+		}
+
+		w := workflows[item.label]
+		for _, r := range w.rules {
+			// add a new condition to the queue
+			nextCriteria := copyCriteria(currentCriteria)
+
+			if r.operation == "<" {
+				currentCriteria[r.category][0] = r.conditional
+				nextCriteria[r.category][1] = r.conditional - 1
+			} else if r.operation == ">" {
+				currentCriteria[r.category][1] = r.conditional
+				nextCriteria[r.category][0] = r.conditional + 1
+			}
+
+			nextItem := queueEntry{nextCriteria, r.dest}
+			queue = append(queue, nextItem)
+		}
+		nextItem := queueEntry{currentCriteria, w.dest}
+		queue = append(queue, nextItem)
+	}
+
 	total := 0
-	for _, p := range parts {
-		label := "in"
-		for label != "A" && label != "R" {
-			w := workflows[label]
-			nextLabel := w.dest
-			for _, r := range w.rules {
-				operand := r.category
-				if (r.operation == "<" && p[operand] < r.conditional) ||
-					(r.operation == ">" && p[operand] > r.conditional) {
-					nextLabel = r.dest
-					break
-				}
-			}
-			label = nextLabel
+	for _, a := range accepted {
+		possibilities := 1
+		for _, v := range a {
+			possibilities *= (v[1] - v[0] + 1)
 		}
-		if label == "A" {
-			for _, v := range p {
-				total += v
-			}
-		}
+		total += possibilities
 	}
 	fmt.Println(total)
 }
