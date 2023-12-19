@@ -12,7 +12,6 @@ import (
 type edge = struct {
 	direction int
 	length    int
-	color     int
 }
 
 func gridKey(x int, y int) string {
@@ -25,31 +24,26 @@ func day18(f *os.File) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		res := strings.Fields(line)
-		n, err := strconv.ParseInt(res[1], 10, 64)
+		length, err := strconv.ParseInt(res[2][2:7], 16, 64)
 		if err != nil {
 			log.Fatal(err)
 		}
-		if len(res[0]) != 1 {
-			panic("Direction had more than one char")
-		}
+		dirChar := res[2][7]
 		var dir int
-		switch res[0][0] {
-		case 'R':
+		switch dirChar {
+		case '0':
 			dir = DIR_RIGHT
-		case 'D':
+		case '1':
 			dir = DIR_DOWN
-		case 'U':
-			dir = DIR_UP
-		case 'L':
+		case '2':
 			dir = DIR_LEFT
+		case '3':
+			dir = DIR_UP
 		default:
 			panic("Invalid direction")
 		}
-		hexCode, err := strconv.ParseInt(strings.ReplaceAll(res[2][2:], ")", ""), 16, 64)
-		if err != nil {
-			log.Fatal(err)
-		}
-		e := edge{dir, int(n), int(hexCode)}
+
+		e := edge{dir, int(length)}
 		instructions = append(instructions, e)
 	}
 
