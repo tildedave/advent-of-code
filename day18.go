@@ -80,5 +80,7 @@ func day18(f *os.File) {
 		sum += (curr[1] + next[1]) * (curr[0] - next[0])
 	}
 	// Why is this right?
+	// Shoelace formula + missing parts of the area + correction for the first
+	// square.
 	fmt.Println(-sum/2 + perimLength/2 + 1)
 }
