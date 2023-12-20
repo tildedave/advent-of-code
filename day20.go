@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
+	"unicode"
 )
 
 const TYPE_CONJUNCTION = 1
-const TYPE_FLIP_FLIP = 2
+const TYPE_FLIP_FLOP = 2
 const TYPE_BROADCASTER = 3
 const STATE_LOW = 0
 const STATE_HIGH = 1
@@ -19,6 +21,50 @@ type queueItem = struct {
 	pulse  bool
 }
 
+func summarizeStates(
+	states []string,
+	flipFlopStates map[string]bool,
+	conjunctionStates map[string]map[string]bool,
+	connections map[string][]string,
+	types map[string]int) (string, int64) {
+	ffRet := ""
+	ffNum := int64(0)
+	conjRet := ""
+	for _, k := range states {
+		if types[k] == TYPE_FLIP_FLOP {
+			if flipFlopStates[k] {
+				ffRet = ffRet + "1"
+				ffNum = (ffNum << 1) | 1
+			} else {
+				ffRet = ffRet + "0"
+				ffNum = (ffNum << 1) | 0
+			}
+		}
+		if types[k] == TYPE_CONJUNCTION {
+			conjRet += k + "{"
+			for _, s := range connections[k] {
+				if conjunctionStates[k][s] {
+					conjRet += "1"
+				} else {
+					conjRet += "0"
+				}
+			}
+			conjRet += "}"
+		}
+	}
+
+	return ffRet + " " + conjRet, ffNum
+}
+
+// https://stackoverflow.com/a/67222540
+type slice struct{ sort.StringSlice }
+
+func (s slice) Less(d, e int) bool {
+	t := strings.Map(unicode.ToUpper, s.StringSlice[d])
+	u := strings.Map(unicode.ToUpper, s.StringSlice[e])
+	return t < u
+}
+
 func day20(f *os.File) {
 	scanner := bufio.NewScanner(f)
 	connections := make(map[string][]string)
@@ -26,6 +72,7 @@ func day20(f *os.File) {
 
 	flipFlopStates := make(map[string]bool)
 	conjunctionStates := make(map[string]map[string]bool)
+	states := make([]string, 0)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -34,7 +81,7 @@ func day20(f *os.File) {
 		var lhsType int
 		if lhs[0] == '%' {
 			lhs = lhs[1:]
-			lhsType = TYPE_FLIP_FLIP
+			lhsType = TYPE_FLIP_FLOP
 		} else if lhs[0] == '&' {
 			lhs = lhs[1:]
 			lhsType = TYPE_CONJUNCTION
@@ -52,7 +99,12 @@ func day20(f *os.File) {
 
 		connections[lhs] = connects
 		types[lhs] = lhsType
+		states = append(states, lhs)
 	}
+
+	a := slice{states}
+	sort.Sort(a)
+	states = a.StringSlice
 
 	// set up the conjunction states
 	for k, v := range connections {
@@ -63,10 +115,39 @@ func day20(f *os.File) {
 		}
 	}
 
+	top := ""
+	bottom := ""
+	for _, k := range states {
+		if types[k] == TYPE_FLIP_FLOP {
+			top += string(k[0])
+			bottom += string(k[1])
+		}
+	}
+	fmt.Println(top)
+	fmt.Println(bottom)
+
+	// fmt.Println("digraph {")
+	// for _, k := range states {
+	// 	if types[k] == TYPE_FLIP_FLOP {
+	// 		fmt.Printf("%s [label=\"%%%s\"]\n", k, k)
+	// 	} else if types[k] == TYPE_CONJUNCTION {
+	// 		fmt.Printf("%s [label=\"&%s\"]\n", k, k)
+	// 	}
+	// 	for _, c := range connections[k] {
+	// 		fmt.Printf("%s -> %s;\n", k, c)
+	// 	}
+	// }
+	// fmt.Println("}")
+
 	numHigh := 0
 	numLow := 0
-	numPushes := 1_000
-	for i := 0; i < numPushes; i++ {
+	numPushes := 0
+	prevN := int64(-1)
+	for numPushes < 1024 {
+		s, n := summarizeStates(states, flipFlopStates, conjunctionStates, connections, types)
+		fmt.Println(s, n^prevN)
+		prevN = n
+		numPushes++
 		queue := make([]queueItem, 0)
 		queue = append(queue, queueItem{"button", "broadcaster", false})
 		for len(queue) > 0 {
@@ -84,12 +165,16 @@ func day20(f *os.File) {
 			} else {
 				numLow++
 			}
+			if item.label == "rx" && !item.pulse {
+				fmt.Println(numPushes)
+				return
+			}
 			switch types[item.label] {
 			case TYPE_BROADCASTER:
 				for _, c := range connections[item.label] {
 					queue = append(queue, queueItem{item.label, c, item.pulse})
 				}
-			case TYPE_FLIP_FLIP:
+			case TYPE_FLIP_FLOP:
 				if !item.pulse {
 					newState := !flipFlopStates[item.label]
 					flipFlopStates[item.label] = newState
@@ -112,5 +197,5 @@ func day20(f *os.File) {
 			}
 		}
 	}
-	fmt.Println("high", numHigh, "low", numLow, numHigh*numLow)
+	fmt.Println(numHigh * numLow)
 }
