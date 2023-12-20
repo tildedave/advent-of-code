@@ -90,6 +90,7 @@ type MachineState = struct {
 }
 
 func pushButton(
+	numPushes int,
 	state *MachineState,
 ) (int, int, bool) {
 	numHigh := 0
@@ -106,6 +107,11 @@ func pushButton(
 		// 	pulseLabel = "low"
 		// }
 		// fmt.Printf("%s -%s-> %s\n", item.source, pulseLabel, item.label)
+
+		if !item.pulse && (item.label == "tr" || item.label == "dr" || item.label == "nh" || item.label == "xm") {
+			fmt.Println(item.label, numPushes)
+		}
+
 		queue = queue[1:]
 		if item.pulse {
 			numHigh++
@@ -206,18 +212,29 @@ func day20(f *os.File) {
 	fmt.Println(top)
 	fmt.Println(bottom)
 
+	// dh needs all inputs to be HIGH in order to send a low to rx.
+	// its inputs are tr, dr, nh, xm.  these are all single inverters so
+	// they need to get a low signal.
+
+	// tr cycle is 3739
+	// xm cycle is 3761
+	// dr cycle is 3797
+	// nh cycle is 3889
+
+	// their LCM is the expected answer!
+
 	numHigh := 0
 	numLow := 0
 	numPushes := 0
-	prevN := int64(-1)
-	for numPushes < 1000 {
-		s, n := summarizeState(&state)
-		fmt.Println(s, n^prevN)
-		prevN = n
+	// prevN := int64(-1)
+	for numPushes < 1_000_000 {
+		// _, n := summarizeState(&state)
+		// fmt.Println(s, n^prevN)
+		// prevN = n
 		numPushes++
-		high, low, _ := pushButton(&state)
+		high, low, _ := pushButton(numPushes, &state)
 		numHigh += high
 		numLow += low
 	}
-	fmt.Println(numHigh * numLow)
+	// fmt.Println(numHigh * numLow)
 }
