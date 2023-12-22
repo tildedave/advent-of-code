@@ -40,53 +40,51 @@ func day21(f *os.File) {
 		rows++
 	}
 
-	queue := make([][]int, 0)
 	// only mark visited on maxSteps
-	visited := make([]bool, len(grid))
-	seen := make(map[string]bool)
 
-	maxSteps := 64
-	queue = append(queue, []int{startX, startY, 0})
-	for len(queue) > 0 {
-		item := queue[0]
-		queue = queue[1:]
-		x, y, steps := item[0], item[1], item[2]
-		key := fmt.Sprintf("%d-%d-%d", x, y, steps)
+	for _, maxSteps := range []int{65, 196, 327} {
+		seen := make(map[string]bool)
+		visited := make(map[string]bool)
+		queue := make([][]int, 0)
+		fmt.Println(maxSteps)
+		queue = append(queue, []int{startX, startY, 0})
+		for len(queue) > 0 {
+			item := queue[0]
+			queue = queue[1:]
+			x, y, steps := item[0], item[1], item[2]
+			key := fmt.Sprintf("%d-%d-%d", x, y, steps)
 
-		if seen[key] {
-			continue
-		} else {
-			seen[key] = true
-		}
+			if seen[key] {
+				continue
+			} else {
+				seen[key] = true
+			}
 
-		if steps == maxSteps {
-			visited[y*columns+x] = true
-			continue
-		}
+			if steps == maxSteps {
+				visited[fmt.Sprintf("%d|%d", x, y)] = true
+				continue
+			}
 
-		canUp := y > 0 && grid[(y-1)*columns+x] != ROCK
-		canDown := y < rows-1 && grid[(y+1)*columns+x] != ROCK
-		canLeft := x > 0 && grid[y*columns+(x-1)] != ROCK
-		canRight := x < columns-1 && grid[y*columns+(x+1)] != ROCK
-
-		if canUp {
-			queue = append(queue, []int{x, y - 1, steps + 1})
+			for _, d := range [][]int{{0, -1}, {-1, 0}, {0, 1}, {1, 0}} {
+				dx, dy := d[0], d[1]
+				nx, ny := (x+dx)%columns, (y+dy)%rows
+				if nx < 0 {
+					nx += columns
+				}
+				if ny < 0 {
+					ny += rows
+				}
+				if grid[ny*columns+nx] != ROCK {
+					queue = append(queue, []int{x + dx, y + dy, steps + 1})
+				}
+			}
 		}
-		if canDown {
-			queue = append(queue, []int{x, y + 1, steps + 1})
+		numVisited := 0
+		for _, v := range visited {
+			if v {
+				numVisited++
+			}
 		}
-		if canLeft {
-			queue = append(queue, []int{x - 1, y, steps + 1})
-		}
-		if canRight {
-			queue = append(queue, []int{x + 1, y, steps + 1})
-		}
+		fmt.Println(numVisited)
 	}
-	numVisited := 0
-	for _, v := range visited {
-		if v {
-			numVisited++
-		}
-	}
-	fmt.Println(numVisited)
 }
