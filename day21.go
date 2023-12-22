@@ -46,7 +46,6 @@ func day21(f *os.File) {
 		seen := make(map[string]bool)
 		visited := make(map[string]bool)
 		queue := make([][]int, 0)
-		fmt.Println(maxSteps)
 		queue = append(queue, []int{startX, startY, 0})
 		for len(queue) > 0 {
 			item := queue[0]
@@ -85,6 +84,19 @@ func day21(f *os.File) {
 				numVisited++
 			}
 		}
-		fmt.Println(numVisited)
+		fmt.Println(maxSteps, numVisited)
+		// str := ""
+		// for i := 0; i < rows; i++ {
+		// 	line := ""
+		// 	for j := 0; j < columns; j++ {
+		// 		if visited[fmt.Sprintf("%d|%d", i, j)] {
+		// 			line += "O"
+		// 		} else {
+		// 			line += "."
+		// 		}
+		// 	}
+		// 	str += line + "\n"
+		// }
+		// fmt.Println(str)
 	}
 }
