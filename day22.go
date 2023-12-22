@@ -237,6 +237,7 @@ func day22(f *os.File) {
 	// it has NO bricks supporting it.
 	// for ALL bricks supporting it, they have a DIFFERENT brick supporting them.
 	disintegrationCount := 0
+	dependentCount := 0
 	for _, b := range bricks {
 		_, ok := supportMap[b.label]
 		// - supports nothing (G)
@@ -247,15 +248,46 @@ func day22(f *os.File) {
 
 		// - supports something, but that something is supported by a different
 		// label.
-		canBeDisintegrated := true
+		falls := make(map[string]bool)
 		for _, v := range supportMap[b.label] {
 			if len(reverseSupportMap[v]) == 1 {
-				canBeDisintegrated = false
+				falls[v] = true
 			}
 		}
-		if canBeDisintegrated {
-			disintegrationCount++
+
+		if len(falls) > 0 {
+			// something falls if it is ONLY supported by things that have
+			// fallen.  this essentially a topo sort problem, we traverse
+			// upwards through the tree and extend the "falls" map based on
+			// similar logic to the above.
+			queue := make([]string, 0)
+			for k := range falls {
+				queue = append(queue, k)
+			}
+			for len(queue) > 0 {
+				item := queue[0]
+				queue = queue[1:]
+				falls[item] = true
+				// now we see, for its reverse support map, if each of its
+				// items have fallen.
+				for _, k := range supportMap[item] {
+					// if ALL of its dependences have fallen, add k to the
+					// queue.
+					isValid := true
+					for _, k2 := range reverseSupportMap[k] {
+						if !falls[k2] {
+							isValid = false
+						}
+					}
+					if isValid {
+						queue = append(queue, k)
+					}
+				}
+			}
+		}
+		for range falls {
+			dependentCount++
 		}
 	}
-	fmt.Println(disintegrationCount)
+	fmt.Println(dependentCount)
 }
