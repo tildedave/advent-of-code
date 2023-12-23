@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	f, err := os.Open("./input-day23-test.txt")
+	f, err := os.Open("./input-day23.txt")
 	if err != nil {
 		log.Fatal(err)
 	}

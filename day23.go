@@ -12,6 +12,14 @@ type snowEdge = struct {
 	dest   int
 }
 
+func toGraphViz(edges []snowEdge) {
+	fmt.Println("digraph G {")
+	for _, e := range edges {
+		fmt.Printf("\t Node%d -> Node%d [label=\"%d\"];\n", e.source, e.dest, e.weight)
+	}
+	fmt.Println("}")
+}
+
 func day23(f *os.File) {
 	rows := 0
 	columns := 0
@@ -97,7 +105,7 @@ func day23(f *os.File) {
 		}
 		str += line + "\n"
 	}
-	fmt.Println(str)
+	seenEdges := make(map[string]bool)
 
 	queue := make([][4]int, 0)
 	queue = append(queue, [4]int{0, startX, startY, 0})
@@ -130,6 +138,12 @@ func day23(f *os.File) {
 				// now we find valid directions from here and push it onto the
 				// queue.
 				e := snowEdge{distance, node, n}
+				key := fmt.Sprintf("%d-%d-%d", node, n, distance)
+				if seenEdges[key] {
+					// nothing to do
+					break
+				}
+				seenEdges[key] = true
 				edges = append(edges, e)
 
 				for i := 0; i < 4; i++ {
@@ -168,11 +182,32 @@ func day23(f *os.File) {
 			distance++
 		}
 	}
-	fmt.Println("digraph G {")
+
+	outgoingEdges := make(map[int][]snowEdge)
 	for _, e := range edges {
-		fmt.Printf("\t Node%d -> Node%d [label=\"%d\"];\n", e.source, e.dest, e.weight)
+		val, ok := outgoingEdges[e.source]
+		if !ok {
+			val = make([]snowEdge, 0)
+		}
+		val = append(val, e)
+		outgoingEdges[e.source] = val
 	}
-	fmt.Println("}")
-	fmt.Println("all done!", edges)
-	fmt.Println(nodeLocation)
+
+	maxWeight := make(map[int]int)
+	maxWeight[0] = 0
+	maxQueue := make([][2]int, 0)
+	maxQueue = append(maxQueue, [2]int{0, 0})
+	for len(maxQueue) > 0 {
+		item := maxQueue[0]
+		node, cost := item[0], item[1]
+		maxQueue = maxQueue[1:]
+
+		for _, e := range outgoingEdges[node] {
+			if e.weight+cost > maxWeight[e.dest] {
+				maxWeight[e.dest] = e.weight + cost
+				maxQueue = append(maxQueue, [2]int{e.dest, e.weight + cost})
+			}
+		}
+	}
+	fmt.Println(maxWeight[1])
 }
