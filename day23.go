@@ -218,15 +218,27 @@ func day23(f *os.File) {
 			continue
 		}
 
+		hasFinalOutput := false
 		for _, e := range outgoingEdges[item.node] {
-			if !item.seenNodes[e.dest] {
-				newSeenNodes := make(map[int]bool)
-				for k, v := range item.seenNodes {
-					newSeenNodes[k] = v
-				}
-
-				newItem := queueItem{e.dest, newSeenNodes, e.weight + item.cost}
+			if e.dest == 1 {
+				newItem := queueItem{e.dest, make(map[int]bool), e.weight + item.cost}
 				maxQueue = append(maxQueue, newItem)
+				hasFinalOutput = true
+				break
+			}
+		}
+
+		if !hasFinalOutput {
+			for _, e := range outgoingEdges[item.node] {
+				if !item.seenNodes[e.dest] {
+					newSeenNodes := make(map[int]bool)
+					for k, v := range item.seenNodes {
+						newSeenNodes[k] = v
+					}
+
+					newItem := queueItem{e.dest, newSeenNodes, e.weight + item.cost}
+					maxQueue = append(maxQueue, newItem)
+				}
 			}
 		}
 	}
