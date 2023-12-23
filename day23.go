@@ -62,8 +62,7 @@ func day23(f *os.File) {
 	nodeNum := 1
 	// down, up, right, left
 	dirs := [][]int{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}
-	invalidCharForDir := []byte{'^', 'v', '<', '>'}
-	validCharForDir := []byte{'v', '^', '>', '<'}
+	// validCharForDir := []byte{'v', '^', '>', '<'}
 
 	// attempt to identify nodes, then start walking between nodes to connect
 	// them.
@@ -87,6 +86,7 @@ func day23(f *os.File) {
 			if numValidDirs > 1 {
 				// new node here.
 				nodeNum++
+				fmt.Println("node at", x, y)
 				nodeLocation[y*columns+x] = nodeNum
 			}
 		}
@@ -107,13 +107,17 @@ func day23(f *os.File) {
 	}
 	seenEdges := make(map[string]bool)
 
-	queue := make([][4]int, 0)
-	queue = append(queue, [4]int{0, startX, startY, 0})
+	queue := make([][6]int, 0)
+	queue = append(queue, [6]int{0, startX, startY, 0, -1, -1})
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
-		node, x, y, distance := item[0], item[1], item[2], item[3]
+		node, x, y, distance, visitedX, visitedY := item[0], item[1], item[2], item[3], item[4], item[5]
 		visited := make(map[int]bool)
+		// kludge to prevent stepping backwards
+		if visitedX != -1 && visitedY != -1 {
+			visited[visitedY*columns+visitedX] = true
+		}
 		for {
 			visited[y*columns+x] = true
 			var validDirs [4]bool
@@ -125,8 +129,7 @@ func day23(f *os.File) {
 
 				if isValidX && isValidY &&
 					!visited[(y+dy)*columns+(x+dx)] &&
-					grid[(y+dy)*columns+x+dx] != '#' &&
-					grid[(y+dy)*columns+x+dx] != invalidCharForDir[i] {
+					grid[(y+dy)*columns+x+dx] != '#' {
 					numValidDirs++
 					validDirs[i] = true
 				}
@@ -149,13 +152,10 @@ func day23(f *os.File) {
 				for i := 0; i < 4; i++ {
 					if validDirs[i] {
 						dx, dy := dirs[i][0], dirs[i][1]
-						if grid[((y+dy)*columns)+(x+dx)] != validCharForDir[i] {
-							panic("Split did not happen on expected char")
-						}
-						if grid[(y+dy)*columns+x+dx] == invalidCharForDir[i] {
-							panic("not sure we need to do this")
-						}
-						newItem := [4]int{n, x + dx*2, y + dy*2, 2}
+						// if grid[((y+dy)*columns)+(x+dx)] != validCharForDir[i] {
+						// 	panic("Split did not happen on expected char")
+						// }
+						newItem := [6]int{n, x + dx*2, y + dy*2, 2, x + dx, y + dy}
 						fmt.Println("queue pushing", newItem)
 						queue = append(queue, newItem)
 					}
@@ -169,6 +169,7 @@ func day23(f *os.File) {
 			}
 
 			if numValidDirs > 1 {
+				fmt.Println(x, y, validDirs)
 				panic("Should not have had more than one choice at a non-node location")
 			}
 
@@ -193,21 +194,41 @@ func day23(f *os.File) {
 		outgoingEdges[e.source] = val
 	}
 
-	maxWeight := make(map[int]int)
-	maxWeight[0] = 0
-	maxQueue := make([][2]int, 0)
-	maxQueue = append(maxQueue, [2]int{0, 0})
+	// combinatorial algorithm time I suppose.
+	type queueItem = struct {
+		node      int
+		seenNodes map[int]bool
+		cost      int
+	}
+	maxQueue := make([]queueItem, 0)
+	maxQueue = append(maxQueue, queueItem{0, make(map[int]bool), 0})
+	maxCost := 0
+
 	for len(maxQueue) > 0 {
 		item := maxQueue[0]
-		node, cost := item[0], item[1]
 		maxQueue = maxQueue[1:]
 
-		for _, e := range outgoingEdges[node] {
-			if e.weight+cost > maxWeight[e.dest] {
-				maxWeight[e.dest] = e.weight + cost
-				maxQueue = append(maxQueue, [2]int{e.dest, e.weight + cost})
+		item.seenNodes[item.node] = true
+
+		if item.node == 1 {
+			if item.cost > maxCost {
+				fmt.Println(maxCost)
+				maxCost = item.cost
+			}
+			continue
+		}
+
+		for _, e := range outgoingEdges[item.node] {
+			if !item.seenNodes[e.dest] {
+				newSeenNodes := make(map[int]bool)
+				for k, v := range item.seenNodes {
+					newSeenNodes[k] = v
+				}
+
+				newItem := queueItem{e.dest, newSeenNodes, e.weight + item.cost}
+				maxQueue = append(maxQueue, newItem)
 			}
 		}
 	}
-	fmt.Println(maxWeight[1])
+	fmt.Println(maxCost)
 }
