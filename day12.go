@@ -35,7 +35,7 @@ func parseConfiguration(s string) []int {
 func parseNumbers(slist []string) []int {
 	ret := make([]int, 0)
 	for _, s := range slist {
-		i, err := strconv.ParseInt(s, 10, 64)
+		i, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 		if err != nil {
 			log.Fatal(err)
 		}
