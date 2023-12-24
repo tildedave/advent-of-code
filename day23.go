@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+
+	"github.com/bits-and-blooms/bitset"
 )
 
 type snowEdge = struct {
 	weight int
-	source int
-	dest   int
+	source uint
+	dest   uint
 }
 
 func toGraphViz(edges []snowEdge) {
@@ -86,7 +88,6 @@ func day23(f *os.File) {
 			if numValidDirs > 1 {
 				// new node here.
 				nodeNum++
-				fmt.Println("node at", x, y)
 				nodeLocation[y*columns+x] = nodeNum
 			}
 		}
@@ -137,10 +138,9 @@ func day23(f *os.File) {
 
 			n := nodeLocation[y*columns+x]
 			if n != -1 && n != node {
-				fmt.Println("connected walk to node", n)
 				// now we find valid directions from here and push it onto the
 				// queue.
-				e := snowEdge{distance, node, n}
+				e := snowEdge{distance, uint(node), uint(n)}
 				key := fmt.Sprintf("%d-%d-%d", node, n, distance)
 				if seenEdges[key] {
 					// nothing to do
@@ -156,7 +156,6 @@ func day23(f *os.File) {
 						// 	panic("Split did not happen on expected char")
 						// }
 						newItem := [6]int{n, x + dx*2, y + dy*2, 2, x + dx, y + dy}
-						fmt.Println("queue pushing", newItem)
 						queue = append(queue, newItem)
 					}
 				}
@@ -184,7 +183,7 @@ func day23(f *os.File) {
 		}
 	}
 
-	outgoingEdges := make(map[int][]snowEdge)
+	outgoingEdges := make(map[uint][]snowEdge)
 	for _, e := range edges {
 		val, ok := outgoingEdges[e.source]
 		if !ok {
@@ -196,23 +195,22 @@ func day23(f *os.File) {
 
 	// combinatorial algorithm time I suppose.
 	type queueItem = struct {
-		node      int
-		seenNodes map[int]bool
+		node      uint
+		seenNodes bitset.BitSet
 		cost      int
 	}
 	maxQueue := make([]queueItem, 0)
-	maxQueue = append(maxQueue, queueItem{0, make(map[int]bool), 0})
+	maxQueue = append(maxQueue, queueItem{0, bitset.BitSet{}, 0})
 	maxCost := 0
 
 	for len(maxQueue) > 0 {
 		item := maxQueue[0]
 		maxQueue = maxQueue[1:]
 
-		item.seenNodes[item.node] = true
+		item.seenNodes.Set(item.node)
 
-		if item.node == 1 {
+		if item.node == uint(1) {
 			if item.cost > maxCost {
-				fmt.Println(maxCost)
 				maxCost = item.cost
 			}
 			continue
@@ -221,7 +219,7 @@ func day23(f *os.File) {
 		hasFinalOutput := false
 		for _, e := range outgoingEdges[item.node] {
 			if e.dest == 1 {
-				newItem := queueItem{e.dest, make(map[int]bool), e.weight + item.cost}
+				newItem := queueItem{e.dest, bitset.BitSet{}, e.weight + item.cost}
 				maxQueue = append(maxQueue, newItem)
 				hasFinalOutput = true
 				break
@@ -230,10 +228,14 @@ func day23(f *os.File) {
 
 		if !hasFinalOutput {
 			for _, e := range outgoingEdges[item.node] {
-				if !item.seenNodes[e.dest] {
-					newSeenNodes := make(map[int]bool)
-					for k, v := range item.seenNodes {
-						newSeenNodes[k] = v
+				if !item.seenNodes.Test(e.dest) {
+					var newSeenNodes bitset.BitSet
+					// This ends up being faster than CopyFull() in practice for whatever reason.
+					for i, e := item.seenNodes.NextSet(0); e; i, e = item.seenNodes.NextSet(i + 1) {
+						newSeenNodes.Set(i)
+					}
+					if item.seenNodes.Count() != newSeenNodes.Count() {
+						panic("failed")
 					}
 
 					newItem := queueItem{e.dest, newSeenNodes, e.weight + item.cost}
