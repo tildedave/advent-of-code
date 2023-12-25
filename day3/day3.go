@@ -16,6 +16,8 @@ type edge = struct {
 
 	endX int
 	endY int
+
+	steps int
 }
 
 func isHorizontal(e edge) bool {
@@ -26,16 +28,16 @@ func isVertical(e edge) bool {
 	return e.startX == e.endX
 }
 
-func Crosses(e1 edge, e2 edge) (int, int, bool) {
+func Crosses(e1 edge, e2 edge) (int, int, int, bool) {
 	// wires intersect if they're a common point between them.
 	// a wire is either horizontal or vertical.
 	// for now we'll assume that if they're both horizontal/vertical that they
 	// don't cross.  probably wrong in the grand scheme of things
 	if isHorizontal(e1) && isHorizontal(e2) {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 	if isVertical(e1) && isVertical(e2) {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 
 	if isVertical(e1) && isHorizontal(e2) {
@@ -67,10 +69,23 @@ func Crosses(e1 edge, e2 edge) (int, int, bool) {
 	}
 
 	if !crosses {
-		return 0, 0, false
+		return 0, 0, 0, false
 	}
 
-	return e2.startX, e1.startY, true
+	// distance to cross = steps from start of e1 to cross +
+	// steps from start of e2 to cross
+	var xSteps int = 0
+	var ySteps int = 0
+	xSteps = e1.startX - e2.startX
+	ySteps = e2.startY - e1.startY
+	if xSteps < 0 {
+		xSteps = -xSteps
+	}
+	if ySteps < 0 {
+		ySteps = -ySteps
+	}
+
+	return e2.startX, e1.startY, xSteps + ySteps, true
 }
 
 func Run(f *os.File) {
@@ -85,6 +100,7 @@ func Run(f *os.File) {
 			panic("Only should have had two lines of input")
 		}
 		e := make([]edge, 0)
+		steps := 0 // steps to get to
 
 		line := scanner.Text()
 		res := strings.Split(line, ",")
@@ -113,7 +129,8 @@ func Run(f *os.File) {
 			default:
 				panic("Invalid direction")
 			}
-			e = append(e, edge{startX, startY, endX, endY})
+			e = append(e, edge{startX, startY, endX, endY, steps})
+			steps += int(n)
 			startX = endX
 			startY = endY
 		}
@@ -128,16 +145,11 @@ func Run(f *os.File) {
 	minDistance := math.MaxInt
 	for _, e1 := range edges1 {
 		for _, e2 := range edges2 {
-			crossX, crossY, c := Crosses(e1, e2)
+			_, _, steps, c := Crosses(e1, e2)
+			// so the steps to get to the cross is steps to get to e1 + steps to get to e2 + steps to get to cross (from e1) + steps to get to cross (from e2)
 			if c {
-				if crossX < 0 {
-					crossX = -crossX
-				}
-				if crossY < 0 {
-					crossY = -crossY
-				}
-				if crossX+crossY < minDistance {
-					minDistance = crossX + crossY
+				if steps+e1.steps+e2.steps < minDistance {
+					minDistance = steps + e1.steps + e2.steps
 				}
 			}
 		}
