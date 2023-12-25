@@ -4,15 +4,15 @@ import (
 	"log"
 	"os"
 
-	"github.com/tildedave/advent-of-code-2019/day1"
+	"github.com/tildedave/advent-of-code-2019/day2"
 )
 
 func main() {
-	f, err := os.Open("./inputs/day1.txt")
+	f, err := os.Open("./inputs/day2.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
 
-	day1.Run(f)
+	day2.Run(f)
 }
