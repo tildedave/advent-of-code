@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"strings"
 
@@ -59,9 +60,16 @@ func Run(f *os.File) {
 	}
 	fmt.Println(program)
 
-	// now we run the program
-	program[1] = 12
-	program[2] = 2
-	result := IntcodeExec(program)
-	fmt.Println(result[0])
+	for {
+		i := rand.Intn(100)
+		j := rand.Intn(100)
+		// now we run the program
+		program[1] = i
+		program[2] = j
+		result := IntcodeExec(program)
+		if result[0] == 19690720 {
+			fmt.Println(i, j)
+			return
+		}
+	}
 }
