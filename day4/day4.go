@@ -8,15 +8,8 @@ import (
 	"strings"
 )
 
-func isValidPassword(password string, min int, max int) bool {
+func isValidPassword(password string, partTwo bool) bool {
 	if len(password) != 6 {
-		return false
-	}
-	n, err := strconv.ParseInt(password, 10, 64)
-	if err != nil {
-		return false
-	}
-	if int(n) < min || int(n) > max {
 		return false
 	}
 
@@ -26,23 +19,47 @@ func isValidPassword(password string, min int, max int) bool {
 		if i == 0 {
 			continue
 		}
-		if password[i] == password[i-1] {
+		if password[i] == password[i-1] && !partTwo {
 			hasDuplicate = true
 		}
 		if password[i] < password[i-1] {
 			hasDecrease = true
 		}
 	}
-	if !hasDuplicate {
+	if hasDecrease {
 		return false
 	}
-	if hasDecrease {
+	// 2 in a row is either a block of size 4 with ABBC or a starting block AAB
+	// or an ending block ABB
+	if partTwo {
+		for j := range password {
+			if j < len(password)-3 {
+				section := password[j : j+4]
+				if section[0] != section[1] && section[1] == section[2] && section[2] != section[3] {
+					hasDuplicate = true
+				}
+			}
+			if j == 0 {
+				section := password[j : j+3]
+				if section[0] == section[1] && section[1] != section[2] {
+					hasDuplicate = true
+				}
+			}
+			if j == len(password)-3 {
+				section := password[j:]
+				if section[0] != section[1] && section[1] == section[2] {
+					hasDuplicate = true
+				}
+			}
+		}
+	}
+	if !hasDuplicate {
 		return false
 	}
 	return true
 }
 
-func Run(f *os.File) {
+func Run(f *os.File, partTwo bool) {
 	scanner := bufio.NewScanner(f)
 	var max int64
 	var min int64
@@ -61,7 +78,7 @@ func Run(f *os.File) {
 	}
 	validPasswordCount := 0
 	for i := min; i <= max; i++ {
-		if isValidPassword(fmt.Sprintf("%d", i), int(min), int(max)) {
+		if isValidPassword(fmt.Sprintf("%d", i), partTwo) {
 			validPasswordCount++
 		}
 	}
