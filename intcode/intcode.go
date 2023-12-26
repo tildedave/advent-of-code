@@ -2,12 +2,14 @@ package intcode
 
 import (
 	"errors"
+	"fmt"
 	"log"
 )
 
 const ADD_OPCODE = 1
 const MULT_OPCODE = 2
-const SAVE_OPCODE = 3
+const INPUT_OPCODE = 3
+const OUTPUT_OPCODE = 4
 const ENDING_OPCODE = 99
 
 const MODE_POSITION = 0
@@ -16,25 +18,32 @@ const MODE_IMMEDIATE = 1
 var arity = map[int]int{
 	ADD_OPCODE:    3,
 	MULT_OPCODE:   3,
-	SAVE_OPCODE:   0,
+	INPUT_OPCODE:  1,
+	OUTPUT_OPCODE: 1,
 	ENDING_OPCODE: 0,
 }
 
 var args = map[int]int{
 	ADD_OPCODE:    2,
 	MULT_OPCODE:   2,
-	SAVE_OPCODE:   0,
+	INPUT_OPCODE:  1,
+	OUTPUT_OPCODE: 1,
 	ENDING_OPCODE: 0,
 }
 
 var dest = map[int]int{
 	ADD_OPCODE:    2,
 	MULT_OPCODE:   2,
-	SAVE_OPCODE:   0,
+	INPUT_OPCODE:  0,
+	OUTPUT_OPCODE: 0,
 	ENDING_OPCODE: 0,
 }
 
 func Exec(program []int) ([]int, error) {
+	return ExecFull(program, make(chan int), make(chan int), make(chan bool))
+}
+
+func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([]int, error) {
 	result := make([]int, len(program))
 	copy(result, program)
 	i := 0
@@ -65,6 +74,7 @@ func Exec(program []int) ([]int, error) {
 			}
 		}
 
+		// for now this is just sanity checking.
 		destParam := dest[opcode]
 		if destParam > 0 && opModes[destParam] == MODE_IMMEDIATE {
 			return result, errors.New("specified MODE_IMMEDIATE for destination")
@@ -77,9 +87,16 @@ func Exec(program []int) ([]int, error) {
 		case MULT_OPCODE:
 			dest := result[i+3]
 			result[dest] = ops[0] * ops[1]
-		case SAVE_OPCODE:
-			// IDK
+		case INPUT_OPCODE:
+			value := <-input
+			dest := result[i+1]
+			result[dest] = value
+		case OUTPUT_OPCODE:
+			value := result[result[i+1]]
+			fmt.Println("send value", value, "to output")
+			output <- value
 		case ENDING_OPCODE:
+			halt <- true
 			return result, nil
 		default:
 			log.Panicf("Invalid opcode: %d", opcode)
