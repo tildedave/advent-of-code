@@ -31,11 +31,15 @@ var arity = map[int]int{
 }
 
 var args = map[int]int{
-	ADD_OPCODE:    2,
-	MULT_OPCODE:   2,
-	INPUT_OPCODE:  1,
-	OUTPUT_OPCODE: 1,
-	ENDING_OPCODE: 0,
+	ADD_OPCODE:           2,
+	MULT_OPCODE:          2,
+	INPUT_OPCODE:         1,
+	OUTPUT_OPCODE:        1,
+	LESS_THAN_OPCODE:     2,
+	JUMP_IF_TRUE_OPCODE:  2,
+	JUMP_IF_FALSE_OPCODE: 2,
+	EQUALS_OPCODE:        2,
+	ENDING_OPCODE:        0,
 }
 
 // Which opcodes store data
@@ -115,14 +119,14 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 		case JUMP_IF_TRUE_OPCODE:
 			value := ops[0]
 			if value != 0 {
-				i = result[i+2]
+				i = ops[1]
 				increment = false
 			}
 			// else nothing
 		case JUMP_IF_FALSE_OPCODE:
 			value := ops[0]
 			if value == 0 {
-				i = result[i+2]
+				i = ops[1]
 				increment = false
 			}
 			// else nothing

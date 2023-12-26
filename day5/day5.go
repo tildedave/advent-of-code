@@ -32,14 +32,24 @@ func Run(f *os.File, partTwo bool) {
 	output := make(chan int, 100)
 	halt := make(chan bool)
 	go intcode.ExecFull(program, input, output, halt)
-	input <- 1
-	h := <-halt
-	for {
-		o, ok := <-output
-		if !ok {
-			break
+
+	if !partTwo {
+		input <- 1
+		h := <-halt
+		for {
+			o, ok := <-output
+			if !ok {
+				break
+			}
+			fmt.Println(o)
 		}
-		fmt.Println(o)
+		fmt.Println(h)
+	} else {
+		input <- 5
+		h := <-halt
+		o := <-output
+		if h {
+			fmt.Println(o)
+		}
 	}
-	fmt.Println(h)
 }
