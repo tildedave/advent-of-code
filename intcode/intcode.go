@@ -9,17 +9,25 @@ const ADD_OPCODE = 1
 const MULT_OPCODE = 2
 const INPUT_OPCODE = 3
 const OUTPUT_OPCODE = 4
+const JUMP_IF_TRUE_OPCODE = 5
+const JUMP_IF_FALSE_OPCODE = 6
+const LESS_THAN_OPCODE = 7
+const EQUALS_OPCODE = 8
 const ENDING_OPCODE = 99
 
 const MODE_POSITION = 0
 const MODE_IMMEDIATE = 1
 
 var arity = map[int]int{
-	ADD_OPCODE:    3,
-	MULT_OPCODE:   3,
-	INPUT_OPCODE:  1,
-	OUTPUT_OPCODE: 1,
-	ENDING_OPCODE: 0,
+	ADD_OPCODE:           3,
+	MULT_OPCODE:          3,
+	INPUT_OPCODE:         1,
+	OUTPUT_OPCODE:        1,
+	JUMP_IF_TRUE_OPCODE:  2,
+	JUMP_IF_FALSE_OPCODE: 2,
+	LESS_THAN_OPCODE:     3,
+	EQUALS_OPCODE:        3,
+	ENDING_OPCODE:        0,
 }
 
 var args = map[int]int{
@@ -30,12 +38,13 @@ var args = map[int]int{
 	ENDING_OPCODE: 0,
 }
 
-var dest = map[int]int{
-	ADD_OPCODE:    2,
-	MULT_OPCODE:   2,
-	INPUT_OPCODE:  0,
-	OUTPUT_OPCODE: 0,
-	ENDING_OPCODE: 0,
+// Which opcodes store data
+var hasDest = map[int]bool{
+	ADD_OPCODE:       true,
+	MULT_OPCODE:      true,
+	INPUT_OPCODE:     true,
+	LESS_THAN_OPCODE: true,
+	EQUALS_OPCODE:    true,
 }
 
 func Exec(program []int) ([]int, error) {
@@ -74,22 +83,25 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 			}
 		}
 
-		// for now this is just sanity checking.
-		destParam := dest[opcode]
-		if destParam > 0 && opModes[destParam] == MODE_IMMEDIATE {
-			return result, errors.New("specified MODE_IMMEDIATE for destination")
+		var dest int
+		// for now assume the destination param is in location arity - 1
+		if hasDest[opcode] {
+			destParam := arity[opcode] - 1
+			if opModes[destParam] == MODE_IMMEDIATE {
+				return result, errors.New("specified MODE_IMMEDIATE for destination")
+			}
+			dest = result[i+1+destParam]
 		}
+
+		var increment bool = true
 
 		switch opcode {
 		case ADD_OPCODE:
-			dest := result[i+3]
 			result[dest] = ops[0] + ops[1]
 		case MULT_OPCODE:
-			dest := result[i+3]
 			result[dest] = ops[0] * ops[1]
 		case INPUT_OPCODE:
 			value := <-input
-			dest := result[i+1]
 			result[dest] = value
 		case OUTPUT_OPCODE:
 			var value int
@@ -100,6 +112,32 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 				value = result[i+1]
 			}
 			output <- value
+		case JUMP_IF_TRUE_OPCODE:
+			value := ops[0]
+			if value != 0 {
+				i = result[i+2]
+				increment = false
+			}
+			// else nothing
+		case JUMP_IF_FALSE_OPCODE:
+			value := ops[0]
+			if value == 0 {
+				i = result[i+2]
+				increment = false
+			}
+			// else nothing
+		case LESS_THAN_OPCODE:
+			if ops[0] < ops[1] {
+				result[dest] = 1
+			} else {
+				result[dest] = 0
+			}
+		case EQUALS_OPCODE:
+			if ops[0] == ops[1] {
+				result[dest] = 1
+			} else {
+				result[dest] = 0
+			}
 		case ENDING_OPCODE:
 			halt <- true
 			close(output)
@@ -109,7 +147,9 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 		default:
 			log.Panicf("Invalid opcode: %d", opcode)
 		}
-		i += arity[opcode] + 1
+		if increment {
+			i += arity[opcode] + 1
+		}
 		numExecuted++
 	}
 }
