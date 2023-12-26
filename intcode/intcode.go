@@ -2,7 +2,6 @@ package intcode
 
 import (
 	"errors"
-	"fmt"
 	"log"
 )
 
@@ -40,12 +39,13 @@ var dest = map[int]int{
 }
 
 func Exec(program []int) ([]int, error) {
-	return ExecFull(program, make(chan int), make(chan int), make(chan bool))
+	return ExecFull(program, make(chan int), make(chan int), make(chan bool, 1))
 }
 
 func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([]int, error) {
 	result := make([]int, len(program))
 	copy(result, program)
+	numExecuted := 0
 	i := 0
 
 	for {
@@ -92,15 +92,24 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 			dest := result[i+1]
 			result[dest] = value
 		case OUTPUT_OPCODE:
-			value := result[result[i+1]]
-			fmt.Println("send value", value, "to output")
+			var value int
+			switch opModes[0] {
+			case MODE_POSITION:
+				value = result[result[i+1]]
+			case MODE_IMMEDIATE:
+				value = result[i+1]
+			}
 			output <- value
 		case ENDING_OPCODE:
 			halt <- true
+			close(output)
+			close(halt)
+			close(input)
 			return result, nil
 		default:
 			log.Panicf("Invalid opcode: %d", opcode)
 		}
 		i += arity[opcode] + 1
+		numExecuted++
 	}
 }

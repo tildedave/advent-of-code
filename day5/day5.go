@@ -29,13 +29,17 @@ func Run(f *os.File, partTwo bool) {
 	}
 
 	input := make(chan int)
-	output := make(chan int)
+	output := make(chan int, 100)
 	halt := make(chan bool)
 	go intcode.ExecFull(program, input, output, halt)
 	input <- 1
-	for o := range output {
+	h := <-halt
+	for {
+		o, ok := <-output
+		if !ok {
+			break
+		}
 		fmt.Println(o)
 	}
-	h := <-halt
 	fmt.Println(h)
 }

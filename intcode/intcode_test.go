@@ -2,9 +2,12 @@ package intcode
 
 import (
 	"errors"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/tildedave/advent-of-code-2019/utils"
 )
 
 func TestIntcodeExec(t *testing.T) {
@@ -58,4 +61,39 @@ func TestWithInputAndOutput(t *testing.T) {
 	h, ok := <-halt
 	assert.True(t, h)
 	assert.True(t, ok)
+}
+
+func TestDay5(t *testing.T) {
+	fBytes, err := os.ReadFile("../inputs/day5.txt")
+	if err != nil {
+		assert.Fail(t, "Unable to read file", err.Error())
+	}
+	program, err := utils.ParseNumberList(strings.Split(strings.TrimSpace(string(fBytes)), ","))
+	if err != nil {
+		assert.Fail(t, "Unable to parse program", err.Error())
+	}
+
+	input := make(chan int)
+	output := make(chan int, 100)
+	halt := make(chan bool)
+	go ExecFull(program, input, output, halt)
+	input <- 1
+	h := <-halt
+	assert.True(t, h)
+
+	outputList := make([]int, 0)
+	for {
+		o, ok := <-output
+		if !ok {
+			break
+		}
+		outputList = append(outputList, o)
+	}
+	for j, o := range outputList {
+		if j != len(outputList)-1 {
+			assert.Equal(t, o, 0, "Should have output zero prior to final diagnostic code")
+		} else {
+			assert.NotEqual(t, o, 0, "Final output should not have been zero (should have been my diagnostic code)")
+		}
+	}
 }
