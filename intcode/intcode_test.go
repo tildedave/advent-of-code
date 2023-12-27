@@ -97,12 +97,14 @@ func TestDay5(t *testing.T) {
 	assert.True(t, h)
 
 	outputList := make([]int, 0)
-	for {
-		o, ok := <-output
-		if !ok {
-			break
+	hasMessage := true
+	for hasMessage {
+		select {
+		case o := <-output:
+			outputList = append(outputList, o)
+		default:
+			hasMessage = false
 		}
-		outputList = append(outputList, o)
 	}
 	for j, o := range outputList {
 		if j != len(outputList)-1 {
@@ -215,4 +217,57 @@ func TestDay5PartTwo(t *testing.T) {
 	input <- 5
 	assert.True(t, <-halt)
 	assert.Equal(t, 10376124, <-output)
+}
+
+func TestDay7Examples(t *testing.T) {
+	h := make(chan bool)
+	input := make(chan int, 1)
+	output := make(chan int, 1)
+	output <- 0
+	program1 := []int{3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0}
+	for _, i := range []int{4, 3, 2, 1, 0} {
+		go ExecFull(program1, input, output, h)
+		input <- i
+		input <- <-output
+		assert.True(t, <-h)
+	}
+	o := <-output
+	assert.Equal(t, 43210, o)
+	close(input)
+	close(output)
+	close(h)
+
+	h = make(chan bool)
+	input = make(chan int, 1)
+	output = make(chan int, 1)
+	output <- 0
+	program2 := []int{3, 23, 3, 24, 1002, 24, 10, 24, 1002, 23, -1, 23, 101, 5, 23, 23, 1, 24, 23, 23, 4, 23, 99, 0, 0}
+	for _, i := range []int{0, 1, 2, 3, 4} {
+		go ExecFull(program2, input, output, h)
+		input <- i
+		input <- <-output
+		assert.True(t, <-h)
+	}
+	o = <-output
+	assert.Equal(t, 54321, o)
+	close(input)
+	close(output)
+	close(h)
+
+	h = make(chan bool)
+	input = make(chan int, 1)
+	output = make(chan int, 1)
+	output <- 0
+	program3 := []int{3, 31, 3, 32, 1002, 32, 10, 32, 1001, 31, -2, 31, 1007, 31, 0, 33, 1002, 33, 7, 33, 1, 33, 31, 31, 1, 32, 31, 31, 4, 31, 99, 0, 0, 0}
+	for _, i := range []int{1, 0, 4, 3, 2} {
+		go ExecFull(program3, input, output, h)
+		input <- i
+		input <- <-output
+		assert.True(t, <-h)
+	}
+	o = <-output
+	assert.Equal(t, 65210, o)
+	close(input)
+	close(output)
+	close(h)
 }

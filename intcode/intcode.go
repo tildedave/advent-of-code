@@ -144,9 +144,6 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 			}
 		case ENDING_OPCODE:
 			halt <- true
-			close(output)
-			close(halt)
-			close(input)
 			return result, nil
 		default:
 			log.Panicf("Invalid opcode: %d", opcode)
