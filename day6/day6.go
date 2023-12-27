@@ -30,7 +30,6 @@ func Run(f *os.File, partTwo bool) {
 	}
 
 	if !partTwo {
-		// just standard topo sort
 		count := make(map[string]int)
 		for n := range adjacency {
 			// starting from n go upwards in the graph
@@ -75,5 +74,36 @@ func Run(f *os.File, partTwo bool) {
 			total += v
 		}
 		fmt.Println(total)
+		return
 	}
+
+	// part 2
+	// we walk upward from YOU / SAN once, marking nodes we see along the way
+	// after we do one walk we do walk from the other, until we find the root
+	// node.
+	// then the answer is distance from YOU to root + distance from SAN to root - 2.
+	seen := make(map[string]bool)
+	n := "SAN"
+	ok := true
+	for ok {
+		seen[n] = true
+		n, ok = parent[n]
+	}
+	n = "YOU"
+	for !seen[n] {
+		n = parent[n]
+	}
+	meetingNode := n
+	distance := 0
+	n = "SAN"
+	for n != meetingNode {
+		n = parent[n]
+		distance++
+	}
+	n = "YOU"
+	for n != meetingNode {
+		n = parent[n]
+		distance++
+	}
+	fmt.Println(distance - 2)
 }
