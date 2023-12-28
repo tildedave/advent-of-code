@@ -206,18 +206,18 @@ func TestDay7Examples(t *testing.T) {
 		if n == 0 {
 			input = systemInput
 		} else {
-			input = outputs[n - 1]
+			input = outputs[n-1]
 		}
 		wg.Add(1)
 		go func(i int, input, output chan int) {
 			ExecFull(program1, input, output)
-			wg.Done()
+			defer wg.Done()
 		}(i, input, outputs[n])
 		input <- i
 	}
 
 	systemInput <- 0
-	for result = range outputs[len(perm) - 1] {
+	for result = range outputs[len(perm)-1] {
 	}
 	wg.Wait()
 	assert.Equal(t, 43210, result)
@@ -225,7 +225,7 @@ func TestDay7Examples(t *testing.T) {
 
 	systemInput = make(chan int)
 	program2 := []int{3, 23, 3, 24, 1002, 24, 10, 24, 1002, 23, -1, 23, 101, 5, 23, 23, 1, 24, 23, 23, 4, 23, 99, 0, 0}
-	perm = []int{0, 1, 2, 3,4}
+	perm = []int{0, 1, 2, 3, 4}
 	outputs = make([]chan int, len(perm))
 	for n := range perm {
 		outputs[n] = make(chan int)
@@ -235,17 +235,17 @@ func TestDay7Examples(t *testing.T) {
 		if n == 0 {
 			input = systemInput
 		} else {
-			input = outputs[n - 1]
+			input = outputs[n-1]
 		}
 		wg.Add(1)
 		go func(i int, input, output chan int) {
 			ExecFull(program2, input, output)
-			wg.Done()
+			defer wg.Done()
 		}(i, input, outputs[n])
 		input <- i
 	}
 	systemInput <- 0
-	for result = range outputs[len(perm) - 1] {
+	for result = range outputs[len(perm)-1] {
 	}
 	wg.Wait()
 	assert.Equal(t, 54321, result)
@@ -263,17 +263,17 @@ func TestDay7Examples(t *testing.T) {
 		if n == 0 {
 			input = systemInput
 		} else {
-			input = outputs[n - 1]
+			input = outputs[n-1]
 		}
 		wg.Add(1)
 		go func(i int, input, output chan int) {
 			ExecFull(program3, input, output)
-			wg.Done()
+			defer wg.Done()
 		}(i, input, outputs[n])
 		input <- i
 	}
 	systemInput <- 0
-	for result = range outputs[len(perm) - 1] {
+	for result = range outputs[len(perm)-1] {
 	}
 	wg.Wait()
 

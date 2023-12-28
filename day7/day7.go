@@ -19,56 +19,35 @@ func Run(f *os.File, partTwo bool) {
 		for p := make([]int, len(permutation)); p[0] < len(p); utils.NextPermutation(p) {
 			perm := utils.GetPermutation(permutation, p)
 			var wg sync.WaitGroup
-			outputs := make([]chan int, 0)
-			inputs := make([]chan int, 0)
-			quits := make([]chan bool, 0)
+			outputs := make([]chan int, len(perm))
+			systemInput := make(chan int)
+			for n := range perm {
+				outputs[n] = make(chan int)
+			}
 			var result int
 
-			for _, i := range perm {
-				input := make(chan int, 1)
-				output := make(chan int, 1)
-				quit := make(chan bool)
-				outputs = append(outputs, output)
-				inputs = append(inputs, input)
-				quits = append(quits, quit)
+			for n, i := range perm {
+				var input chan int
+				if n == 0 {
+					input = systemInput
+				} else {
+					input = outputs[n-1]
+				}
 				wg.Add(1)
 				go func(i int, input, output chan int) {
 					intcode.ExecFull(program, input, output)
 					defer wg.Done()
-				}(i, input, output)
+				}(i, input, outputs[n])
 				input <- i
 			}
-			for n := range perm {
-				go func(n int) {
-					for {
-						select {
-						case o := <-outputs[n]:
-							if n == len(outputs)-1 {
-								result = o
-							} else {
-								inputs[n+1] <- o
-							}
-						case <-quits[n]:
-							return
-						}
-					}
-				}(n)
+			systemInput <- 0
+			for result = range outputs[len(perm)-1] {
 			}
-			inputs[0] <- 0
 			wg.Wait()
-			for _, quit := range quits {
-				quit <- true
-				close(quit)
-			}
 			if result > maxResult {
 				maxResult = result
 			}
-			for _, input := range inputs {
-				close(input)
-			}
-			for _, output := range outputs {
-				close(output)
-			}
+			close(systemInput)
 		}
 		fmt.Println(maxResult)
 		return
@@ -76,58 +55,53 @@ func Run(f *os.File, partTwo bool) {
 
 	permutation := []int{5, 6, 7, 8, 9}
 	for p := make([]int, len(permutation)); p[0] < len(p); utils.NextPermutation(p) {
+		// so here we the extra listener
 		perm := utils.GetPermutation(permutation, p)
-
 		var wg sync.WaitGroup
-		outputs := make([]chan int, 0)
-		inputs := make([]chan int, 0)
-		quits := make([]chan bool, 0)
-		finalOutputs := make([]int, 0)
+		outputs := make([]chan int, len(perm))
+		systemInput := make(chan int)
+		for n := range perm {
+			outputs[n] = make(chan int)
+		}
+		var done bool
 
-		for _, i := range perm {
-			input := make(chan int, 1)
-			output := make(chan int, 1)
-			quit := make(chan bool)
-			outputs = append(outputs, output)
-			inputs = append(inputs, input)
-			quits = append(quits, quit)
+		for n, i := range perm {
+			var input chan int
+			if n == 0 {
+				input = systemInput
+			} else {
+				input = outputs[n-1]
+			}
 			wg.Add(1)
-			go func(input, output chan int) {
+			go func(n int, input, output chan int) {
 				intcode.ExecFull(program, input, output)
+				if n == 0 {
+					// Needing to resort to this probably is a bug in how I'm
+					// thinking about go channels.
+					close(input)
+					done = true
+				}
 				defer wg.Done()
-			}(input, output)
+			}(n, input, outputs[n])
 			input <- i
 		}
-		for n := range perm {
-			go func(n int) {
-				for {
-					select {
-					case o := <-outputs[n]:
-						if n == len(outputs)-1 {
-							finalOutputs = append(finalOutputs, o)
-						}
-						inputs[(n+1)%len(inputs)] <- o
-					case <-quits[n]:
-						return
-					}
+		var finalOutput int
+
+		// This goroutine copies output from the final box back to the input.
+		wg.Add(1)
+		go func() {
+			for o := range outputs[len(perm)-1] {
+				finalOutput = o
+				if !done {
+					systemInput <- o
 				}
-			}(n)
-		}
-		inputs[0] <- 0
+			}
+			defer wg.Done()
+		}()
+		systemInput <- 0
 		wg.Wait()
-		// consume output from the final thing??
-		for _, quit := range quits {
-			quit <- true
-			close(quit)
-		}
-		for _, input := range inputs {
-			close(input)
-		}
-		for _, output := range outputs {
-			close(output)
-		}
-		if finalOutputs[len(finalOutputs)-1] > maxResult {
-			maxResult = finalOutputs[len(finalOutputs)-1]
+		if finalOutput > maxResult {
+			maxResult = finalOutput
 		}
 	}
 	fmt.Println(maxResult)
