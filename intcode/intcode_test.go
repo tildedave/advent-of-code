@@ -2,7 +2,6 @@ package intcode
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -283,9 +282,24 @@ func TestDay7Examples(t *testing.T) {
 
 func TestQuine(t *testing.T) {
 	program := []int{109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99}
-	output := make(chan int, 1)
-	go ExecFull(program, make(chan int, 1), output)
+	output := make(chan int)
+	// no inputs
+	go ExecFull(program, make(chan int), output)
+	result := make([]int, 0)
 	for o := range output {
-		fmt.Println(o)
+		result = append(result, o)
 	}
+	assert.Equal(t, program, result, "Quine should have produced a copy of itself")
+}
+
+func TestLargeNumbers(t *testing.T) {
+	program := []int{1102, 34915192, 34915192, 7, 4, 7, 99, 0}
+	output := make(chan int)
+	go ExecFull(program, make(chan int), output)
+	assert.Equal(t, 1219070632396864, <-output)
+
+	program = []int{104, 1125899906842624, 99}
+	output = make(chan int)
+	go ExecFull(program, make(chan int), output)
+	assert.Equal(t, program[1], <-output)
 }

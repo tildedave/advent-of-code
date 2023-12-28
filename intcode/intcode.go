@@ -97,7 +97,7 @@ func ExecFull(program []int, input chan int, output chan int) (map[int]int, erro
 			case MODE_IMMEDIATE:
 				ops[j] = result[i+1+j]
 			case MODE_RELATIVE:
-				ops[j] = result[result[i+1+j]] + currentRelativeBase
+				ops[j] = result[result[i+1+j]+currentRelativeBase]
 			}
 		}
 
@@ -109,6 +109,9 @@ func ExecFull(program []int, input chan int, output chan int) (map[int]int, erro
 				return result, errors.New("specified MODE_IMMEDIATE for destination")
 			}
 			dest = result[i+1+destParam]
+			if dest < 0 {
+				return result, errors.New("attempted to access negative memory address")
+			}
 		}
 
 		var increment bool = true
