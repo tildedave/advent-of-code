@@ -52,10 +52,10 @@ var hasDest = map[int]bool{
 }
 
 func Exec(program []int) ([]int, error) {
-	return ExecFull(program, make(chan int), make(chan int), make(chan bool, 1))
+	return ExecFull(program, make(chan int), make(chan int))
 }
 
-func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([]int, error) {
+func ExecFull(program []int, input chan int, output chan int) ([]int, error) {
 	result := make([]int, len(program))
 	copy(result, program)
 	numExecuted := 0
@@ -143,7 +143,6 @@ func ExecFull(program []int, input chan int, output chan int, halt chan bool) ([
 				result[dest] = 0
 			}
 		case ENDING_OPCODE:
-			halt <- true
 			return result, nil
 		default:
 			log.Panicf("Invalid opcode: %d", opcode)

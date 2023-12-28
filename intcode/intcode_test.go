@@ -25,11 +25,10 @@ func ReadProgram(t *testing.T, filename string) []int {
 
 var input chan int
 var output chan int
-var halt chan bool
 
 func ExecWithChannels(program []int) {
-	input, output, halt = make(chan int), make(chan int, 1), make(chan bool)
-	go ExecFull(program, input, output, halt)
+	input, output = make(chan int), make(chan int, 1)
+	go ExecFull(program, input, output)
 }
 
 func TestIntcodeExec(t *testing.T) {
@@ -72,17 +71,12 @@ func TestParamMode(t *testing.T) {
 func TestWithInputAndOutput(t *testing.T) {
 	input := make(chan int)
 	output := make(chan int)
-	halt := make(chan bool)
 	// read value from input, multiply by 5, write to output, halt.
 	// use 0 as temp register.
-	go ExecFull([]int{3, 0, 1002, 0, 5, 0, 4, 0, 99}, input, output, halt)
+	go ExecFull([]int{3, 0, 1002, 0, 5, 0, 4, 0, 99}, input, output)
 	input <- 5
 	v := <-output
 	assert.Equal(t, 25, v)
-
-	h, ok := <-halt
-	assert.True(t, h)
-	assert.True(t, ok)
 }
 
 func TestDay5(t *testing.T) {
@@ -90,11 +84,8 @@ func TestDay5(t *testing.T) {
 
 	input := make(chan int)
 	output := make(chan int, 100)
-	halt := make(chan bool)
-	go ExecFull(program, input, output, halt)
+	go ExecFull(program, input, output)
 	input <- 1
-	h := <-halt
-	assert.True(t, h)
 
 	outputList := make([]int, 0)
 	hasMessage := true
@@ -120,48 +111,40 @@ func TestCompare(t *testing.T) {
 	p1 := []int{3, 9, 8, 9, 10, 9, 4, 9, 99, -1, 8}
 	ExecWithChannels(p1)
 	input <- 8
-	assert.True(t, <-halt)
 	assert.Equal(t, 1, <-output)
 
 	ExecWithChannels(p1)
 	input <- 5
-	assert.True(t, <-halt)
 	assert.Equal(t, 0, <-output)
 
 	// less than 8, position mode
 	p2 := []int{3, 9, 7, 9, 10, 9, 4, 9, 99, -1, 8}
 	ExecWithChannels(p2)
 	input <- 5
-	assert.True(t, <-halt)
 	assert.Equal(t, 1, <-output)
 
 	ExecWithChannels(p2)
 	input <- 12
-	assert.True(t, <-halt)
 	assert.Equal(t, 0, <-output)
 
 	// equals 8, immediate mode
 	p3 := []int{3, 3, 1108, -1, 8, 3, 4, 3, 99}
 	ExecWithChannels(p3)
 	input <- 8
-	assert.True(t, <-halt)
 	assert.Equal(t, 1, <-output)
 
 	ExecWithChannels(p3)
 	input <- 5
-	assert.True(t, <-halt)
 	assert.Equal(t, 0, <-output)
 
 	// less than 8, immediate mode
 	p4 := []int{3, 3, 1107, -1, 8, 3, 4, 3, 99}
 	ExecWithChannels(p4)
 	input <- 5
-	assert.True(t, <-halt)
 	assert.Equal(t, 1, <-output)
 
 	ExecWithChannels(p4)
 	input <- 12
-	assert.True(t, <-halt)
 	assert.Equal(t, 0, <-output)
 }
 
@@ -169,23 +152,19 @@ func TestJump(t *testing.T) {
 	p1 := []int{3, 12, 6, 12, 15, 1, 13, 14, 13, 4, 13, 99, -1, 0, 1, 9}
 	ExecWithChannels(p1)
 	input <- 0
-	assert.True(t, <-halt)
 	assert.Equal(t, 0, <-output)
 
 	ExecWithChannels(p1)
 	input <- 12321
-	assert.True(t, <-halt)
 	assert.Equal(t, 1, <-output)
 
 	p2 := []int{3, 3, 1105, -1, 9, 1101, 0, 0, 12, 4, 12, 99, 1}
 	ExecWithChannels(p2)
 	input <- 0
-	assert.True(t, <-halt)
 	assert.Equal(t, 0, <-output)
 
 	ExecWithChannels(p2)
 	input <- 559
-	assert.True(t, <-halt)
 	assert.Equal(t, 1, <-output)
 }
 
@@ -196,17 +175,14 @@ func TestJumpsAndCompares(t *testing.T) {
 
 	ExecWithChannels(p)
 	input <- -12
-	assert.True(t, <-halt)
 	assert.Equal(t, 999, <-output)
 
 	ExecWithChannels(p)
 	input <- 8
-	assert.True(t, <-halt)
 	assert.Equal(t, 1000, <-output)
 
 	ExecWithChannels(p)
 	input <- 800
-	assert.True(t, <-halt)
 	assert.Equal(t, 1001, <-output)
 }
 
@@ -215,59 +191,49 @@ func TestDay5PartTwo(t *testing.T) {
 	ExecWithChannels(program)
 
 	input <- 5
-	assert.True(t, <-halt)
 	assert.Equal(t, 10376124, <-output)
 }
 
 func TestDay7Examples(t *testing.T) {
-	h := make(chan bool)
 	input := make(chan int, 1)
 	output := make(chan int, 1)
 	output <- 0
 	program1 := []int{3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0}
 	for _, i := range []int{4, 3, 2, 1, 0} {
-		go ExecFull(program1, input, output, h)
+		go ExecFull(program1, input, output)
 		input <- i
 		input <- <-output
-		assert.True(t, <-h)
 	}
 	o := <-output
 	assert.Equal(t, 43210, o)
 	close(input)
 	close(output)
-	close(h)
 
-	h = make(chan bool)
 	input = make(chan int, 1)
 	output = make(chan int, 1)
 	output <- 0
 	program2 := []int{3, 23, 3, 24, 1002, 24, 10, 24, 1002, 23, -1, 23, 101, 5, 23, 23, 1, 24, 23, 23, 4, 23, 99, 0, 0}
 	for _, i := range []int{0, 1, 2, 3, 4} {
-		go ExecFull(program2, input, output, h)
+		go ExecFull(program2, input, output)
 		input <- i
 		input <- <-output
-		assert.True(t, <-h)
 	}
 	o = <-output
 	assert.Equal(t, 54321, o)
 	close(input)
 	close(output)
-	close(h)
 
-	h = make(chan bool)
 	input = make(chan int, 1)
 	output = make(chan int, 1)
 	output <- 0
 	program3 := []int{3, 31, 3, 32, 1002, 32, 10, 32, 1001, 31, -2, 31, 1007, 31, 0, 33, 1002, 33, 7, 33, 1, 33, 31, 31, 1, 32, 31, 31, 4, 31, 99, 0, 0, 0}
 	for _, i := range []int{1, 0, 4, 3, 2} {
-		go ExecFull(program3, input, output, h)
+		go ExecFull(program3, input, output)
 		input <- i
 		input <- <-output
-		assert.True(t, <-h)
 	}
 	o = <-output
 	assert.Equal(t, 65210, o)
 	close(input)
 	close(output)
-	close(h)
 }
