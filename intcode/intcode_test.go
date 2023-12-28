@@ -2,8 +2,10 @@ package intcode
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,14 +90,8 @@ func TestDay5(t *testing.T) {
 	input <- 1
 
 	outputList := make([]int, 0)
-	hasMessage := true
-	for hasMessage {
-		select {
-		case o := <-output:
-			outputList = append(outputList, o)
-		default:
-			hasMessage = false
-		}
+	for o := range output {
+		outputList = append(outputList, o)
 	}
 	for j, o := range outputList {
 		if j != len(outputList)-1 {
@@ -195,45 +191,101 @@ func TestDay5PartTwo(t *testing.T) {
 }
 
 func TestDay7Examples(t *testing.T) {
-	input := make(chan int, 1)
-	output := make(chan int, 1)
-	output <- 0
+	var result int
 	program1 := []int{3, 15, 3, 16, 1002, 16, 10, 16, 1, 16, 15, 15, 4, 15, 99, 0, 0}
-	for _, i := range []int{4, 3, 2, 1, 0} {
-		go ExecFull(program1, input, output)
-		input <- i
-		input <- <-output
+	perm := []int{4, 3, 2, 1, 0}
+	outputs := make([]chan int, len(perm))
+	for n := range perm {
+		outputs[n] = make(chan int)
 	}
-	o := <-output
-	assert.Equal(t, 43210, o)
-	close(input)
-	close(output)
+	var wg sync.WaitGroup
+	systemInput := make(chan int)
 
-	input = make(chan int, 1)
-	output = make(chan int, 1)
-	output <- 0
+	for n, i := range perm {
+		var input chan int
+		if n == 0 {
+			input = systemInput
+		} else {
+			input = outputs[n - 1]
+		}
+		wg.Add(1)
+		go func(i int, input, output chan int) {
+			ExecFull(program1, input, output)
+			wg.Done()
+		}(i, input, outputs[n])
+		input <- i
+	}
+
+	systemInput <- 0
+	for result = range outputs[len(perm) - 1] {
+	}
+	wg.Wait()
+	assert.Equal(t, 43210, result)
+	close(systemInput)
+
+	systemInput = make(chan int)
 	program2 := []int{3, 23, 3, 24, 1002, 24, 10, 24, 1002, 23, -1, 23, 101, 5, 23, 23, 1, 24, 23, 23, 4, 23, 99, 0, 0}
-	for _, i := range []int{0, 1, 2, 3, 4} {
-		go ExecFull(program2, input, output)
-		input <- i
-		input <- <-output
+	perm = []int{0, 1, 2, 3,4}
+	outputs = make([]chan int, len(perm))
+	for n := range perm {
+		outputs[n] = make(chan int)
 	}
-	o = <-output
-	assert.Equal(t, 54321, o)
-	close(input)
-	close(output)
+	for n, i := range perm {
+		var input chan int
+		if n == 0 {
+			input = systemInput
+		} else {
+			input = outputs[n - 1]
+		}
+		wg.Add(1)
+		go func(i int, input, output chan int) {
+			ExecFull(program2, input, output)
+			wg.Done()
+		}(i, input, outputs[n])
+		input <- i
+	}
+	systemInput <- 0
+	for result = range outputs[len(perm) - 1] {
+	}
+	wg.Wait()
+	assert.Equal(t, 54321, result)
+	close(systemInput)
 
-	input = make(chan int, 1)
-	output = make(chan int, 1)
-	output <- 0
+	systemInput = make(chan int)
 	program3 := []int{3, 31, 3, 32, 1002, 32, 10, 32, 1001, 31, -2, 31, 1007, 31, 0, 33, 1002, 33, 7, 33, 1, 33, 31, 31, 1, 32, 31, 31, 4, 31, 99, 0, 0, 0}
-	for _, i := range []int{1, 0, 4, 3, 2} {
-		go ExecFull(program3, input, output)
-		input <- i
-		input <- <-output
+	perm = []int{1, 0, 4, 3, 2}
+	outputs = make([]chan int, len(perm))
+	for n := range perm {
+		outputs[n] = make(chan int)
 	}
-	o = <-output
-	assert.Equal(t, 65210, o)
-	close(input)
-	close(output)
+	for n, i := range perm {
+		var input chan int
+		if n == 0 {
+			input = systemInput
+		} else {
+			input = outputs[n - 1]
+		}
+		wg.Add(1)
+		go func(i int, input, output chan int) {
+			ExecFull(program3, input, output)
+			wg.Done()
+		}(i, input, outputs[n])
+		input <- i
+	}
+	systemInput <- 0
+	for result = range outputs[len(perm) - 1] {
+	}
+	wg.Wait()
+
+	assert.Equal(t, 65210, result)
+	close(systemInput)
+}
+
+func TestQuine(t *testing.T) {
+	program := []int{109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99}
+	output := make(chan int, 1)
+	go ExecFull(program, make(chan int, 1), output)
+	for o := range output {
+		fmt.Println(o)
+	}
 }
