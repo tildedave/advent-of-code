@@ -35,7 +35,7 @@ func Run(f *os.File) {
 		// now we run the program
 		program[1] = i
 		program[2] = j
-		result := intcode.Exec(program)
+		result, _ := intcode.Exec(program)
 		if result[0] == 19690720 {
 			fmt.Println(i, j)
 			return
