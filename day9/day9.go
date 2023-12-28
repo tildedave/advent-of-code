@@ -19,5 +19,12 @@ func Run(f *os.File, partTwo bool) {
 		for o := range output {
 			fmt.Println(o)
 		}
+	} else {
+		go intcode.ExecFull(program, input, output)
+		input <- 2
+		for o := range output {
+			fmt.Println(o)
+		}
+
 	}
 }

@@ -14,5 +14,5 @@ func main() {
 	}
 	defer f.Close()
 
-	day9.Run(f, false)
+	day9.Run(f, true)
 }
