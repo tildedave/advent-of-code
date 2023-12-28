@@ -105,10 +105,14 @@ func ExecFull(program []int, input chan int, output chan int) (map[int]int, erro
 		// for now assume the destination param is in location arity - 1
 		if hasDest[opcode] {
 			destParam := arity[opcode] - 1
-			if opModes[destParam] == MODE_IMMEDIATE {
+			switch opModes[destParam] {
+			case MODE_IMMEDIATE:
 				return result, errors.New("specified MODE_IMMEDIATE for destination")
+			case MODE_POSITION:
+				dest = result[i+1+destParam]
+			case MODE_RELATIVE:
+				dest = result[i+1+destParam] + currentRelativeBase
 			}
-			dest = result[i+1+destParam]
 			if dest < 0 {
 				return result, errors.New("attempted to access negative memory address")
 			}
