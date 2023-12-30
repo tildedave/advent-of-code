@@ -2,6 +2,7 @@ package day11
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"sync"
 	"time"
@@ -15,12 +16,21 @@ const RIGHT = 1
 const DOWN = 2
 const LEFT = 3
 
+func key(x int, y int) string {
+	return fmt.Sprintf("%d,%d", x, y)
+}
+
 func Run(f *os.File, partTwo bool) {
 	program := utils.ParseProgram(f)
 
 	robotDirection := UP
 	robotX := 0
 	robotY := 0
+	minX := math.MaxInt
+	maxX := math.MinInt
+	minY := math.MaxInt
+	maxY := math.MinInt
+
 	// y * 1000 + x or something for our keys, I guess strings would be less
 	// prone to collisions but whatever.
 	//
@@ -30,18 +40,22 @@ func Run(f *os.File, partTwo bool) {
 	output := make(chan int)
 	var wg sync.WaitGroup
 
+	if partTwo {
+		colors[key(robotX, robotY)] = 1
+	}
+
 	wg.Add(2)
 	go func() {
 		intcode.ExecFull(program, input, output)
 		defer wg.Done()
 	}()
 	go func() {
-		input <- colors[fmt.Sprintf("%d,%d", robotX, robotY)]
+		input <- colors[key(robotX, robotY)]
 	ProcessingLoop:
 		for {
 			newColor := <-output
 			turnDirection := <-output
-			colors[fmt.Sprintf("%d,%d", robotX, robotY)] = newColor
+			colors[key(robotX, robotY)] = newColor
 			if turnDirection == 0 {
 				robotDirection -= 1
 			} else {
@@ -59,10 +73,22 @@ func Run(f *os.File, partTwo bool) {
 			case UP:
 				robotY -= 1
 			}
+			if robotX > maxX {
+				maxX = robotX
+			}
+			if robotX < minX {
+				minX = robotX
+			}
+			if robotY > maxY {
+				maxY = robotY
+			}
+			if robotY < minY {
+				minY = robotY
+			}
 
 			// this is such a dumb hack.  how can I do this better?
 			select {
-			case input <- colors[fmt.Sprintf("%d,%d", robotX, robotY)]:
+			case input <- colors[key(robotX, robotY)]:
 				// cool
 			case <-time.After(100 * time.Millisecond):
 				break ProcessingLoop
@@ -76,5 +102,21 @@ func Run(f *os.File, partTwo bool) {
 	for range colors {
 		numPainted++
 	}
+
+	str := ""
+	for y := minY; y <= maxY; y++ {
+		for x := minX; x <= maxX; x++ {
+			color := colors[key(x, y)]
+			if color == 0 {
+				str += "."
+			} else if color == 1 {
+				str += "#"
+			} else {
+				panic("Invalid color")
+			}
+		}
+		str += "\n"
+	}
+	fmt.Println(str)
 	fmt.Println(numPainted)
 }
