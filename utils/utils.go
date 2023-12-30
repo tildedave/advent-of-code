@@ -60,3 +60,10 @@ func GetPermutation(original, p []int) []int {
 	}
 	return result
 }
+
+func AbsInt(i int) int {
+	if i < 0 {
+		return -i
+	}
+	return i
+}
