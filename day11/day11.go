@@ -5,7 +5,6 @@ import (
 	"math"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/tildedave/advent-of-code-2019/intcode"
 	"github.com/tildedave/advent-of-code-2019/utils"
@@ -38,6 +37,7 @@ func Run(f *os.File, partTwo bool) {
 	colors := make(map[string]int)
 	input := make(chan int)
 	output := make(chan int)
+	quit := make(chan bool)
 	var wg sync.WaitGroup
 
 	if partTwo {
@@ -47,6 +47,7 @@ func Run(f *os.File, partTwo bool) {
 	wg.Add(2)
 	go func() {
 		intcode.ExecFull(program, input, output)
+		quit <- true
 		defer wg.Done()
 	}()
 	go func() {
@@ -86,12 +87,11 @@ func Run(f *os.File, partTwo bool) {
 				minY = robotY
 			}
 
-			// this is such a dumb hack.  how can I do this better?
 			select {
+			case <-quit:
+				break ProcessingLoop
 			case input <- colors[key(robotX, robotY)]:
 				// cool
-			case <-time.After(100 * time.Millisecond):
-				break ProcessingLoop
 			}
 		}
 		defer wg.Done()
