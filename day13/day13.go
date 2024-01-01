@@ -11,7 +11,7 @@ import (
 	"seehuhn.de/go/ncurses"
 )
 
-const LOOP_DELAY = 2
+const LOOP_DELAY = 1
 
 // observed size of grid from running program.
 const X_MAX = 40
