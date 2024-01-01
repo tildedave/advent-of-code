@@ -188,8 +188,14 @@ func Run(f *os.File, partTwo bool) {
 	goalScore[startNode] = 0
 	guessScore[startNode] = 1
 
+	var oxygenSystemLocation node
+	i := 0
+
 	for openSet.Len() > 0 {
-		PrintKnowledgeOfArea(nodeContents, reverseNodeCoords)
+		i++
+		if i%20 == 0 {
+			PrintKnowledgeOfArea(nodeContents, reverseNodeCoords)
+		}
 		nextNode := heap.Pop(openSet).(int)
 		if nextNode != currentNode {
 			// must travel from where we are to the current node.
@@ -234,7 +240,6 @@ func Run(f *os.File, partTwo bool) {
 				stepNode := path[i]
 				stepLocation := nodeCoords[stepNode]
 				direction := getDirection(currentLocation, stepLocation)
-				fmt.Println("[second] navigating in direction", direction, "from", currentLocation, "to", stepLocation)
 				input <- direction
 				result := <-output
 				if result != 1 {
@@ -258,39 +263,45 @@ func Run(f *os.File, partTwo bool) {
 			// for each direction, determine, do we have a node at that location?
 			dx, dy := offset[0], offset[1]
 			connection := node{currentLocation.x + dx, currentLocation.y + dy}
-			fmt.Println("exploring", connection, "via direction", direction)
 			switch nodeContents[connection] {
 			case WALL:
-				fmt.Println("but it is a wall so we should not go there")
 				// on to the next direction
 				continue
 			case OXYGEN_SYSTEM:
-				// this should never happen
-				panic("Should not be able to see oxygen system as neighbor")
+				// we don't need to explore the oxygen system, so on to the next direction.
+				if !partTwo {
+					panic("Should not be able to see oxygen system as neighbor")
+				}
+				continue
 			case UNKNOWN:
 				// we want to try to move to it, and create a new node.
 				input <- direction
 				result := <-output
-				fmt.Println("output from moving in direction", direction, result, offset)
 				switch result {
 				case 0:
 					// there's a wall.  our position has not changed.
-					fmt.Println("discovered wall at", connection, "(moving", direction, ")")
 					nodeContents[connection] = WALL
 				case 2:
 					// we need to stop when we hit this.  for now let's just
 					// do nothing and add a print statement.
-					fmt.Println("found the oxygen system!")
-					steps := 0
-					n = currentNode
-					for n != startNode {
-						n = parent[n]
-						steps++
+					oxygenSystemLocation = connection
+					if !partTwo {
+						steps := 0
+						n = currentNode
+						for n != startNode {
+							n = parent[n]
+							steps++
+						}
+						fmt.Println(steps + 1)
+						return
 					}
-					fmt.Println(steps + 1)
-					return
+					// otherwise we just want to treat this like any other hallway.
+					nodeContents[connection] = OXYGEN_SYSTEM
+					fallthrough
 				case 1:
-					nodeContents[connection] = HALLWAY
+					if nodeContents[connection] != OXYGEN_SYSTEM {
+						nodeContents[connection] = HALLWAY
+					}
 					// add a new node at this location.
 					nodeNum++
 					nodeCoords[nodeNum] = connection
@@ -298,7 +309,6 @@ func Run(f *os.File, partTwo bool) {
 					parent[nodeNum] = currentNode
 					fmt.Printf("!! new node %d detected at (%d,%d)\n", nodeNum, connection.x, connection.y)
 
-					fmt.Println("we are reversing our direction", reverseDirection((direction)))
 					input <- reverseDirection(direction)
 					reverseResult := <-output
 					if reverseResult != 1 {
@@ -309,7 +319,6 @@ func Run(f *os.File, partTwo bool) {
 
 			if nodeContents[connection] == HALLWAY {
 				// OK, we want to understand the score
-				fmt.Println("trying to understand if we should visit", connection)
 				neighborNode := reverseNodeCoords[connection]
 				tentativeScore := getScore(guessScore, currentNode) + 1
 				if tentativeScore < getScore(guessScore, neighborNode) {
@@ -319,18 +328,44 @@ func Run(f *os.File, partTwo bool) {
 					// add one for now.
 					guessScore[neighborNode] = tentativeScore + 1
 					if !openSet.contents[neighborNode] {
-						fmt.Println("adding", neighborNode, "to heap")
 						heap.Push(openSet, neighborNode)
 					}
-				} else {
-					fmt.Println("seems like no we should not")
 				}
 			}
 
 		}
 	}
-	fmt.Println(openSet)
 	// time to print out knowledge.
 	PrintKnowledgeOfArea(nodeContents, reverseNodeCoords)
-	panic("Failed to find oxygen system")
+	if !partTwo {
+		panic("Failed to find oxygen system")
+	}
+
+	// OK, so now we need to flood fill the oxygen system.
+	// I suppose it is really just a BFS from the oxygen system.
+	queue := make([]node, 0)
+	queue = append(queue, oxygenSystemLocation)
+	visitedTime := make(map[node]int)
+	visitedTime[oxygenSystemLocation] = 0
+	maxTime := 0
+
+	for len(queue) > 0 {
+		item := queue[0]
+		currentTime := visitedTime[item]
+		if currentTime > maxTime {
+			maxTime = currentTime
+		}
+		queue = queue[1:]
+		// for each neighbor of it, if it hasn't been visited, visit it.
+		for _, offset := range [][2]int{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+			diffNode := node{item.x + offset[0], item.y + offset[1]}
+			_, ok := visitedTime[diffNode]
+			if !ok && nodeContents[diffNode] == HALLWAY {
+				// haven't visited this one yet
+				visitedTime[diffNode] = currentTime + 1
+				queue = append(queue, diffNode)
+			}
+		}
+	}
+	fmt.Println(maxTime)
 }
