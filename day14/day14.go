@@ -38,26 +38,21 @@ func parseLine(s string) ([]Reagant, Reagant) {
 	return lhs, rhs
 }
 
-func getNonOre(rlist map[string]uint, reagants map[string]Reagant) string {
+func getNonOre(rlist map[string]uint, order map[string]int) string {
 	if len(rlist) == 0 {
 		return ""
 	}
 
-	// prioritize ones that won't generate a surplus
-	for r, n := range rlist {
-		if r != "ORE" && n%(reagants[r].quantity) == 0 {
-			return r
-		}
-	}
-
-	// otherwise randomness has failed so let's just find any non-ore item
+	// prioitize the order
+	bestSoFar := math.MaxInt
+	bestChoice := ""
 	for r := range rlist {
-		if r != "ORE" {
-			return r
+		if r != "ORE" && order[r] < bestSoFar {
+			bestSoFar = order[r]
+			bestChoice = r
 		}
 	}
-
-	return ""
+	return bestChoice
 }
 
 func Run(f *os.File, partTwo bool) {
@@ -71,12 +66,42 @@ func Run(f *os.File, partTwo bool) {
 		productions[production.chemical] = dependents
 	}
 
+	graph := make(map[string][]Reagant)
+	for k, v := range productions {
+		graph[k] = v
+	}
+	inDegree := make(map[string]int)
+	for _, v := range graph {
+		for _, e := range v {
+			inDegree[e.chemical]++
+		}
+	}
+	fmt.Println("indegree", inDegree)
+
+	queue := make([]string, 0)
+	queue = append(queue, "FUEL")
+	count := 0
+	order := make(map[string]int, 0)
+	for len(queue) > 0 {
+		item := queue[0]
+		order[item] = count
+		count++
+		queue = queue[1:]
+		for _, e := range graph[item] {
+			inDegree[e.chemical]--
+			if inDegree[e.chemical] == 0 {
+				queue = append(queue, e.chemical)
+			}
+		}
+		graph[item] = []Reagant{}
+	}
+
 	var minOre uint = math.MaxUint
 	needed := make(map[string]uint)
 	surplus := make(map[string]uint)
 	needed["FUEL"] = 1
 
-	for chemical := "FUEL"; chemical != ""; chemical = getNonOre(needed, reagants) {
+	for chemical := "FUEL"; chemical != ""; chemical = getNonOre(needed, order) {
 		if surplus[chemical] >= needed[chemical] {
 			// eat it from the surplus
 			surplus[chemical] -= needed[chemical]
