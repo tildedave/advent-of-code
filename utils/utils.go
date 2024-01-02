@@ -40,6 +40,21 @@ func ParseProgram(f *os.File) []int {
 	return program
 }
 
+func ReadSingleLine(f *os.File) string {
+	var line string
+	rows := 0
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if rows > 0 {
+			panic("Can only process one row")
+		}
+		line = scanner.Text()
+		rows++
+	}
+	return line
+}
+
 // https://stackoverflow.com/a/30230552
 func NextPermutation(p []int) {
 	for i := len(p) - 1; i >= 0; i-- {
