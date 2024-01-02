@@ -34,7 +34,7 @@ func runPattern(n int, pattern []int, inputList []int) int {
 	}
 
 	sum := 0
-
+	repeats := 0
 	for _, c := range inputList {
 		sum += pattern[j] * c
 
@@ -43,6 +43,7 @@ func runPattern(n int, pattern []int, inputList []int) int {
 			j = (j + 1) % len(pattern)
 		}
 	}
+	repeats++
 
 	return onesDigitOnly(sum)
 }
@@ -73,9 +74,13 @@ func Run(f *os.File, partTwo bool) {
 		inputList[i] = int(b - 48)
 	}
 
-	result := RunPhaseMultiple(inputList, []int{0, 1, 0, -1}, 100)
-	for i := 0; i < 8; i++ {
-		fmt.Printf("%d", result[i])
+	inputList = []int{0, 3, 0, 3, 6, 7, 3, 2, 5, 7, 7, 2, 1, 2, 9, 4, 4, 0, 6, 3, 4, 9, 1, 5, 6, 5, 4, 7, 4, 6, 6, 4}
+	result := RunPhaseMultiple(inputList, []int{0, 1, 0, -1}, 1)
+
+	if !partTwo {
+		for i := 0; i < 8; i++ {
+			fmt.Printf("%d", result[i])
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 }

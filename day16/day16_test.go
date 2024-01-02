@@ -20,6 +20,16 @@ func TestRunPhase(t *testing.T) {
 	)
 }
 
+// func TestRunPhaseTest(t *testing.T) {
+// fmt.Println(RunPhase([]int{1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 0, -1}))
+// fmt.Println(RunPhase([]int{1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 0, -1}))
+// assert.Equal(
+// 	t,
+// 	[]int{4, 8, 2, 2, 6, 1, 5, 8},
+// 	RunPhase([]int{1, 2, 3, 4, 5, 6, 7, 8}, []int{0, 1, 0, -1}),
+// )
+// }
+
 func TestRunPhaseMultiple(t *testing.T) {
 	assert.Equal(
 		t,
