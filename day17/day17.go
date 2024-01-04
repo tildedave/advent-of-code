@@ -309,12 +309,11 @@ func Run(f *os.File, partTwo bool) {
 				if !(offsetX >= 0 && offsetX < len(grid[0]) && offsetY >= 0 && offsetY < len(grid)) {
 					continue
 				}
-				if grid[offsetY][offsetX] == SCAFFOLD {
+				if grid[offsetY][offsetX] == SCAFFOLD || grid[offsetY][offsetX] == ROBOT {
 					numAdjacent++
 					dirs[n] = true
 				}
 			}
-			fmt.Println("directions from ", location, "are", dirs)
 			validDirections[location] = dirs
 
 			if numAdjacent != 2 {
@@ -372,7 +371,6 @@ func Run(f *os.File, partTwo bool) {
 			hasReverseAlready := false
 			for _, e := range edges {
 				if e.dest == newEdge.source && e.source == newEdge.dest && commandsToString(reversePath(e.path)) == pathStr {
-					fmt.Println("already have reverse edge", e)
 					hasReverseAlready = true
 					break
 				}
@@ -383,7 +381,6 @@ func Run(f *os.File, partTwo bool) {
 		}
 	}
 
-	fmt.Println(toGraphViz(nodeCoords, edges))
 	// now we have everything.  we want an eulerian tour on this graph.
 	// it should be easy to identify which is the end vertex.
 	// I feel like in general any tour will be fine, the end result of this
@@ -421,78 +418,117 @@ func Run(f *os.File, partTwo bool) {
 	// the tour algo is basically easy, start anywhere, continue until all
 	// edges gone.  we need to avoid the start/end edges in this process.
 	// I am not certain if I'll need to optimize this.
-	seenEdges := make(map[int]bool)
-	startEdgeNum := -1
-	finalEdgeNum := -1
-	for _, e := range edges {
-		if e.dest == robotNode || e.source == robotNode {
-			startEdgeNum = e.num
-		}
-		if e.dest == endNode || e.source == endNode {
-			finalEdgeNum = e.num
-		}
-	}
-	// just don't include these in our tour construction
-	seenEdges[startEdgeNum] = true
-	seenEdges[finalEdgeNum] = true
 
-	unvisitedNodes := make([]int, 0)
-	for n := range nodeCoords {
-		if n != robotNode && n != endNode {
-			unvisitedNodes = append(unvisitedNodes, n)
-		}
-	}
-	// tour := make([]robotCommand, 0)
-QueueLoop:
-	for len(unvisitedNodes) > 0 {
-		startNode := unvisitedNodes[0]
+	numCircuitsFound := 0
+	var minCircuit []robotCommand
+	for numCircuitsFound < 10000 {
+		// random walk until we find the path.
+		seenEdges := make(map[int]bool)
+		circuit := make([]robotCommand, 0)
+
 		// follow a path from this node [how?] until we return to the node.
 		// then join the path to our tour.
 
-		foundEdge := false
-
-		circuit := make([]robotCommand, 0)
-		currentNode := startNode
-		var currentEdge edge
+		currentNode := robotNode
+		var nextEdge edge
+		direction := robotDirection
+	RandomWalk:
 		for {
-			fmt.Println("at", currentNode)
-			foundEdge = false
+			if currentNode == endNode {
+				numCircuitsFound++
+				if len(minCircuit) == 0 || len(circuit) < len(minCircuit) {
+					minCircuit = circuit
+				}
+				break
+			}
+			foundEdge := false
+			// always do a self-loop if possible
 			for _, candidateEdge := range nodeEdges[currentNode] {
-				if !seenEdges[candidateEdge.num] {
-					currentEdge = candidateEdge
+				if !seenEdges[candidateEdge.num] && candidateEdge.source == candidateEdge.dest {
+					// this is our edge
 					foundEdge = true
+					nextEdge = candidateEdge
 					break
+				}
+			}
+			if !foundEdge {
+				for _, candidateEdge := range nodeEdges[currentNode] {
+					if !seenEdges[candidateEdge.num] {
+						nextEdge = candidateEdge
+						foundEdge = true
+						break
+					}
 				}
 			}
 
 			if !foundEdge {
-				if currentNode == startNode {
-					unvisitedNodes = unvisitedNodes[1:]
-					continue QueueLoop
+				// restart walk
+				break RandomWalk
+			}
+
+			if direction != nextEdge.direction {
+				if direction == reverseDirection(nextEdge.direction) {
+					// must do two right or left turns
+					circuit = append(circuit, robotCommand{turn: LEFT})
+					circuit = append(circuit, robotCommand{turn: LEFT})
 				} else {
-					panic("should not be possible to exhaust edges")
+					circuit = append(circuit, robotCommand{turn: getTurn(direction, nextEdge.direction)})
 				}
 			}
 
-			fmt.Println("I have chosen edge num", currentEdge.num, "to traverse")
-
-			if currentEdge.source == currentNode {
+			if nextEdge.source == currentNode {
 				// add path to circuit
-				currentNode = currentEdge.dest
-				circuit = append(circuit, currentEdge.path...)
-			} else if currentEdge.dest == currentNode {
+				currentNode = nextEdge.dest
+				circuit = append(circuit, nextEdge.path...)
+			} else if nextEdge.dest == currentNode {
 				// reverse the path when it's added to the circuit
-				currentNode = currentEdge.source
-				circuit = append(circuit, reversePath(currentEdge.path)...)
+				currentNode = nextEdge.source
+				circuit = append(circuit, reversePath(nextEdge.path)...)
 			} else {
 				panic("Invalid edge configuration")
 			}
 
-			seenEdges[currentEdge.num] = true
-			if currentNode == startNode {
-				// done.  must insert circuit into tour now (annoying)
-				fmt.Println("Done!", circuit)
-				break
+			direction = nextEdge.endDirection
+			seenEdges[nextEdge.num] = true
+		}
+	}
+
+	fmt.Println(directionToString(robotDirection))
+	fmt.Println("found circuit", commandsToString(minCircuit), len(minCircuit))
+	// we've found our circuit.  very exciting.
+	// we need to validate that it works (probably)
+	// and we need to compile it into a program.  each program can be 20 lines
+	// at most.
+	// I'm probably going to compile it manually?
+	location := robotPosition
+	direction := robotDirection
+	fmt.Println(location)
+	for _, command := range minCircuit {
+		fmt.Println(command)
+		if command.turn != 0 {
+			// assume a left turn and just 180 in the case that it isn't.
+			switch direction {
+			case UP:
+				direction = LEFT
+			case DOWN:
+				direction = RIGHT
+			case LEFT:
+				direction = DOWN
+			case RIGHT:
+				direction = UP
+			}
+			if command.turn == RIGHT {
+				direction = reverseDirection(direction)
+			}
+			fmt.Println("now facing", directionToString(direction), "at", location)
+			continue
+		}
+
+		// otherwise we move forward n steps
+		for n := 0; n < command.steps; n++ {
+			location = moveInDirection(location, direction)
+			if grid[location.y][location.x] == NOTHINGNESS {
+				panic("We stepped off the scaffold")
 			}
 		}
 	}
