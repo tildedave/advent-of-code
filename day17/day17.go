@@ -43,6 +43,7 @@ type edge struct {
 	source       int
 	dest         int
 	path         []robotCommand
+	num          int
 }
 
 func moveInDirection(location coords, direction int) coords {
@@ -187,10 +188,10 @@ func contentToString(c int) string {
 func toGraphViz(nodeCoords map[int]coords, edges []edge) string {
 	str := "digraph G {\n"
 	for node, coords := range nodeCoords {
-		str += fmt.Sprintf("\tNode%d [label=\"(%d, %d)\"];\n", node, coords.x, coords.y)
+		str += fmt.Sprintf("\tNode%d [label=\"%d (%d, %d)\"];\n", node, node, coords.x, coords.y)
 	}
 	for _, e := range edges {
-		str += fmt.Sprintf("\tNode%d -> Node%d [label=\"starting %s and ending %s; %s\"];\n", e.source, e.dest, directionToString(e.direction), directionToString(e.endDirection), commandsToString(e.path))
+		str += fmt.Sprintf("\tNode%d -> Node%d [label=\"%d\"];\n", e.source, e.dest, e.num)
 	}
 	str += "}\n"
 	return str
@@ -288,6 +289,7 @@ func Run(f *os.File, partTwo bool) {
 	nodeCoordsReverse := make(map[coords]int)
 	validDirections := make(map[coords][4]bool)
 	nodeNum := 0
+	edgeNum := 0
 	var robotPosition coords
 
 	// so for each node we store info between the edges along with the path it
@@ -364,7 +366,8 @@ func Run(f *os.File, partTwo bool) {
 				location = moveInDirection(location, dir)
 			}
 			path = append(path, robotCommand{steps: numSteps})
-			newEdge := edge{startDir, dir, node, nodeCoordsReverse[location], path}
+			edgeNum++
+			newEdge := edge{startDir, dir, node, nodeCoordsReverse[location], path, edgeNum}
 			pathStr := commandsToString(path)
 			hasReverseAlready := false
 			for _, e := range edges {
@@ -381,9 +384,120 @@ func Run(f *os.File, partTwo bool) {
 	}
 
 	fmt.Println(toGraphViz(nodeCoords, edges))
-	// now we have all the edges.  they are unfortunately duplicated between source / dest.
-	// we need a way to understand that the edge is the same as the reverse edge.  we
-	// could add some deduplicating logic I guess.
+	// now we have everything.  we want an eulerian tour on this graph.
+	// it should be easy to identify which is the end vertex.
+	// I feel like in general any tour will be fine, the end result of this
+	// is going to be a path that I need to manually convert into a program.
+	// I'm sure there is some cooler way to do this automatically for general
+	// inputs.
+
+	robotNode := nodeCoordsReverse[robotPosition]
+	// the ending node is the one that has only 1 degree and is not the robot
+	// node.
+	degrees := make(map[int]int)
+	nodeEdges := make(map[int][]edge)
+	for _, e := range edges {
+		if nodeEdges[e.source] == nil {
+			nodeEdges[e.source] = make([]edge, 0)
+		}
+		if nodeEdges[e.dest] == nil {
+			nodeEdges[e.dest] = make([]edge, 0)
+		}
+		nodeEdges[e.source] = append(nodeEdges[e.source], e)
+		nodeEdges[e.dest] = append(nodeEdges[e.dest], e)
+		if e.source != e.dest {
+			degrees[e.source]++
+			degrees[e.dest]++
+		}
+	}
+	endNode := -1
+	for d, n := range degrees {
+		if n == 1 && d != robotNode {
+			endNode = d
+		}
+	}
+
+	// so now we have a graph that we can get an eulerian tour on.
+	// the tour algo is basically easy, start anywhere, continue until all
+	// edges gone.  we need to avoid the start/end edges in this process.
+	// I am not certain if I'll need to optimize this.
+	seenEdges := make(map[int]bool)
+	startEdgeNum := -1
+	finalEdgeNum := -1
+	for _, e := range edges {
+		if e.dest == robotNode || e.source == robotNode {
+			startEdgeNum = e.num
+		}
+		if e.dest == endNode || e.source == endNode {
+			finalEdgeNum = e.num
+		}
+	}
+	// just don't include these in our tour construction
+	seenEdges[startEdgeNum] = true
+	seenEdges[finalEdgeNum] = true
+
+	unvisitedNodes := make([]int, 0)
+	for n := range nodeCoords {
+		if n != robotNode && n != endNode {
+			unvisitedNodes = append(unvisitedNodes, n)
+		}
+	}
+	// tour := make([]robotCommand, 0)
+QueueLoop:
+	for len(unvisitedNodes) > 0 {
+		startNode := unvisitedNodes[0]
+		// follow a path from this node [how?] until we return to the node.
+		// then join the path to our tour.
+
+		foundEdge := false
+
+		circuit := make([]robotCommand, 0)
+		currentNode := startNode
+		var currentEdge edge
+		for {
+			fmt.Println("at", currentNode)
+			foundEdge = false
+			for _, candidateEdge := range nodeEdges[currentNode] {
+				if !seenEdges[candidateEdge.num] {
+					currentEdge = candidateEdge
+					foundEdge = true
+					break
+				}
+			}
+
+			if !foundEdge {
+				if currentNode == startNode {
+					unvisitedNodes = unvisitedNodes[1:]
+					continue QueueLoop
+				} else {
+					panic("should not be possible to exhaust edges")
+				}
+			}
+
+			fmt.Println("I have chosen edge num", currentEdge.num, "to traverse")
+
+			if currentEdge.source == currentNode {
+				// add path to circuit
+				currentNode = currentEdge.dest
+				circuit = append(circuit, currentEdge.path...)
+			} else if currentEdge.dest == currentNode {
+				// reverse the path when it's added to the circuit
+				currentNode = currentEdge.source
+				circuit = append(circuit, reversePath(currentEdge.path)...)
+			} else {
+				panic("Invalid edge configuration")
+			}
+
+			seenEdges[currentEdge.num] = true
+			if currentNode == startNode {
+				// done.  must insert circuit into tour now (annoying)
+				fmt.Println("Done!", circuit)
+				break
+			}
+		}
+	}
+
+	fmt.Println(degrees, robotNode, endNode)
 
 	fmt.Println(robotPosition.x, robotPosition.y, robotDirection)
 	// is this it?
