@@ -3,6 +3,7 @@ package day17
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 
 	"github.com/tildedave/advent-of-code-2019/intcode"
@@ -444,6 +445,12 @@ func Run(f *os.File, partTwo bool) {
 			endNode = d
 		}
 	}
+	var endEdge edge
+	for _, e := range edges {
+		if e.dest == endNode || e.source == endNode {
+			endEdge = e
+		}
+	}
 
 	// so now we have a graph that we can get an eulerian tour on.
 	// the tour algo is basically easy, start anywhere, continue until all
@@ -453,10 +460,16 @@ func Run(f *os.File, partTwo bool) {
 	fmt.Println(toGraphViz(nodeCoords, edges))
 
 	numCircuitsFound := 0
-	var minCircuit []robotCommand
-	for numCircuitsFound < 1 {
+	smallCircuits := make(map[string]bool)
+	smallCircuitSize := 200
+	for numCircuitsFound < 200 {
 		// random walk until we find the path.
 		seenEdges := make(map[int]bool)
+		for _, e := range edges {
+			seenEdges[e.num] = false
+		}
+		edgesLeft := len(seenEdges)
+		fmt.Println(edgesLeft)
 		circuit := make([]robotCommand, 0)
 
 		// follow a path from this node [how?] until we return to the node.
@@ -469,9 +482,32 @@ func Run(f *os.File, partTwo bool) {
 	RandomWalk:
 		for {
 			if currentNode == endNode {
+				if edgesLeft != 0 {
+					break
+				}
 				numCircuitsFound++
-				if len(minCircuit) == 0 || len(circuit) < len(minCircuit) {
-					minCircuit = circuit
+				finalCircuit := make([]robotCommand, 0)
+				currSteps := 0
+				for _, c := range circuit {
+					// combine steps
+					if c.steps > 0 {
+						currSteps += c.steps
+					} else if c.turn != 0 {
+						if currSteps > 0 {
+							finalCircuit = append(finalCircuit, robotCommand{steps: currSteps})
+							currSteps = 0
+						}
+						finalCircuit = append(finalCircuit, c)
+					}
+				}
+				if currSteps > 0 {
+					finalCircuit = append(finalCircuit, robotCommand{steps: currSteps})
+				}
+
+				circuit = finalCircuit
+				str := commandsToString(circuit)
+				if len(str) < smallCircuitSize {
+					smallCircuits[str] = true
 				}
 				break
 			}
@@ -486,8 +522,12 @@ func Run(f *os.File, partTwo bool) {
 				}
 			}
 			if !foundEdge {
-				for _, candidateEdge := range nodeEdges[currentNode] {
-					if !seenEdges[candidateEdge.num] {
+				numEdges := len(nodeEdges[currentNode])
+				randomOffset := rand.Intn(numEdges)
+				for n := range nodeEdges[currentNode] {
+					idx := (n + randomOffset) % numEdges
+					candidateEdge := nodeEdges[currentNode][idx]
+					if !seenEdges[candidateEdge.num] && (candidateEdge.num != endEdge.num || edgesLeft == 1) {
 						nextEdge = candidateEdge
 						foundEdge = true
 						break
@@ -501,7 +541,6 @@ func Run(f *os.File, partTwo bool) {
 			}
 
 			// add sanity checking here.
-			fmt.Println(currentNode, nodeCoords[currentNode], "edge is", nextEdge, nextEdge.source, nextEdge.dest, directionToString(nextEdge.direction))
 			prevDirection := direction
 			if nextEdge.source == currentNode {
 				// add path to circuit
@@ -529,9 +568,9 @@ func Run(f *os.File, partTwo bool) {
 					circuit = append(circuit, c)
 				}
 			} else if nextEdge.dest == currentNode {
-				fmt.Printf("we are at (%d,%d) [node %d], going to (%d, %d) [node %d]\n", location.x, location.y, currentNode, nodeCoords[nextEdge.source].x, nodeCoords[nextEdge.source].y, nextEdge.source)
-				fmt.Println("the path is supposedly", commandsToString(reversePath(nextEdge.path)), " (originally ", commandsToString(nextEdge.path), ")")
-				fmt.Println("the path has directions start", directionToString(nextEdge.direction), "ending", directionToString(nextEdge.endDirection))
+				// fmt.Printf("we are at (%d,%d) [node %d], going to (%d, %d) [node %d]\n", location.x, location.y, currentNode, nodeCoords[nextEdge.source].x, nodeCoords[nextEdge.source].y, nextEdge.source)
+				// fmt.Println("the path is supposedly", commandsToString(reversePath(nextEdge.path)), " (originally ", commandsToString(nextEdge.path), ")")
+				// fmt.Println("the path has directions start", directionToString(nextEdge.direction), "ending", directionToString(nextEdge.endDirection))
 
 				// reverse the path when it's added to the circuit
 				expectedDirection := reverseDirection(nextEdge.endDirection)
@@ -564,43 +603,17 @@ func Run(f *os.File, partTwo bool) {
 				panic("Invalid edge configuration")
 			}
 
+			fmt.Println("walking edge", nextEdge.num)
 			seenEdges[nextEdge.num] = true
+			edgesLeft--
 		}
 	}
 
-	fmt.Println("found circuit", commandsToString(minCircuit), len(minCircuit))
-	// we've found our circuit.  very exciting.
-	// we need to validate that it works (probably)
-	// and we need to compile it into a program.  each program can be 20 lines
-	// at most.
-	// I'm probably going to compile it manually?
-	location := robotPosition
-	direction := robotDirection
-	fmt.Println(location)
-	for _, command := range minCircuit {
-		fmt.Println(command)
-		if command.turn != 0 {
-			direction = makeTurn(direction, command.turn)
-			fmt.Println("now facing", directionToString(direction), "at", location)
-			continue
-		}
-
-		// otherwise we move forward n steps
-		fmt.Println("now stepping", command.steps, "forward")
-		for n := 0; n < command.steps; n++ {
-			location = moveInDirection(location, direction)
-			if grid[location.y][location.x] == NOTHINGNESS {
-				panic("We stepped off the scaffold")
-			}
-		}
-	}
-
-	if location == nodeCoords[endNode] {
-		fmt.Println("we did it!")
+	for s := range smallCircuits {
+		fmt.Println("found circuit", s)
 	}
 
 	fmt.Println(degrees, robotNode, endNode)
-
 	fmt.Println(robotPosition.x, robotPosition.y, robotDirection)
 	// is this it?
 }
