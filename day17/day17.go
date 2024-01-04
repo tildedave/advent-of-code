@@ -52,6 +52,20 @@ func moveInDirection(location coords, direction int) coords {
 	}
 }
 
+func directionToString(direction int) string {
+	switch direction {
+	case LEFT:
+		return "left"
+	case RIGHT:
+		return "right"
+	case UP:
+		return "up"
+	case DOWN:
+		return "down"
+	default:
+		panic("Invalid direction")
+	}
+}
 func locationIsNotNode(location coords, nodeCoordsReverse map[coords]int) bool {
 	_, ok := nodeCoordsReverse[location]
 	return !ok
@@ -288,6 +302,7 @@ func Run(f *os.File, partTwo bool) {
 			// understanding left or right turns (more helper functions)
 			location := moveInDirection(coords, dir)
 			numSteps := 1
+			startDir := dir
 			path := make([]robotCommand, 0)
 			for locationIsNotNode(location, nodeCoordsReverse) {
 				var nextDir int = -1
@@ -308,7 +323,7 @@ func Run(f *os.File, partTwo bool) {
 					path = append(path, robotCommand{steps: numSteps})
 					// now we turn
 					path = append(path, robotCommand{turn: turn})
-					numSteps = 0
+					numSteps = 1
 				}
 				dir = nextDir
 				fmt.Println("moving direction", dir, "from", location)
@@ -318,7 +333,7 @@ func Run(f *os.File, partTwo bool) {
 			path = append(path, robotCommand{steps: numSteps})
 			fmt.Printf("I connected node %d (%d, %d) with node %d (%d, %d)\n",
 				node, coords.x, coords.y, nodeCoordsReverse[location], location.x, location.y)
-			graphVizString += fmt.Sprintf("\tNode%d -> Node%d [label=\"%s\"];\n", node, nodeCoordsReverse[location], commandsToString(path))
+			graphVizString += fmt.Sprintf("\tNode%d -> Node%d [label=\"starting %s and ending %s; %s\"];\n", node, nodeCoordsReverse[location], directionToString(startDir), directionToString(dir), commandsToString(path))
 		}
 
 	}
