@@ -37,6 +37,14 @@ type robotCommand = struct {
 	turn  int // 1 = left, 2 = right
 }
 
+type edge struct {
+	direction    int
+	endDirection int
+	source       int
+	dest         int
+	path         []robotCommand
+}
+
 func moveInDirection(location coords, direction int) coords {
 	switch direction {
 	case UP:
@@ -109,6 +117,22 @@ func getTurn(d1, d2 int) int {
 	panic("Impossible")
 }
 
+func reversePath(path []robotCommand) []robotCommand {
+	reversedPath := make([]robotCommand, len(path))
+	for i, r := range path {
+		if r.steps != 0 {
+			reversedPath[len(path)-1-i] = r
+		} else {
+			if r.turn == LEFT {
+				reversedPath[len(path)-1-i] = robotCommand{turn: RIGHT}
+			} else {
+				reversedPath[len(path)-1-i] = robotCommand{turn: LEFT}
+			}
+		}
+	}
+	return reversedPath
+}
+
 func commandsToString(commands []robotCommand) string {
 	str := ""
 	for n, c := range commands {
@@ -158,6 +182,18 @@ func contentToString(c int) string {
 		log.Fatalf("Did not recognize item: %d", c)
 		return ""
 	}
+}
+
+func toGraphViz(nodeCoords map[int]coords, edges []edge) string {
+	str := "digraph G {\n"
+	for node, coords := range nodeCoords {
+		str += fmt.Sprintf("\tNode%d [label=\"(%d, %d)\"];\n", node, coords.x, coords.y)
+	}
+	for _, e := range edges {
+		str += fmt.Sprintf("\tNode%d -> Node%d [label=\"starting %s and ending %s; %s\"];\n", e.source, e.dest, directionToString(e.direction), directionToString(e.endDirection), commandsToString(e.path))
+	}
+	str += "}\n"
+	return str
 }
 
 func Run(f *os.File, partTwo bool) {
@@ -289,10 +325,9 @@ func Run(f *os.File, partTwo bool) {
 		}
 	}
 
-	graphVizString := "digraph G {\n"
+	edges := make([]edge, 0)
 	for node, coords := range nodeCoords {
 		d := validDirections[coords]
-		graphVizString += fmt.Sprintf("\tNode%d [label=\"(%d, %d)\"];\n", node, coords.x, coords.y)
 		for dir, able := range d {
 			if !able {
 				continue
@@ -326,21 +361,30 @@ func Run(f *os.File, partTwo bool) {
 					numSteps = 1
 				}
 				dir = nextDir
-				fmt.Println("moving direction", dir, "from", location)
 				location = moveInDirection(location, dir)
-				fmt.Println("new location", location)
 			}
 			path = append(path, robotCommand{steps: numSteps})
-			fmt.Printf("I connected node %d (%d, %d) with node %d (%d, %d)\n",
-				node, coords.x, coords.y, nodeCoordsReverse[location], location.x, location.y)
-			graphVizString += fmt.Sprintf("\tNode%d -> Node%d [label=\"starting %s and ending %s; %s\"];\n", node, nodeCoordsReverse[location], directionToString(startDir), directionToString(dir), commandsToString(path))
+			newEdge := edge{startDir, dir, node, nodeCoordsReverse[location], path}
+			pathStr := commandsToString(path)
+			hasReverseAlready := false
+			for _, e := range edges {
+				if e.dest == newEdge.source && e.source == newEdge.dest && commandsToString(reversePath(e.path)) == pathStr {
+					fmt.Println("already have reverse edge", e)
+					hasReverseAlready = true
+					break
+				}
+			}
+			if !hasReverseAlready {
+				edges = append(edges, newEdge)
+			}
 		}
-
 	}
-	graphVizString += "}\n"
-	// so now we walk along each node until we find another node.
+
+	fmt.Println(toGraphViz(nodeCoords, edges))
+	// now we have all the edges.  they are unfortunately duplicated between source / dest.
+	// we need a way to understand that the edge is the same as the reverse edge.  we
+	// could add some deduplicating logic I guess.
 
 	fmt.Println(robotPosition.x, robotPosition.y, robotDirection)
-	fmt.Println(graphVizString)
 	// is this it?
 }
