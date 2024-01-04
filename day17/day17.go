@@ -131,7 +131,20 @@ func reversePath(path []robotCommand) []robotCommand {
 			}
 		}
 	}
+
 	return reversedPath
+}
+
+func getTurnCommands(direction, nextDirection int) []robotCommand {
+	if direction != nextDirection {
+		if direction == reverseDirection(nextDirection) {
+			// must do two right or left turns
+			return []robotCommand{{turn: LEFT}, {turn: LEFT}}
+		} else {
+			return []robotCommand{{turn: getTurn(direction, nextDirection)}}
+		}
+	}
+	return []robotCommand{}
 }
 
 func commandsToString(commands []robotCommand) string {
@@ -169,6 +182,24 @@ func reverseDirection(direction int) int {
 	}
 }
 
+func makeTurn(direction int, turn int) int {
+	// assume a left turn and just 180 in the case that it isn't.
+	switch direction {
+	case UP:
+		direction = LEFT
+	case DOWN:
+		direction = RIGHT
+	case LEFT:
+		direction = DOWN
+	case RIGHT:
+		direction = UP
+	}
+	if turn == RIGHT {
+		return reverseDirection(direction)
+	}
+	return direction
+}
+
 func contentToString(c int) string {
 	switch c {
 	case SCAFFOLD:
@@ -191,7 +222,7 @@ func toGraphViz(nodeCoords map[int]coords, edges []edge) string {
 		str += fmt.Sprintf("\tNode%d [label=\"%d (%d, %d)\"];\n", node, node, coords.x, coords.y)
 	}
 	for _, e := range edges {
-		str += fmt.Sprintf("\tNode%d -> Node%d [label=\"%d\"];\n", e.source, e.dest, e.num)
+		str += fmt.Sprintf("\tNode%d -> Node%d [label=\"%d; %s -> %s\"];\n", e.source, e.dest, e.num, directionToString(e.direction), directionToString(e.endDirection))
 	}
 	str += "}\n"
 	return str
@@ -419,9 +450,11 @@ func Run(f *os.File, partTwo bool) {
 	// edges gone.  we need to avoid the start/end edges in this process.
 	// I am not certain if I'll need to optimize this.
 
+	fmt.Println(toGraphViz(nodeCoords, edges))
+
 	numCircuitsFound := 0
 	var minCircuit []robotCommand
-	for numCircuitsFound < 10000 {
+	for numCircuitsFound < 1 {
 		// random walk until we find the path.
 		seenEdges := make(map[int]bool)
 		circuit := make([]robotCommand, 0)
@@ -430,6 +463,7 @@ func Run(f *os.File, partTwo bool) {
 		// then join the path to our tour.
 
 		currentNode := robotNode
+		location := robotPosition
 		var nextEdge edge
 		direction := robotDirection
 	RandomWalk:
@@ -466,34 +500,74 @@ func Run(f *os.File, partTwo bool) {
 				break RandomWalk
 			}
 
-			if direction != nextEdge.direction {
-				if direction == reverseDirection(nextEdge.direction) {
-					// must do two right or left turns
-					circuit = append(circuit, robotCommand{turn: LEFT})
-					circuit = append(circuit, robotCommand{turn: LEFT})
-				} else {
-					circuit = append(circuit, robotCommand{turn: getTurn(direction, nextEdge.direction)})
-				}
-			}
-
+			// add sanity checking here.
+			fmt.Println(currentNode, nodeCoords[currentNode], "edge is", nextEdge, nextEdge.source, nextEdge.dest, directionToString(nextEdge.direction))
+			prevDirection := direction
 			if nextEdge.source == currentNode {
 				// add path to circuit
+				turns := getTurnCommands(direction, nextEdge.direction)
+				for _, c := range turns {
+					direction = makeTurn(direction, c.turn)
+				}
+				if direction != nextEdge.direction {
+					panic("did not turn like we expected")
+				}
+				circuit = append(circuit, turns...)
+
 				currentNode = nextEdge.dest
-				circuit = append(circuit, nextEdge.path...)
+				for _, c := range nextEdge.path {
+					if c.turn != 0 {
+						direction = makeTurn(direction, c.turn)
+					} else if c.steps > 0 {
+						for n := 0; n < c.steps; n++ {
+							location = moveInDirection(location, direction)
+							if grid[location.y][location.x] == NOTHINGNESS {
+								panic("We stepped off the scaffold - generating circuit")
+							}
+						}
+					}
+					circuit = append(circuit, c)
+				}
 			} else if nextEdge.dest == currentNode {
+				fmt.Printf("we are at (%d,%d) [node %d], going to (%d, %d) [node %d]\n", location.x, location.y, currentNode, nodeCoords[nextEdge.source].x, nodeCoords[nextEdge.source].y, nextEdge.source)
+				fmt.Println("the path is supposedly", commandsToString(reversePath(nextEdge.path)), " (originally ", commandsToString(nextEdge.path), ")")
+				fmt.Println("the path has directions start", directionToString(nextEdge.direction), "ending", directionToString(nextEdge.endDirection))
+
 				// reverse the path when it's added to the circuit
+				expectedDirection := reverseDirection(nextEdge.endDirection)
+				turns := getTurnCommands(direction, expectedDirection)
+				for _, c := range turns {
+					direction = makeTurn(direction, c.turn)
+				}
+				if direction != expectedDirection {
+					panic("did not turn like we expected")
+				}
+				circuit = append(circuit, getTurnCommands(prevDirection, direction)...)
 				currentNode = nextEdge.source
-				circuit = append(circuit, reversePath(nextEdge.path)...)
+
+				// sanity check the entire path
+				for _, c := range reversePath(nextEdge.path) {
+					if c.turn != 0 {
+						direction = makeTurn(direction, c.turn)
+					} else if c.steps > 0 {
+						for n := 0; n < c.steps; n++ {
+							location = moveInDirection(location, direction)
+							if grid[location.y][location.x] == NOTHINGNESS {
+								fmt.Println(commandsToString(reversePath(nextEdge.path)))
+								panic("We stepped off the scaffold - reverse path")
+							}
+						}
+					}
+					circuit = append(circuit, c)
+				}
 			} else {
 				panic("Invalid edge configuration")
 			}
 
-			direction = nextEdge.endDirection
 			seenEdges[nextEdge.num] = true
 		}
 	}
 
-	fmt.Println(directionToString(robotDirection))
 	fmt.Println("found circuit", commandsToString(minCircuit), len(minCircuit))
 	// we've found our circuit.  very exciting.
 	// we need to validate that it works (probably)
@@ -506,31 +580,23 @@ func Run(f *os.File, partTwo bool) {
 	for _, command := range minCircuit {
 		fmt.Println(command)
 		if command.turn != 0 {
-			// assume a left turn and just 180 in the case that it isn't.
-			switch direction {
-			case UP:
-				direction = LEFT
-			case DOWN:
-				direction = RIGHT
-			case LEFT:
-				direction = DOWN
-			case RIGHT:
-				direction = UP
-			}
-			if command.turn == RIGHT {
-				direction = reverseDirection(direction)
-			}
+			direction = makeTurn(direction, command.turn)
 			fmt.Println("now facing", directionToString(direction), "at", location)
 			continue
 		}
 
 		// otherwise we move forward n steps
+		fmt.Println("now stepping", command.steps, "forward")
 		for n := 0; n < command.steps; n++ {
 			location = moveInDirection(location, direction)
 			if grid[location.y][location.x] == NOTHINGNESS {
 				panic("We stepped off the scaffold")
 			}
 		}
+	}
+
+	if location == nodeCoords[endNode] {
+		fmt.Println("we did it!")
 	}
 
 	fmt.Println(degrees, robotNode, endNode)
