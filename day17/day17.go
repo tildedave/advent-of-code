@@ -5,6 +5,8 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
+	"sync"
 
 	"github.com/tildedave/advent-of-code-2019/intcode"
 	"github.com/tildedave/advent-of-code-2019/utils"
@@ -229,12 +231,72 @@ func toGraphViz(nodeCoords map[int]coords, edges []edge) string {
 	return str
 }
 
+func Compress(str string) (bool, string, [3]string) {
+	// find the first substring; it shouldn't end in a comma, but the next
+	// character should be a comma.
+	for aEnd := 0; aEnd <= 20; aEnd++ {
+		if str[aEnd] != ',' {
+			continue
+		}
+		candidateA := str[0:aEnd]
+		// find the first non-A digit.
+		// We might have A, A, whatever, so we have to look forward for a
+		// while.
+		// Let's assume we aren't as it makes my life a bit easier.
+		// In the event that I can't find the path I will come back and fix this.
+
+		bStart := aEnd + 1
+		for bEnd := bStart; bEnd <= bStart+20 && bEnd < len(str); bEnd++ {
+			if str[bEnd] != ',' {
+				continue
+			}
+			candidateB := str[bStart:bEnd]
+
+			// find the first non-A and non-B digit.  we have to hunt a bit
+			// for this.
+			for cStart := bEnd; cStart < len(str); cStart++ {
+				// must start on an L, and R, or a number.
+				r := int(str[cStart])
+				if str[cStart] == 'L' || str[cStart] == 'R' || (r >= 48 && r <= 57) {
+					// valid cStart.
+					// find cEnd.
+					for cEnd := cStart; cEnd <= cStart+20 && cEnd < len(str); cEnd++ {
+						// it's possible we'll end on A - with my puzzle input I think I will.
+						if str[cEnd] != ',' && cEnd != len(str)-1 {
+							continue
+						}
+						candidateC := str[cStart:cEnd]
+						workStr := str
+						workStr = strings.ReplaceAll(workStr, candidateA, "A")
+						workStr = strings.ReplaceAll(workStr, candidateB, "B")
+						workStr = strings.ReplaceAll(workStr, candidateC, "C")
+						isValid := true
+						for _, chr := range workStr {
+							if chr == 'L' || chr == 'R' || (chr >= 48 && chr <= 57) {
+								isValid = false
+							}
+						}
+						if isValid {
+							fmt.Println("WorkStr compressed", workStr)
+							fmt.Println(candidateA, candidateB, candidateC)
+							return true, workStr, [3]string{candidateA, candidateB, candidateC}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false, "", [3]string{}
+}
+
 func Run(f *os.File, partTwo bool) {
 	program := utils.ParseProgram(f)
 	input := make(chan int)
 	output := make(chan int)
 	go func() {
 		intcode.ExecFull(program, input, output)
+		close(input)
 	}()
 
 	x := 0
@@ -460,16 +522,15 @@ func Run(f *os.File, partTwo bool) {
 	fmt.Println(toGraphViz(nodeCoords, edges))
 
 	numCircuitsFound := 0
-	smallCircuits := make(map[string]bool)
-	smallCircuitSize := 200
-	for numCircuitsFound < 200 {
+	smallCircuits := make(map[string]int)
+	smallCircuitSize := 500
+	for numCircuitsFound < 1 {
 		// random walk until we find the path.
-		seenEdges := make(map[int]bool)
+		seenEdges := make(map[int]int)
 		for _, e := range edges {
-			seenEdges[e.num] = false
+			seenEdges[e.num] = 0
 		}
 		edgesLeft := len(seenEdges)
-		fmt.Println(edgesLeft)
 		circuit := make([]robotCommand, 0)
 
 		// follow a path from this node [how?] until we return to the node.
@@ -479,19 +540,42 @@ func Run(f *os.File, partTwo bool) {
 		location := robotPosition
 		var nextEdge edge
 		direction := robotDirection
+
+		visited := make([][]int, 0)
+		for y := 0; y < len(grid); y++ {
+			visited = append(visited, make([]int, len(grid[0])))
+		}
+		visited[robotPosition.y][robotPosition.x] = 1
 	RandomWalk:
 		for {
 			if currentNode == endNode {
 				if edgesLeft != 0 {
 					break
 				}
+				// this is working correctly
+				// fmt.Println("*******")
+				// for y := 0; y < len(grid); y++ {
+				// 	for x := 0; x < len(grid[0]); x++ {
+				// 		if grid[y][x] == SCAFFOLD || grid[y][x] == ROBOT {
+				// 			if visited[y][x] == 0 {
+				// 				fmt.Println("Did not visit", x, y)
+				// 				panic("Invalid circuit")
+				// 			}
+				// 		}
+				// 		fmt.Print(visited[y][x])
+				// 	}
+				// 	fmt.Println()
+				// }
+				// fmt.Println("*******")
 				numCircuitsFound++
 				finalCircuit := make([]robotCommand, 0)
 				currSteps := 0
+				totalSteps := 0
 				for _, c := range circuit {
 					// combine steps
 					if c.steps > 0 {
 						currSteps += c.steps
+						totalSteps += c.steps
 					} else if c.turn != 0 {
 						if currSteps > 0 {
 							finalCircuit = append(finalCircuit, robotCommand{steps: currSteps})
@@ -502,32 +586,39 @@ func Run(f *os.File, partTwo bool) {
 				}
 				if currSteps > 0 {
 					finalCircuit = append(finalCircuit, robotCommand{steps: currSteps})
+					totalSteps += currSteps
 				}
 
+				str2 := commandsToString(circuit)
+				if len(str2) < smallCircuitSize {
+					smallCircuits[str2] = totalSteps
+				}
 				circuit = finalCircuit
 				str := commandsToString(circuit)
+
+				success1, _, _ := Compress(str2)
+				if success1 {
+					fmt.Println("OMFGFGFGFFGFG", str2)
+				}
+				success, _, _ := Compress(str)
+				if success {
+					fmt.Println("OMFGFGFGFFGFG", str)
+				}
+
+				fmt.Println("found circuit", str)
 				if len(str) < smallCircuitSize {
-					smallCircuits[str] = true
+					smallCircuits[str] = totalSteps
 				}
 				break
 			}
 			foundEdge := false
-			// always do a self-loop if possible
-			for _, candidateEdge := range nodeEdges[currentNode] {
-				if !seenEdges[candidateEdge.num] && candidateEdge.source == candidateEdge.dest {
-					// this is our edge
-					foundEdge = true
-					nextEdge = candidateEdge
-					break
-				}
-			}
 			if !foundEdge {
 				numEdges := len(nodeEdges[currentNode])
 				randomOffset := rand.Intn(numEdges)
 				for n := range nodeEdges[currentNode] {
 					idx := (n + randomOffset) % numEdges
 					candidateEdge := nodeEdges[currentNode][idx]
-					if !seenEdges[candidateEdge.num] && (candidateEdge.num != endEdge.num || edgesLeft == 1) {
+					if seenEdges[candidateEdge.num] <= 1 && (candidateEdge.num != endEdge.num || edgesLeft == 1) {
 						nextEdge = candidateEdge
 						foundEdge = true
 						break
@@ -563,6 +654,7 @@ func Run(f *os.File, partTwo bool) {
 							if grid[location.y][location.x] == NOTHINGNESS {
 								panic("We stepped off the scaffold - generating circuit")
 							}
+							visited[location.y][location.x] += 1
 						}
 					}
 					circuit = append(circuit, c)
@@ -595,6 +687,7 @@ func Run(f *os.File, partTwo bool) {
 								fmt.Println(commandsToString(reversePath(nextEdge.path)))
 								panic("We stepped off the scaffold - reverse path")
 							}
+							visited[location.y][location.x] += 1
 						}
 					}
 					circuit = append(circuit, c)
@@ -603,17 +696,78 @@ func Run(f *os.File, partTwo bool) {
 				panic("Invalid edge configuration")
 			}
 
-			fmt.Println("walking edge", nextEdge.num)
-			seenEdges[nextEdge.num] = true
-			edgesLeft--
+			if seenEdges[nextEdge.num] == 0 {
+				edgesLeft--
+			}
+
+			seenEdges[nextEdge.num] += 1
 		}
 	}
 
+	var commands string
 	for s := range smallCircuits {
-		fmt.Println("found circuit", s)
+		commands = s
+		fmt.Println(len(s), "found circuit", s)
 	}
 
-	fmt.Println(degrees, robotNode, endNode)
-	fmt.Println(robotPosition.x, robotPosition.y, robotDirection)
-	// is this it?
+	input = make(chan int)
+	output = make(chan int)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		intcode.ExecFull(program, input, output)
+		defer wg.Done()
+	}()
+	// let's try just feeding the commands to the robot and see if I've messed
+	// something up horribly.
+	program[0] = 2
+	commands = "A,B,A,C,A,B,A,C,B,C"
+	line := ""
+	for o := range output {
+		fmt.Print(string(rune(o)))
+		line += string(rune(o))
+		if o == int('\n') {
+			line = ""
+		}
+		if line == "Main:" {
+			<-output
+			break
+		}
+	}
+	for _, chr := range commands {
+		input <- int(chr)
+	}
+	input <- int('\n')
+	line1 := "R,4,L,12,L,8,R,4"
+	line2 := "L,8,R,10,R,10,R,6"
+	line3 := "R,4,R,10,L,12"
+	for _, line := range []string{line1, line2, line3} {
+		fmt.Println(line)
+		for o := range output {
+			fmt.Print(string(rune(o)))
+			if rune(o) == '\n' {
+				fmt.Println("breaking")
+				break
+			}
+		}
+		for _, chr := range line {
+			fmt.Println("sending", int(chr))
+			input <- int(chr)
+		}
+		input <- int('\n')
+	}
+	for o := range output {
+		fmt.Print(rune(o))
+		if rune(o) == '\n' {
+			break
+		}
+	}
+	input <- int('n')
+	input <- int('\n')
+	for chr := range output {
+		fmt.Print(chr)
+	}
+	wg.Wait()
+	// sadly the robot is doing what I expect it to so I need to implement
+	// compression in order to find the compressable path.  ugh.
 }
