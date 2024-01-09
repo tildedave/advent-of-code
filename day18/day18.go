@@ -57,7 +57,7 @@ type queueItem struct {
 	length int
 }
 
-func toGraphViz(allLabels map[string]bool, dist map[string]map[string]int) {
+func toGraphViz(allLabels map[string]bool, edges map[string][]edge) {
 	// I guess let's see what graphviz claims.
 	labelMap := make(map[string]int)
 	n := 0
@@ -67,9 +67,9 @@ func toGraphViz(allLabels map[string]bool, dist map[string]map[string]int) {
 		fmt.Printf("\tNode%d[label=\"%s\"];\n", n, e)
 		n++
 	}
-	for k, dists := range dist {
-		for j, dist := range dists {
-			fmt.Printf("\tNode%d -> Node%d [label=\"%d\"];\n", labelMap[j], labelMap[k], dist)
+	for _, elist := range edges {
+		for _, e := range elist {
+			fmt.Printf("\tNode%d -> Node%d [label=\"%d\"];\n", labelMap[e.source], labelMap[e.dest], e.weight)
 		}
 	}
 	fmt.Println("}")
@@ -89,7 +89,6 @@ func Run(f *os.File, partTwo bool) {
 		grid = append(grid, line)
 		row++
 	}
-	fmt.Println(startPos)
 
 	visited := make(map[string]map[coord]bool)
 	queue := make([]queueItem, 0)
@@ -156,7 +155,22 @@ func Run(f *os.File, partTwo bool) {
 			}
 		}
 	}
-	fmt.Println(edges)
+
+	newEdges := make(map[string][]edge)
+	for node, elist := range edges {
+		newList := make([]edge, 0)
+		minNeighbors := make(map[string]edge)
+		for _, e := range elist {
+			if minNeighbors[e.dest].weight == 0 || e.weight < minNeighbors[e.dest].weight {
+				minNeighbors[e.dest] = e
+			}
+		}
+		for _, edge := range minNeighbors {
+			newList = append(newList, edge)
+		}
+		newEdges[node] = newList
+	}
+	edges = newEdges
 
 	allLabels := make(map[string]bool)
 
@@ -167,39 +181,21 @@ func Run(f *os.File, partTwo bool) {
 		}
 	}
 
-	// Floyd Warshall now I guess
-	// dist := make(map[string]map[string]int)
-	// for label := range allLabels {
-	// 	dist[label] = make(map[string]int)
-	// 	for label2 := range allLabels {
-	// 		// just needs to be very large, math.maxInt by itself overflows
-	// 		// immediately so we don't want that.
-	// 		dist[label][label2] = (math.MaxInt >> 2)
-	// 	}
-	// 	dist[label][label] = 0
-	// }
-
-	// for _, elist := range edges {
-	// 	for _, e := range elist {
-	// 		dist[e.source][e.dest] = e.weight
-	// 		dist[e.dest][e.source] = e.weight
-	// 	}
-	// }
-	// for k := range allLabels {
-	// 	for i := range allLabels {
-	// 		for j := range allLabels {
-	// 			if dist[i][j] > dist[i][k]+dist[k][j] {
-	// 				dist[i][j] = dist[i][k] + dist[k][j]
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// fmt.Println(dist)
-
 	nums := make(map[string]uint)
 	num := uint(0)
+	numKeys := uint(0)
 	for e := range allLabels {
-		nums[e] = num
+		if isLowercase(e) {
+			nums[e] = num
+			numKeys++
+		}
+		num++
+	}
+	for e := range allLabels {
+		_, ok := nums[e]
+		if !ok {
+			nums[e] = num
+		}
 		num++
 	}
 
@@ -207,67 +203,94 @@ func Run(f *os.File, partTwo bool) {
 	// every node with the requirement that we hit the lowercase before the
 	// capitals.
 
-	// I'm lazy, let's try a combinatorial search.  how bad is this?
 	type searchItem struct {
 		node   string
 		length int
-		seen   bitset.BitSet
+		keys   *bitset.BitSet
 		path   string
 	}
 	searchQueue := make([]searchItem, 0)
-	searchQueue = append(searchQueue, searchItem{"@", 0, bitset.BitSet{}, ""})
-	minDistance := math.MaxInt
+	searchQueue = append(searchQueue, searchItem{"@", 0, bitset.New(numKeys), ""})
+
+	allKeys := bitset.New(numKeys)
+	for label := range allLabels {
+		if isLowercase(label) {
+			allKeys.Set(nums[label])
+		}
+	}
+	minDistance := make(map[string]map[string]int)
+	minTotal := math.MaxInt
 
 	// actually we only need to get every key.  going everywhere is potentially
 	// unnecessary.
 	for len(searchQueue) > 0 {
 		item := searchQueue[0]
 		searchQueue = searchQueue[1:]
-		fmt.Println("I am at", item.node)
-		hadValidLabel := false
-		item.seen.Set(nums[item.node])
+
+		if minDistance[item.node] == nil {
+			minDistance[item.node] = make(map[string]int)
+		}
+		if isLowercase(item.node) {
+			// acquire the key
+			item.keys.Set(nums[item.node])
+		}
+
+		keyStr := item.keys.String()
 		path := item.path + item.node
 
-		fmt.Println(edges[item.node])
+		dist, ok := minDistance[item.node][keyStr]
+		if !ok || item.length < dist {
+			minDistance[item.node][keyStr] = item.length
+		}
+		if ok && dist >= item.length {
+			// if strings.HasPrefix(path, "@a@f") {
+			// 	fmt.Println("bailing out, we have a more efficient way to get to", item.node, path, dist, item.keys)
+			// }
+			continue
+		}
+
+		if item.keys.Equal(allKeys) {
+			if item.length < minTotal {
+				fmt.Println("found all key path", path, item.length)
+				minTotal = item.length
+			}
+			continue
+		}
+
 		for _, e := range edges[item.node] {
 			// is this a valid label?
-			label := e.dest
-			n := nums[label]
+			next := e.dest
+			// n := nums[next]
 			// unfortunately we do want people to be able to return to @ in the
 			// path, I guess as often as they like.
 			// this seems OK in the examples I see.
-			if item.seen.Test(n) && label != "@" {
-				fmt.Println("I have already seen ", label, "since my path so far is", path)
-				continue
-			}
+			// if isLowercase(next) && item.keys.Test(n) {
+			// 	fmt.Println("I have already seen ", next, "since my path so far is", path)
+			// 	continue
+			// }
 
 			// next, determine if we need to have a key, and if we do have a key.
-			if isUppercase(label) {
+			if isUppercase(next) {
 				// must have the key, we may not have the key.
-				req := nums[strings.ToLower(label)]
-				if !item.seen.Test(req) {
-					fmt.Println("I cannot go to ", label, "since my path so far is", path)
+				req := nums[strings.ToLower(next)]
+				if !item.keys.Test(req) {
 					continue
 				}
 			}
 
-			// this is a valid label to connect to.
-			nextSeen := bitset.BitSet{}
-			for i, e := item.seen.NextSet(0); e; i, e = item.seen.NextSet(i + 1) {
-				nextSeen.Set(i)
+			// we can walk here.  however it might not be the fastest path.
+			dist, ok := minDistance[next][keyStr]
+			if ok && dist < item.length+e.weight {
+				continue
 			}
-			fmt.Println("connect to ", label, "through", item.node)
-			nextItem := searchItem{label, item.length + e.weight, nextSeen, path}
+
+			nextKeys := bitset.New(numKeys)
+			for i, e := item.keys.NextSet(0); e; i, e = item.keys.NextSet(i + 1) {
+				nextKeys.Set(i)
+			}
+			nextItem := searchItem{next, item.length + e.weight, nextKeys, path}
 			searchQueue = append(searchQueue, nextItem)
-			hadValidLabel = true
-		}
-		if !hadValidLabel {
-			if item.length < minDistance {
-				fmt.Println("min item found", item)
-				minDistance = item.length
-			}
 		}
 	}
-	fmt.Println(minDistance)
-	fmt.Println(edges)
+	fmt.Println(minTotal)
 }
