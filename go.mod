@@ -3,6 +3,7 @@ module github.com/tildedave/advent-of-code-2019
 go 1.21.0
 
 require (
+	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gbin/goncurses v0.0.0-20141106211150-34d9399fcea5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
