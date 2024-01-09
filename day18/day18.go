@@ -75,9 +75,11 @@ func toGraphViz(allLabels map[string]bool, edges map[string][]edge) {
 	fmt.Println("}")
 }
 
+var startSymbols = []string{"@", "$", "%", "&"}
+
 func Run(f *os.File, partTwo bool) {
 	scanner := bufio.NewScanner(f)
-	grid := make([]string, 0)
+	grid := make([][]byte, 0)
 	row := 0
 	var startPos coord
 	for scanner.Scan() {
@@ -86,13 +88,43 @@ func Run(f *os.File, partTwo bool) {
 		if idx != -1 {
 			startPos = coord{idx, row}
 		}
-		grid = append(grid, line)
+		strLine := make([]byte, len(line))
+		for n := range line {
+			strLine[n] = line[n]
+		}
+		grid = append(grid, strLine)
 		row++
+	}
+
+	starts := make([]coord, 0)
+	if partTwo {
+		for _, dx := range []int{-1, 1} {
+			for _, dy := range []int{-1, 1} {
+				grid[startPos.y+dy][startPos.x+dx] = startSymbols[len(starts)][0]
+				starts = append(starts, coord{startPos.x + dx, startPos.y + dy})
+			}
+		}
+		for _, dx := range []int{-1, 1} {
+			grid[startPos.y][startPos.x+dx] = '#'
+		}
+		for _, dy := range []int{-1, 1} {
+			grid[startPos.y+dy][startPos.x] = '#'
+		}
+		grid[startPos.y][startPos.x] = '#'
+	}
+
+	for _, line := range grid {
+		for _, ch := range line {
+			fmt.Print(string(ch))
+		}
+		fmt.Println()
 	}
 
 	visited := make(map[string]map[coord]bool)
 	queue := make([]queueItem, 0)
-	queue = append(queue, queueItem{"@", startPos, 0})
+	for n, pos := range starts {
+		queue = append(queue, queueItem{startSymbols[n], pos, 0})
+	}
 	edges := make(map[string][]edge)
 	for len(queue) > 0 {
 		item := queue[0]
@@ -115,6 +147,8 @@ func Run(f *os.File, partTwo bool) {
 			if curr != '#' && curr != '.' {
 				// we have an edge!
 				source = string(curr)
+
+				// note: if source is a
 				length = 0
 
 				edgeList := edges[item.source]
@@ -150,7 +184,7 @@ func Run(f *os.File, partTwo bool) {
 		for _, dir := range []int{NORTH, SOUTH, EAST, WEST} {
 			next := moveInDirection(pos, dir)
 			ch := grid[next.y][next.x]
-			if ch != '#' && ch != '@' && !visited[source][next] {
+			if ch != '#' && !visited[source][next] {
 				queue = append(queue, queueItem{source, next, length + 1})
 			}
 		}
@@ -171,6 +205,7 @@ func Run(f *os.File, partTwo bool) {
 		newEdges[node] = newList
 	}
 	edges = newEdges
+	fmt.Println(edges)
 
 	allLabels := make(map[string]bool)
 
@@ -208,59 +243,111 @@ func Run(f *os.File, partTwo bool) {
 	// capitals.
 
 	type searchItem struct {
-		node   string
+		node   []string
 		length int
 		keys   *bitset.BitSet
 		path   string
+		uniq   int
 	}
 	searchQueue := make([]searchItem, 0)
-	searchQueue = append(searchQueue, searchItem{"@", 0, bitset.New(numKeys), ""})
-
-	allKeys := bitset.New(numKeys)
-	for label := range allLabels {
-		if isLowercase(label) {
-			allKeys.Set(nums[label])
-		}
+	startNodes := make([]string, len(starts))
+	for n := range starts {
+		startNodes[n] = startSymbols[n]
 	}
-	minDistance := make(map[string]map[string]int)
+	searchQueue = append(searchQueue, searchItem{startNodes, 0, bitset.New(numKeys), "", 0})
+
+	type bitsetCost = struct {
+		b    *bitset.BitSet
+		cost int
+	}
+	minDistance := make(map[string][]bitsetCost)
 	minTotal := math.MaxInt
 
-	// keyString := func(b *bitset.BitSet) string {
-	// 	str := ""
-	// 	for i, e := b.NextSet(0); e; i, e = b.NextSet(i + 1) {
-	// 		str += labelNums[i]
-	// 	}
-	// 	return str
-	// }
+	everyKey := bitset.New(numKeys)
+	for e := range allLabels {
+		if isLowercase(e) {
+			everyKey.Set(nums[e])
+		}
+	}
+
+	allKeys := make([]*bitset.BitSet, len(starts))
+	// DFS from each starting position to find which keys are available?
+	for n, start := range startSymbols {
+		visited := make(map[string]bool)
+		q := make([]string, 0)
+		q = append(q, start)
+		bs := bitset.New(numKeys)
+		for len(q) > 0 {
+			i := q[0]
+			q = q[1:]
+			visited[i] = true
+			for _, e := range edges[i] {
+				if !visited[e.dest] {
+					q = append(q, e.dest)
+				}
+			}
+		}
+		for v := range visited {
+			if isLowercase(v) {
+				bs.Set(nums[v])
+			}
+		}
+		allKeys[n] = bs
+	}
+
+	keyString := func(b *bitset.BitSet) string {
+		str := ""
+		for i, e := b.NextSet(0); e; i, e = b.NextSet(i + 1) {
+			str += labelNums[i]
+		}
+		return str
+	}
+	for n, keys := range allKeys {
+		fmt.Println(n, keyString(keys))
+	}
+
+	nodeString := func(nstr []string) string {
+		str := ""
+		for _, s := range nstr {
+			str += s
+		}
+		return str
+	}
+
+	itemToString := func(i *searchItem) string {
+		return fmt.Sprintf("%s %s %d %s uniq%d", nodeString(i.node), keyString(i.keys), i.length, i.path, i.uniq)
+	}
+	fmt.Println(itemToString(&searchQueue[0]))
+	itemCount := 1
 
 	// actually we only need to get every key.  going everywhere is potentially
 	// unnecessary.
 	for len(searchQueue) > 0 {
 		item := searchQueue[0]
 		searchQueue = searchQueue[1:]
+		nodeStr := nodeString(item.node)
 
-		if minDistance[item.node] == nil {
-			minDistance[item.node] = make(map[string]int)
-		}
-		if isLowercase(item.node) {
-			// acquire the key
-			item.keys.Set(nums[item.node])
+		// fmt.Println("---> Queue", itemToString(&item), len(searchQueue))
+
+		if minDistance[nodeStr] == nil {
+			minDistance[nodeStr] = make([]bitsetCost, 0)
 		}
 
-		keyStr := item.keys.String()
-		path := item.path + item.node
+		path := item.path
 
-		dist, ok := minDistance[item.node][keyStr]
-		if !ok || item.length < dist {
-			// fmt.Println(path, "is the fastest way to get to", item.node, "with", keyString(item.keys), " - length", item.length)
-			minDistance[item.node][keyStr] = item.length
+		shouldCutoff := false
+		for _, bc := range minDistance[nodeStr] {
+			if bc.b.IsSuperSet(item.keys) && bc.cost <= item.length {
+				shouldCutoff = true
+			}
 		}
-		if ok && dist < item.length {
-			// fmt.Println(path, "was not faster than the previous minimum which was", dist, "my path", item.length)
+		if shouldCutoff {
 			continue
+		} else {
+			minDistance[nodeStr] = append(minDistance[nodeStr], bitsetCost{item.keys, item.length})
 		}
 
-		if item.keys.Equal(allKeys) {
+		if item.keys.Equal(everyKey) {
 			if item.length < minTotal {
 				fmt.Println("found all key path", path, item.length)
 				minTotal = item.length
@@ -268,40 +355,60 @@ func Run(f *os.File, partTwo bool) {
 			continue
 		}
 
-		for _, e := range edges[item.node] {
-			// is this a valid label?
-			next := e.dest
-			// n := nums[next]
-			// unfortunately we do want people to be able to return to @ in the
-			// path, I guess as often as they like.
-			// this seems OK in the examples I see.
-			// if isLowercase(next) && item.keys.Test(n) {
-			// 	fmt.Println("I have already seen ", next, "since my path so far is", path)
-			// 	continue
-			// }
-
-			// next, determine if we need to have a key, and if we do have a key.
-			if isUppercase(next) {
-				// must have the key, we may not have the key.
-				req := nums[strings.ToLower(next)]
-				if !item.keys.Test(req) {
-					// fmt.Println("I can't go to", next, "because I don't have the key", keyString(item.keys), path)
-					continue
-				}
-			}
-
-			// we can walk here.  however it might not be the fastest path.
-			dist, ok := minDistance[next][keyStr]
-			if ok && dist < item.length+e.weight {
+		nextNodes := make([]string, len(item.node))
+		copy(nextNodes, item.node)
+		for n, node := range item.node {
+			if item.keys.IsSuperSet(allKeys[n]) {
 				continue
 			}
+			for _, e := range edges[node] {
+				next := e.dest
+				// fmt.Println("inspecting edge from ", node, "to", next)
 
-			nextKeys := bitset.New(numKeys)
-			for i, e := item.keys.NextSet(0); e; i, e = item.keys.NextSet(i + 1) {
-				nextKeys.Set(i)
+				// next, determine if we need to have a key, and if we do have a key.
+				if isUppercase(next) {
+					// must have the key, we may not have the key.
+					req := nums[strings.ToLower(next)]
+					if !item.keys.Test(req) {
+						// fmt.Println("I can't go to", next, "because I don't have the key", keyString(item.keys), path)
+						continue
+					}
+				}
+
+				nextNodes[n] = next
+				nextStr := nodeString(nextNodes)
+
+				nextKeys := bitset.New(numKeys)
+				for i, e := item.keys.NextSet(0); e; i, e = item.keys.NextSet(i + 1) {
+					nextKeys.Set(i)
+				}
+				if isLowercase(next) {
+					// acquire the key.  this will sometimes be redundant.
+					nextKeys.Set(nums[next])
+				}
+
+				// we can walk here.  however it might not be the fastest path.
+				// must look up minDistance.
+				costs := minDistance[nextStr]
+				shouldCutoff = false
+				for _, c := range costs {
+					if c.b.IsSuperSet(nextKeys) && c.cost <= item.length+e.weight {
+						shouldCutoff = true
+						break
+					}
+				}
+				if shouldCutoff {
+					continue
+				}
+
+				itemCount++
+				copyNextNodes := make([]string, len(nextNodes))
+				copy(copyNextNodes, nextNodes)
+				nextItem := searchItem{copyNextNodes, item.length + e.weight, nextKeys, path + next, itemCount}
+				// fmt.Println("walking", nextNodes, "length", nextItem.length, "with keys", nextKeys.String(), "new path", path+next, "uniq", nextItem.uniq)
+				searchQueue = append(searchQueue, nextItem)
 			}
-			nextItem := searchItem{next, item.length + e.weight, nextKeys, path}
-			searchQueue = append(searchQueue, nextItem)
+			nextNodes[n] = node
 		}
 	}
 	fmt.Println(minTotal)
