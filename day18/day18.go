@@ -6,8 +6,6 @@ import (
 	"math"
 	"os"
 	"strings"
-
-	"github.com/bits-and-blooms/bitset"
 )
 
 const NORTH = 0
@@ -73,6 +71,10 @@ func toGraphViz(allLabels map[string]bool, edges map[string][]edge) {
 		}
 	}
 	fmt.Println("}")
+}
+
+func IsSuperSetFast(b1 uint64, b2 uint64) bool {
+	return (b1 & b2) == b2
 }
 
 var startSymbols = []string{"@", "$", "%", "&"}
@@ -245,7 +247,7 @@ func Run(f *os.File, partTwo bool) {
 	type searchItem struct {
 		node   []string
 		length int
-		keys   *bitset.BitSet
+		keys   uint64
 		path   string
 		uniq   int
 	}
@@ -254,29 +256,29 @@ func Run(f *os.File, partTwo bool) {
 	for n := range starts {
 		startNodes[n] = startSymbols[n]
 	}
-	searchQueue = append(searchQueue, searchItem{startNodes, 0, bitset.New(numKeys), "", 0})
+	searchQueue = append(searchQueue, searchItem{startNodes, 0, uint64(0), "", 0})
 
 	type bitsetCost = struct {
-		b    *bitset.BitSet
+		b    uint64
 		cost int
 	}
 	minDistance := make(map[string][]bitsetCost)
 	minTotal := math.MaxInt
 
-	everyKey := bitset.New(numKeys)
+	everyKey := uint64(0)
 	for e := range allLabels {
 		if isLowercase(e) {
-			everyKey.Set(nums[e])
+			everyKey |= (1 << nums[e])
 		}
 	}
 
-	allKeys := make([]*bitset.BitSet, len(starts))
+	allKeys := make([]uint64, len(starts))
 	// DFS from each starting position to find which keys are available?
 	for n, start := range startSymbols {
 		visited := make(map[string]bool)
 		q := make([]string, 0)
 		q = append(q, start)
-		bs := bitset.New(numKeys)
+		bs := uint64(0)
 		for len(q) > 0 {
 			i := q[0]
 			q = q[1:]
@@ -289,19 +291,22 @@ func Run(f *os.File, partTwo bool) {
 		}
 		for v := range visited {
 			if isLowercase(v) {
-				bs.Set(nums[v])
+				bs |= (1 << nums[v])
 			}
 		}
 		allKeys[n] = bs
 	}
 
-	keyString := func(b *bitset.BitSet) string {
+	keyString := func(b uint64) string {
 		str := ""
-		for i, e := b.NextSet(0); e; i, e = b.NextSet(i + 1) {
-			str += labelNums[i]
+		for i := uint(0); i < 64; i++ {
+			if b&(1<<i) != 0 {
+				str += labelNums[i]
+			}
 		}
 		return str
 	}
+
 	for n, keys := range allKeys {
 		fmt.Println(n, keyString(keys))
 	}
@@ -337,7 +342,7 @@ func Run(f *os.File, partTwo bool) {
 
 		shouldCutoff := false
 		for _, bc := range minDistance[nodeStr] {
-			if bc.b.IsSuperSet(item.keys) && bc.cost <= item.length {
+			if IsSuperSetFast(bc.b, item.keys) && bc.cost <= item.length {
 				shouldCutoff = true
 			}
 		}
@@ -347,7 +352,7 @@ func Run(f *os.File, partTwo bool) {
 			minDistance[nodeStr] = append(minDistance[nodeStr], bitsetCost{item.keys, item.length})
 		}
 
-		if item.keys.Equal(everyKey) {
+		if item.keys == everyKey {
 			if item.length < minTotal {
 				fmt.Println("found all key path", path, item.length)
 				minTotal = item.length
@@ -358,7 +363,7 @@ func Run(f *os.File, partTwo bool) {
 		nextNodes := make([]string, len(item.node))
 		copy(nextNodes, item.node)
 		for n, node := range item.node {
-			if item.keys.IsSuperSet(allKeys[n]) {
+			if IsSuperSetFast(item.keys, allKeys[n]) {
 				continue
 			}
 			for _, e := range edges[node] {
@@ -369,7 +374,7 @@ func Run(f *os.File, partTwo bool) {
 				if isUppercase(next) {
 					// must have the key, we may not have the key.
 					req := nums[strings.ToLower(next)]
-					if !item.keys.Test(req) {
+					if (1<<req)&item.keys == 0 {
 						// fmt.Println("I can't go to", next, "because I don't have the key", keyString(item.keys), path)
 						continue
 					}
@@ -377,14 +382,11 @@ func Run(f *os.File, partTwo bool) {
 
 				nextNodes[n] = next
 				nextStr := nodeString(nextNodes)
+				nextKeys := item.keys
 
-				nextKeys := bitset.New(numKeys)
-				for i, e := item.keys.NextSet(0); e; i, e = item.keys.NextSet(i + 1) {
-					nextKeys.Set(i)
-				}
 				if isLowercase(next) {
 					// acquire the key.  this will sometimes be redundant.
-					nextKeys.Set(nums[next])
+					nextKeys |= (1 << nums[next])
 				}
 
 				// we can walk here.  however it might not be the fastest path.
@@ -392,7 +394,7 @@ func Run(f *os.File, partTwo bool) {
 				costs := minDistance[nextStr]
 				shouldCutoff = false
 				for _, c := range costs {
-					if c.b.IsSuperSet(nextKeys) && c.cost <= item.length+e.weight {
+					if IsSuperSetFast(c.b, nextKeys) && c.cost <= item.length+e.weight {
 						shouldCutoff = true
 						break
 					}
