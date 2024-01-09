@@ -22,7 +22,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	f, err := os.Open("./inputs/day18-example4.txt")
+	f, err := os.Open("./inputs/day18.txt")
 	if err != nil {
 		log.Fatal(err)
 	}

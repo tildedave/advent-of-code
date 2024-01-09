@@ -191,6 +191,10 @@ func Run(f *os.File, partTwo bool) {
 		}
 		num++
 	}
+	labelNums := make(map[uint]string)
+	for k, v := range nums {
+		labelNums[v] = k
+	}
 	for e := range allLabels {
 		_, ok := nums[e]
 		if !ok {
@@ -221,6 +225,14 @@ func Run(f *os.File, partTwo bool) {
 	minDistance := make(map[string]map[string]int)
 	minTotal := math.MaxInt
 
+	// keyString := func(b *bitset.BitSet) string {
+	// 	str := ""
+	// 	for i, e := b.NextSet(0); e; i, e = b.NextSet(i + 1) {
+	// 		str += labelNums[i]
+	// 	}
+	// 	return str
+	// }
+
 	// actually we only need to get every key.  going everywhere is potentially
 	// unnecessary.
 	for len(searchQueue) > 0 {
@@ -240,12 +252,11 @@ func Run(f *os.File, partTwo bool) {
 
 		dist, ok := minDistance[item.node][keyStr]
 		if !ok || item.length < dist {
+			// fmt.Println(path, "is the fastest way to get to", item.node, "with", keyString(item.keys), " - length", item.length)
 			minDistance[item.node][keyStr] = item.length
 		}
-		if ok && dist >= item.length {
-			// if strings.HasPrefix(path, "@a@f") {
-			// 	fmt.Println("bailing out, we have a more efficient way to get to", item.node, path, dist, item.keys)
-			// }
+		if ok && dist < item.length {
+			// fmt.Println(path, "was not faster than the previous minimum which was", dist, "my path", item.length)
 			continue
 		}
 
@@ -274,6 +285,7 @@ func Run(f *os.File, partTwo bool) {
 				// must have the key, we may not have the key.
 				req := nums[strings.ToLower(next)]
 				if !item.keys.Test(req) {
+					// fmt.Println("I can't go to", next, "because I don't have the key", keyString(item.keys), path)
 					continue
 				}
 			}
