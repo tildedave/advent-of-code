@@ -92,3 +92,10 @@ func IsUppercase(c byte) bool {
 	i := int(c)
 	return i >= 65 && i <= 90
 }
+
+func MaxInt(i1, i2 int) int {
+	if i1 < i2 {
+		return i2
+	}
+	return i1
+}

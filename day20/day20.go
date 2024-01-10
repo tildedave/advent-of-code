@@ -17,16 +17,20 @@ func isValid(grid [][]byte, x, y int) bool {
 	return y >= 0 && y < len(grid) && x >= 0 && x < len(grid[y])
 }
 
+func isOuterPortal(rows, columns int, location coord) bool {
+	return location.x == 2 || location.y == 2 || location.x == columns-3 || location.y == rows-3
+}
+
 func Run(f *os.File, partTwo bool) {
 	scanner := bufio.NewScanner(f)
-	row := 0
+	rows := 0
 	grid := make([][]byte, 0)
 	for scanner.Scan() {
 		line := scanner.Text()
 		strLine := make([]byte, len(line))
 		copy(strLine, line)
 		grid = append(grid, strLine)
-		row++
+		rows++
 	}
 
 	portals := make(map[string][]coord)
@@ -77,28 +81,37 @@ func Run(f *os.File, partTwo bool) {
 			}
 		}
 	}
-	fmt.Println(portals)
+	columns := 0
+	for _, line := range grid {
+		columns = utils.MaxInt(columns, len(line))
+	}
+
 	// now DFS
 
+	maxDepth := 50
 	type queueItem struct {
 		location coord
 		steps    int
+		level    int
 	}
 	queue := make([]queueItem, 0)
-	minDistance := make(map[coord]int)
-	queue = append(queue, queueItem{portals["AA"][0], 0})
+	minDistance := make(map[int]map[coord]int)
+	queue = append(queue, queueItem{portals["AA"][0], 0, 0})
 	for len(queue) > 0 {
 		curr := queue[0]
 		queue = queue[1:]
-		dist, ok := minDistance[curr.location]
+		if minDistance[curr.level] == nil {
+			minDistance[curr.level] = make(map[coord]int)
+		}
+		dist, ok := minDistance[curr.level][curr.location]
 		if !ok || curr.steps < dist {
-			minDistance[curr.location] = curr.steps
+			minDistance[curr.level][curr.location] = curr.steps
 		} else {
 			continue
 		}
 
-		if curr.location == portals["ZZ"][0] {
-			// we're done, but continue just in case.
+		if curr.location == portals["ZZ"][0] && curr.level == 0 {
+			// we're done
 			fmt.Println("found minimum distance to ZZ", curr.steps)
 			break
 		}
@@ -111,6 +124,7 @@ func Run(f *os.File, partTwo bool) {
 				ch := grid[y+dy][x+dx]
 
 				var next coord = coord{x + dx, y + dy}
+				isPortalTransit := false
 				if ch == '#' {
 					// can't step here
 					continue
@@ -121,8 +135,13 @@ func Run(f *os.File, partTwo bool) {
 						// nothing
 						continue
 					} else if portal == "ZZ" {
-						// needs to be in the main for loop
-						panic("Should have bailed out before this")
+						if !partTwo {
+							// would have been caught in the main loop
+							panic("Should have bailed out before this")
+						} else {
+							// can't leave on lower depths
+							continue
+						}
 					} else {
 						if len(portals[portal]) != 2 {
 							panic("Did not have matching location")
@@ -132,6 +151,7 @@ func Run(f *os.File, partTwo bool) {
 							if coord != curr.location {
 								foundOtherLocation = true
 								next = coord
+								isPortalTransit = true
 								break
 							}
 						}
@@ -143,15 +163,39 @@ func Run(f *os.File, partTwo bool) {
 					panic("Some other case I didn't handle")
 				}
 
+				var level int
+				if isPortalTransit && partTwo {
+					if isOuterPortal(rows, columns, curr.location) {
+						if curr.level == 0 {
+							continue
+						} else {
+							level = curr.level - 1
+						}
+					} else {
+						// we go deeper.
+						level = curr.level + 1
+					}
+				} else {
+					level = curr.level
+				}
 				// determine if we should visit
-				dist, ok := minDistance[next]
+				if minDistance[level] == nil {
+					minDistance[level] = make(map[coord]int)
+				}
+				dist, ok := minDistance[level][next]
 				if ok && dist < curr.steps+1 {
 					// cutoff, don't do anything.
 					// TBD if we need this both in the main loop and in the
 					// branch logic.
 					continue
 				}
-				queue = append(queue, queueItem{next, curr.steps + 1})
+
+				if level > maxDepth {
+					continue
+				}
+
+				nextItem := queueItem{next, curr.steps + 1, level}
+				queue = append(queue, nextItem)
 			}
 		}
 	}
