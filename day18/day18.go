@@ -6,6 +6,8 @@ import (
 	"math"
 	"os"
 	"strings"
+
+	"github.com/tildedave/advent-of-code-2019/utils"
 )
 
 const NORTH = 0
@@ -22,16 +24,6 @@ type edge struct {
 	source string
 	dest   string
 	weight int
-}
-
-func isLowercase(s string) bool {
-	i := int(s[0])
-	return i >= 97 && i <= 122
-}
-
-func isUppercase(s string) bool {
-	i := int(s[0])
-	return i >= 65 && i <= 90
 }
 
 func moveInDirection(pos coord, direction int) coord {
@@ -222,7 +214,7 @@ func Run(f *os.File, partTwo bool) {
 	num := uint(0)
 	numKeys := uint(0)
 	for e := range allLabels {
-		if isLowercase(e) {
+		if utils.IsLowercase(e[0]) {
 			nums[e] = num
 			numKeys++
 		}
@@ -267,7 +259,7 @@ func Run(f *os.File, partTwo bool) {
 
 	everyKey := uint64(0)
 	for e := range allLabels {
-		if isLowercase(e) {
+		if utils.IsLowercase(e[0]) {
 			everyKey |= (1 << nums[e])
 		}
 	}
@@ -290,7 +282,7 @@ func Run(f *os.File, partTwo bool) {
 			}
 		}
 		for v := range visited {
-			if isLowercase(v) {
+			if utils.IsLowercase(v[0]) {
 				bs |= (1 << nums[v])
 			}
 		}
@@ -371,7 +363,7 @@ func Run(f *os.File, partTwo bool) {
 				// fmt.Println("inspecting edge from ", node, "to", next)
 
 				// next, determine if we need to have a key, and if we do have a key.
-				if isUppercase(next) {
+				if utils.IsUppercase(next[0]) {
 					// must have the key, we may not have the key.
 					req := nums[strings.ToLower(next)]
 					if (1<<req)&item.keys == 0 {
@@ -384,7 +376,7 @@ func Run(f *os.File, partTwo bool) {
 				nextStr := nodeString(nextNodes)
 				nextKeys := item.keys
 
-				if isLowercase(next) {
+				if utils.IsLowercase(next[0]) {
 					// acquire the key.  this will sometimes be redundant.
 					nextKeys |= (1 << nums[next])
 				}

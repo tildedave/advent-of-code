@@ -82,3 +82,13 @@ func AbsInt(i int) int {
 	}
 	return i
 }
+
+func IsLowercase(c byte) bool {
+	i := int(c)
+	return i >= 97 && i <= 122
+}
+
+func IsUppercase(c byte) bool {
+	i := int(c)
+	return i >= 65 && i <= 90
+}
