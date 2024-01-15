@@ -99,3 +99,11 @@ func MaxInt(i1, i2 int) int {
 	}
 	return i1
 }
+
+func ModPositive(n int, m int) int {
+	r := n % m
+	if r < 0 {
+		return m + r
+	}
+	return r
+}

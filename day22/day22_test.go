@@ -52,3 +52,21 @@ func TestExamples(t *testing.T) {
 			"cut -1",
 		}, newDeck(10)))
 }
+
+func TestReverses(t *testing.T) {
+	numCards := 20
+	deck := newDeck(numCards)
+	for p, n := range dealNewStack(deck) {
+		assert.Equal(t, n, reverseDealNewStack(numCards, p))
+	}
+	for p, n := range dealWithIncrement(deck, 3) {
+		assert.Equal(t, n, reverseDealWithIncrement(numCards, 3, p),
+			"Position %d did not correctly dealWithIncrement inc=3", p)
+	}
+	for p, n := range cutCards(deck, 3) {
+		assert.Equal(t, n, reverseCutCards(numCards, 3, p))
+	}
+	for p, n := range cutCards(deck, -4) {
+		assert.Equal(t, n, reverseCutCards(numCards, -4, p))
+	}
+}
