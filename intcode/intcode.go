@@ -56,7 +56,7 @@ var hasDest = map[int]bool{
 }
 
 func Exec(program []int) ([]int, error) {
-	result, err := ExecFull(program, make(chan int), make(chan int))
+	result, err := ExecFull(program, make(chan int), make(chan int), 0)
 	res := make([]int, len(result))
 	for k, v := range result {
 		res[k] = v
@@ -64,7 +64,7 @@ func Exec(program []int) ([]int, error) {
 	return res, err
 }
 
-func ExecFull(program []int, input chan int, output chan int) (map[int]int, error) {
+func ExecFull(program []int, input chan int, output chan int, defaultInput int) (map[int]int, error) {
 	result := make(map[int]int)
 	for n, i := range program {
 		result[n] = i
@@ -126,8 +126,17 @@ func ExecFull(program []int, input chan int, output chan int) (map[int]int, erro
 		case MULT_OPCODE:
 			result[dest] = ops[0] * ops[1]
 		case INPUT_OPCODE:
-			value := <-input
-			result[dest] = value
+			if defaultInput != 0 {
+				select {
+				case value := <-input:
+					result[dest] = value
+				default:
+					result[dest] = -1
+				}
+			} else {
+				value := <-input
+				result[dest] = value
+			}
 		case OUTPUT_OPCODE:
 			output <- ops[0]
 		case JUMP_IF_TRUE_OPCODE:
