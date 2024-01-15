@@ -54,7 +54,7 @@ func TestExamples(t *testing.T) {
 }
 
 func TestReverses(t *testing.T) {
-	numCards := 20
+	numCards := 11
 	deck := newDeck(numCards)
 	for p, n := range dealNewStack(deck) {
 		assert.Equal(t, n, reverseDealNewStack(numCards, p))

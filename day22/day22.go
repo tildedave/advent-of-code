@@ -105,50 +105,12 @@ func reverseDealNewStack(numCards, pos int) int {
 	return numCards - 1 - pos
 }
 
-func reverseDealWithIncrement(numCards, inc, pos int) int {
-	// so we want to figure out the original position of this.
-	// We need a closed form for this, we can't really run a for loop with 119
-	// trillion as an upper bound.
-
-	// Inc 3, Position 6 / 3 = original was 2.  That's easy at least.
-
-	// 0	0
-	// 3	1
-	// 6	2
-	// 9 	3
-	// 2	4 --> 12 4   ---> (n cycle before * numCards) / inc - of course we need to be careful about integer overflow ;-(
-	// 5	5 --> 15 4
-	// 8	6 --> 18 6
-	// 1	7 --> 21
-	// 4	8 --> 24
-	// 7	9 --> 27
-	// So next question: how do you know # of cycles before you?
-
-	// For 10 it's -p % inc
-	// For 20 it's p % inc
-	// so it has to do with the offset difference.
-	// 0 3 6 9 12 15 18 1 4
-	// 0 1 2 3 4  5  6  7 8
-
-	// So this is right but it will overflow since we can't multiply by numCards.
-	// OK, we can, the increments are all small enough, thank god.
-	// return (utils.ModPositive(-pos, inc)*numCards + pos) / inc
-
-	// interestingly we probably need a closed form.
-	// pos = (x * inc) % numCards?
-	// pos + numCards *n = (x * inc)
-	// This is the same solution we discovered before.
-	for pos%inc != 0 {
-		pos += numCards
-	}
-	return pos / inc
+func reverseCutCards(numCards, n, pos int) int {
+	return utils.ModPositive(pos+n, numCards)
 }
 
-func reverseCutCards(numCards, n, pos int) int {
-	if n > 0 {
-		return utils.ModPositive(pos-(numCards-n), numCards)
-	}
-	return utils.ModPositive(pos+(numCards+n), numCards)
+func reverseDealWithIncrement(numCards, inc, pos int) int {
+	return utils.ModMult(utils.ModInverse(inc, numCards), pos, numCards)
 }
 
 func processLinesReverse(lines []string, numCards, pos int) int {
@@ -215,16 +177,53 @@ func Run(f *os.File, partTwo bool) {
 		panic("Did not find 2019 in deck")
 	}
 
+	// This comes from a Reddit solution, I had most of the pieces, but I
+	// wasn't sure if the equation was linear.
 	numCards := 119315717514047
-	pos := 3
-	for n := 0; n < 20; n++ {
-		fmt.Println(n, pos)
-		pos = processLinesReverse(lines, numCards, pos)
-		if n >= 101741582076661-10 {
-			fmt.Println(pos)
+	x := 2020
+	y := utils.ModPositive(processLinesReverse(lines, numCards, x), numCards)
+	z := utils.ModPositive(processLinesReverse(lines, numCards, y), numCards)
+	t := utils.ModPositive(processLinesReverse(lines, numCards, z), numCards)
+
+	a := utils.ModMult(y-z, utils.ModInverse(x-y, numCards), numCards)
+	b := y - utils.ModMult(a, x, numCards)
+
+	fmt.Println(a, b)
+	fmt.Println(x, y, z, t)
+	fmt.Println("ax + b", (utils.ModMult(a, x, numCards)+b)%numCards)
+	fmt.Println("ay + b", (utils.ModMult(a, y, numCards)+b)%numCards)
+	fmt.Println("az + b", (utils.ModMult(a, z, numCards)+b)%numCards)
+
+	compute := func(numIterations int) int {
+		eqn := []int{
+			utils.ModExp(a, numIterations, numCards) * x,
+			utils.ModExp(a, numIterations, numCards) - 1,
+			utils.ModMult(utils.ModInverse(a-1, numCards), b, numCards),
 		}
+		return ((eqn[0] + utils.ModMult(eqn[1], eqn[2], numCards)) % numCards)
+
 	}
-	fmt.Println(pos)
+	// Confirm these are right
+	if compute(0) != x {
+		panic("did not compute n = 0 correctly")
+	}
+	if compute(1) != y {
+		panic("did not compute n = 1 correctly")
+	}
+	if compute(2) != z {
+		panic("did not compute n = 2 correctly")
+	}
+	// this is our answer
+	fmt.Println(compute(101741582076661))
+
+	// for n := 0; n < 20; n++ {
+	// 	fmt.Println(n, pos)
+	// 	pos = processLinesReverse(lines, numCards, pos)
+	// 	if n >= 101741582076661-10 {
+	// 		fmt.Println(pos)
+	// 	}
+	// }
+	// fmt.Println(pos)
 
 	// well, we obviously can't process 119,315,717,514,047 cards
 	// 101741582076661 times in a row.

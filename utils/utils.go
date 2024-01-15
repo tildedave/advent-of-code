@@ -100,10 +100,55 @@ func MaxInt(i1, i2 int) int {
 	return i1
 }
 
-func ModPositive(n int, m int) int {
+func ModPositive[T int | int64](n T, m T) T {
 	r := n % m
 	if r < 0 {
 		return m + r
 	}
 	return r
+}
+
+func ModMult[T int | int64](a T, b T, p T) T {
+	// long double x;
+	// uint64_t c;
+	// int64_t r;
+	// if (a >= m) a %= m;
+	// if (b >= m) b %= m;
+
+	var res T = 0
+	for b > 0 {
+		if b%2 == 1 {
+			res = ModPositive(res+a, p)
+		}
+		b >>= 1
+		if b != 0 {
+			a = (a + a) % p
+		}
+	}
+	return res
+}
+
+// Exp returns m^n % p using the method of repeated squaring
+func ModExp[T int | int64](m T, n T, p T) T {
+	var pow T = 1
+
+	for n > 0 {
+		if n%2 == 1 {
+			pow = ModMult(pow, m, p)
+		}
+		m = ModMult(m, m, p)
+		n = n >> 1
+	}
+
+	return pow
+}
+
+func ModInverse[T int | int64](x T, p T) T {
+	// This method only works for primes, which the deck size conveniently is.
+	// a^{p-1} = 1 mod p
+	// a * a^{p-2} = 1 mod p
+	if x < 0 {
+		x += p
+	}
+	return ModExp(x, p-2, p)
 }
