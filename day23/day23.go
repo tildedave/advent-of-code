@@ -34,7 +34,7 @@ func Run(f *os.File, partTwo bool) {
 		}(n)
 
 		go func(n int) {
-			intcode.ExecFull(program, input, output, -1)
+			intcode.ExecFullWithDefault(program, input, output, -1)
 			// do we need to wait for completion?
 		}(n)
 

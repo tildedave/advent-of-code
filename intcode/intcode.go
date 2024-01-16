@@ -56,7 +56,7 @@ var hasDest = map[int]bool{
 }
 
 func Exec(program []int) ([]int, error) {
-	result, err := ExecFull(program, make(chan int), make(chan int), 0)
+	result, err := ExecFull(program, make(chan int), make(chan int))
 	res := make([]int, len(result))
 	for k, v := range result {
 		res[k] = v
@@ -64,7 +64,11 @@ func Exec(program []int) ([]int, error) {
 	return res, err
 }
 
-func ExecFull(program []int, input chan int, output chan int, defaultInput int) (map[int]int, error) {
+func ExecFull(program []int, input chan int, output chan int) (map[int]int, error) {
+	return ExecFullWithDefault(program, input, output, 0)
+}
+
+func ExecFullWithDefault(program []int, input chan int, output chan int, defaultInput int) (map[int]int, error) {
 	result := make(map[int]int)
 	for n, i := range program {
 		result[n] = i
