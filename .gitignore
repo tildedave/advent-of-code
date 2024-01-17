@@ -2,3 +2,4 @@ input/
 .lsp
 .clj-kondo
 .calva
+.nrepl-port
