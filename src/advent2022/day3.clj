@@ -2,7 +2,7 @@
   (:require [advent2022.utils :as utils]
             [clojure.set :as set]))
 
-(def lines (utils/read-resource-lines "input/day3-example.txt"))
+(def lines (utils/read-resource-lines "input/day3.txt"))
 
 (defn split-at-halfway [line]
   (let [idx (/ (.length line) 2)]
