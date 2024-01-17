@@ -21,3 +21,6 @@
 
 ;; star 1 answer
 (reduce max totals)
+
+;; star 2 answer
+(reduce + (take 3 (reverse (sort totals))))
