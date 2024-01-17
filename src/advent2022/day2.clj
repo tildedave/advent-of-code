@@ -1,10 +1,8 @@
 (ns advent2022.day2
-  (:require [clojure.java.io :as io]
+  (:require [advent2022.utils :as utils]
             [clojure.set :as set]))
 
-(def lines
-  (line-seq (io/reader (io/resource "input/day2.txt"))))
-
+(def lines (utils/read-resource-lines "input/day2.txt"))
 
 (def winning-map {"X" "Z", "Y" "X", "Z"  "Y"})
 

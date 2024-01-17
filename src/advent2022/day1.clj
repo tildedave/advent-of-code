@@ -1,8 +1,7 @@
 (ns advent2022.day1
-  (:require [clojure.java.io :as io]))
+  (:require [advent2022.utils :as utils]))
 
-(def lines
-  (line-seq (io/reader (io/resource "input/day1.txt"))))
+(def lines (utils/read-resource-lines "input/day1.txt"))
 
 (def totals
   (->> lines
