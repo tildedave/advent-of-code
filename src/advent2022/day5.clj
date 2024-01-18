@@ -2,10 +2,9 @@
   (:require [advent2022.utils :as utils]
             [clojure.string :as string]
             [clojure.set :as set]))
-(use 'clojure.tools.trace)
 
 (def lines (utils/read-resource-lines "input/day5.txt"))
-(last lines)
+
 
 (def parsed-lines
   (->> lines
@@ -45,27 +44,36 @@ initial-pile
      instructions))
 
 (defn process-instruction
-  [piles num pile dest-pile]
-  (let [removed (take num (piles pile))]
+  [piles num pile dest-pile part-two]
+  (let [removed (take num (piles pile))
+        to-add (if part-two removed (reverse removed))]
     (assoc piles pile (nthrest (piles pile) num)
-           dest-pile (concat (reverse removed) (piles dest-pile)))))
+           dest-pile (concat to-add (piles dest-pile)))))
 
 (defn process-instructions
-  [piles instructions]
+  [piles instructions part-two]
   (if (empty? instructions) piles
       (let [[num pile dest-pile] (first instructions)]
-        (process-instructions (process-instruction piles num pile dest-pile)
-                              (rest instructions)))))
+        (process-instructions (process-instruction piles num pile dest-pile part-two)
+                              (rest instructions)
+                              part-two))))
 
 ;; answer to part 1
-;; except it is wrong
 
 
 
-(def processed-pile (process-instructions initial-pile parsed-instructions))
+(def processed-pile (process-instructions initial-pile parsed-instructions false))
 
 ;; answer to part 1
 (string/join
 (map
  (fn [n] (first (processed-pile (inc n))))
  (range (count processed-pile))))
+
+(def processed-pile-p2 (process-instructions initial-pile parsed-instructions true))
+
+;; answer to part 2
+(string/join
+ (map
+  (fn [n] (first (processed-pile-p2 (inc n))))
+  (range (count processed-pile-p2))))
