@@ -1,1 +1,2 @@
-{:paths ["src" "test" "resources"]}
+{:paths ["src" "test" "resources"]
+ :deps {org.clojure/tools.trace {:mvn/version "0.7.11"}}}
