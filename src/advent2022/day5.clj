@@ -58,22 +58,17 @@ initial-pile
                               (rest instructions)
                               part-two))))
 
-;; answer to part 1
-
-
-
-(def processed-pile (process-instructions initial-pile parsed-instructions false))
 
 ;; answer to part 1
-(string/join
-(map
- (fn [n] (first (processed-pile (inc n))))
- (range (count processed-pile))))
-
-(def processed-pile-p2 (process-instructions initial-pile parsed-instructions true))
+(let [processed-pile (process-instructions initial-pile parsed-instructions false)]
+  (string/join
+   (map
+    (fn [n] (first (processed-pile (inc n))))
+    (range (count processed-pile)))))
 
 ;; answer to part 2
-(string/join
- (map
-  (fn [n] (first (processed-pile-p2 (inc n))))
-  (range (count processed-pile-p2))))
+(let [processed-pile (process-instructions initial-pile parsed-instructions true)]
+  (string/join
+   (map
+    (fn [n] (first (processed-pile (inc n))))
+    (range (count processed-pile)))))
