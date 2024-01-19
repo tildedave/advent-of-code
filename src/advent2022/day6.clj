@@ -3,10 +3,15 @@
 
 (def lines (utils/read-resource-lines "input/day6.txt"))
 
-(defn badge-start [line]
+(defn marker-start [n line]
   (loop [line line
          idx 0]
-    (let [next (take 4 line)]
-      (if (apply distinct? next) (+ 4 idx)
+    (let [next (take n line)]
+      (if (apply distinct? next) (+ n idx)
           (recur (rest line) (inc idx))))))
 
+;; first star
+(map #(marker-start 4 (seq %)) lines)
+
+;; second star
+(map #(marker-start 14 (seq %)) lines)
