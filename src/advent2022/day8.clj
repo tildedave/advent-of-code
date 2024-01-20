@@ -2,7 +2,7 @@
   (:require [advent2022.utils :as utils]
             [clojure.string :as string]))
 
-(def lines (utils/read-resource-lines "input/day8-example.txt"))
+(def lines (utils/read-resource-lines "input/day8.txt"))
 (def num-columns (count (first lines)))
 (def num-rows (count lines))
 (def grid (mapv #(Character/getNumericValue %) (string/join lines)))
@@ -16,28 +16,29 @@
 ;;; structure.  I guess we can just try a basic memoized recursive function.
 
 ;;; max tree in X direction from x, y - not including itself.
-(def max-tree-with-distance
+
+(defn at-bounds? [x y direction]
+  (case direction
+    :north (= y 0)
+    :south (= y (dec num-rows))
+    :west (= x 0)
+    :east (= x (dec num-columns))))
+
+(defn follow-ray [x y direction]
+  (case direction
+    :north [x (dec y)]
+    :south [x (inc y)]
+    :east [(inc x) y]
+    :west [(dec x) y]))
+
+(def max-tree
   (memoize
    (fn [x y direction]
-     (let [at-bounds
-           (case direction
-             :north (= y 0)
-             :south (= y (dec num-rows))
-             :west (= x 0)
-             :east (= x (dec num-columns)))]
-       (if at-bounds [-1 0]
-           (let [[nx ny] (case direction
-                           :north [x (dec y)]
-                           :south [x (inc y)]
-                           :east [(inc x) y]
-                           :west [(dec x) y])
-                 [max-height distance] (max-tree-with-distance nx ny direction)
-                 neighbor-height (tree-height-at nx ny)]
-                  (if (> max-height neighbor-height)
-                    [max-height (inc distance)]
-                    [neighbor-height 1])))))))
-
-(max-tree-with-distance 2 1 :north)
+     (if (at-bounds? x y direction) -1
+         (let [[nx ny] (follow-ray x y direction)
+               max-height (max-tree nx ny direction)
+               neighbor-height (tree-height-at nx ny)]
+           (max max-height neighbor-height))))))
 
 (def visibility-grid
   (map
@@ -46,10 +47,10 @@
            y (quot idx num-rows)
            height (tree-height-at x y)]
        (cond
-         (> height (first (max-tree-with-distance x y :north))) 1
-         (> height (first (max-tree-with-distance x y :south))) 1
-         (> height (first (max-tree-with-distance x y :east))) 1
-         (> height (first (max-tree-with-distance x y :west))) 1
+         (> height (max-tree x y :north)) 1
+         (> height (max-tree x y :south)) 1
+         (> height (max-tree x y :east)) 1
+         (> height (max-tree x y :west)) 1
          :else 0)))
    (range 0 (* num-columns num-rows))))
 
@@ -58,17 +59,30 @@
 
 ;; part 2 is sort of the inverse of part 1.
 
+(defn ray-from [x y direction]
+  (if (at-bounds? x y direction) (list)
+      (let [[nx ny] (follow-ray x y direction)]
+        (cons [nx ny] (ray-from nx ny direction)))))
+
+(defn trees-visible-from [x y direction]
+  (let [our-height (tree-height-at x y)]
+    (loop [l (ray-from x y direction)
+           num 0]
+      (if (empty? l) num
+          (let [[nx ny] (first l)
+                neighbor-height (tree-height-at nx ny)]
+            (if (>= neighbor-height our-height) (inc num)
+                (recur (rest l) (inc num))))))))
+
+(map #(trees-visible-from 2 3 %) [:north :west :east :south])
+
 (def scenic-score
   (map
    (fn [idx]
-       (let [x (mod idx num-columns)
-             y (quot idx num-rows)]
-          (map #(second (max-tree-with-distance x y %)) [:north :west :east :south])))
-     (range 0 (* num-columns num-rows))))
+     (let [x (mod idx num-columns)
+           y (quot idx num-rows)]
+       (reduce * (map #(trees-visible-from x y %) [:north :west :east :south]))))
+   (range 0 (* num-columns num-rows))))
 
-(nth scenic-score 17)
 ;; answer to part 2
 (reduce max scenic-score)
-
- (tree-height-at 3 0)
- (max-tree 3 1 :north)
