@@ -16,26 +16,28 @@
 ;;; structure.  I guess we can just try a basic memoized recursive function.
 
 ;;; max tree in X direction from x, y - not including itself.
-(def max-tree
+(def max-tree-with-distance
   (memoize
    (fn [x y direction]
-     (case direction
-       :north
-       (if
-        (= y 0) -1
-        (max (tree-height-at x (dec y)) (max-tree x (dec y) :north)))
-       :south
-       (if
-        (= y (dec num-rows)) -1
-        (max (tree-height-at x (inc y)) (max-tree x (inc y) :south)))
-       :east
-       (if
-        (= x (dec num-columns)) -1
-        (max (tree-height-at (inc x) y) (max-tree (inc x) y :east)))
-       :west
-       (if
-        (= x 0) -1
-        (max (tree-height-at (dec x) y) (max-tree (dec x) y :west)))))))
+     (let [at-bounds
+           (case direction
+             :north (= y 0)
+             :south (= y (dec num-rows))
+             :west (= x 0)
+             :east (= x (dec num-columns)))]
+       (if at-bounds [-1 0]
+           (let [[nx ny] (case direction
+                           :north [x (dec y)]
+                           :south [x (inc y)]
+                           :east [(inc x) y]
+                           :west [(dec x) y])
+                 [max-height distance] (max-tree-with-distance nx ny direction)
+                 neighbor-height (tree-height-at nx ny)]
+                  (if (> max-height neighbor-height)
+                    [max-height (inc distance)]
+                    [neighbor-height 1])))))))
+
+(max-tree-with-distance 2 1 :north)
 
 (def visibility-grid
   (map
@@ -44,15 +46,29 @@
            y (quot idx num-rows)
            height (tree-height-at x y)]
        (cond
-         (> height (max-tree x y :north)) 1
-         (> height (max-tree x y :south)) 1
-         (> height (max-tree x y :east)) 1
-         (> height (max-tree x y :west)) 1
+         (> height (first (max-tree-with-distance x y :north))) 1
+         (> height (first (max-tree-with-distance x y :south))) 1
+         (> height (first (max-tree-with-distance x y :east))) 1
+         (> height (first (max-tree-with-distance x y :west))) 1
          :else 0)))
    (range 0 (* num-columns num-rows))))
 
 ;; part 1 answer
 (reduce + visibility-grid)
+
+;; part 2 is sort of the inverse of part 1.
+
+(def scenic-score
+  (map
+   (fn [idx]
+       (let [x (mod idx num-columns)
+             y (quot idx num-rows)]
+          (map #(second (max-tree-with-distance x y %)) [:north :west :east :south])))
+     (range 0 (* num-columns num-rows))))
+
+(nth scenic-score 17)
+;; answer to part 2
+(reduce max scenic-score)
 
  (tree-height-at 3 0)
  (max-tree 3 1 :north)
