@@ -1,7 +1,7 @@
 (ns advent2022.day10
   (:require [advent2022.utils :as utils]))
 
-(def lines (utils/read-resource-lines "input/day10-example2.txt"))
+(def lines (utils/read-resource-lines "input/day10.txt"))
 
 (defn parse-line [line]
   (cond
