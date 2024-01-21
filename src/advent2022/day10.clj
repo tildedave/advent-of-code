@@ -11,54 +11,42 @@
 
 ;; takes a machine state (X register value + currently executing instructions)
 ;; and converts it into a new state.
-;; this is sort of annoying because Clojure vectors don't support double-ended
-;; operations so we convert the rest to a seq and then force is back into a
-;; vector.  obviously this is bad :-(
-(defn process-line [[cycle x-register executing x-states] program]
+
+(use 'clojure.tools.trace)
+(defn process-line [[cycle x-register queue] instr]
   ;; this is the list to reduce
-  (let [now-executing (conj executing (case (first program)
-                                        :noop [1 :noop]
-                                        :addx [2 :addx (second program)]))
+  (let [queue (conj queue (case (first instr)
+                            :noop [1 :noop]
+                            :addx [2 :addx (second instr)]))
+        next-cycle (inc cycle)
+        program (get queue 0)
+        [cycles-left opcode num] program
         [next-x next-executing]
-        (let [[[cycles instr] & r] now-executing
-              next-r (vec r)
-              program (first now-executing)]
-          (if (= cycles 1)
+          (if (= cycles-left 1)
             ;; process it
-            (case instr
-              :noop [x-register next-r]
-              :addx [(+ x-register (nth program 2)) next-r])
-            ;; decrement and replace it as the first
-            [x-register (vec (concat [(assoc program 0 (dec cycles))] r))]))]
-    [(inc cycle) next-x next-executing (conj x-states x-register)]))
+            (case opcode
+              :noop [x-register (subvec queue 1)]
+              :addx [(+ x-register num) (subvec queue 1)])
+            ;; continue
+            [x-register (assoc queue 0 (assoc program 0 (dec cycles-left)))])]
+    [next-cycle next-x next-executing]))
 
-(concat [1] [2 3 4])
-(conj [1 2 3 4] 10)
-
-(let [[x & xs] [1 2 3 4]]
-  (list x xs))
 (def test-program (map parse-line lines))
-(def full-program (concat test-program (repeat 100 [:noop])))
 
+(defn process-program [program]
+  (loop [cycle 1
+         x-register 1
+         executing []
+         program program
+         x-states []]
+    (if (and (empty? program)
+                 (every? (fn [instr] (= (nth instr 1) :noop)) executing))
+      x-states
+      (let [[instr & next-program] (or program (list [:noop]))
+            [next-cycle next-x next-executing] (process-line [cycle x-register executing] instr)]
+        (recur next-cycle next-x next-executing next-program (conj x-states x-register))))))
 
-
-(count test-program)
-
-(def beep (reduce process-line [1 1 [] []] full-program))
-
-(nth (last beep) 220)
-
-(let [[_ _ _ x-history] (reduce process-line [1 1 [] []] full-program)
+(let [x-history (process-program test-program)
       indexes (map #(+ % 20) (range 0 220 40))]
-  (reduce + (map (fn [n] (* n (nth x-history n))) indexes)))
-
-(nth 20 ())
-result
-(take 20 (last result))
-(nth (last result) 21)
-(nth (last result) 17)
-(nth (nth result 3) 19)
-(nth (nth result 3) 21)
-(nth (nth result 3) 22)
-(nth (nth result 3) 23)
-(nth (nth result 3) 24)
+  ;; off by 1 for the cycles.
+  (reduce + (map (fn [n] (* n (nth x-history (dec n)))) indexes)))
