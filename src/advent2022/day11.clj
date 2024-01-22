@@ -2,7 +2,7 @@
   (:require [advent2022.utils :as utils]
             [clojure.string :as string]))
 
-(def lines (utils/read-resource-lines "input/day11-example.txt"))
+(def lines (utils/read-resource-lines "input/day11.txt"))
 
 (defn parse-monkey-name [monkey-str]
   (->> monkey-str
@@ -26,10 +26,12 @@
              (rest)
              (map utils/try-parse-int))]
     ;; I guess this is pretty cool.
-    (fn [old + *]
-      ((case op "*" * "+" +)
-       (case arg1 "old" old arg1)
-       (case arg2 "old" old arg2)))))
+    (fn [old + * square]
+      (if (= arg1 arg2 "old")
+        (square old)
+        ((case op "*" * "+" +)
+         (case arg1 "old" old arg1)
+         (case arg2 "old" old arg2))))))
 
 (defn parse-test-rules [monkey-str]
   (mapv #(utils/parse-int (second (re-find % monkey-str)))
@@ -71,7 +73,8 @@
 ;; so this is some kind of iteration, but we need to keep track of the current
 ;; monkey.
 ;; I suppose a recur loop is fine.
-(defn process-round [[monkeys counts worry-f + * divisible?]]
+
+(defn process-round [[monkeys counts worry-f + * square divisible?]]
     ;; the current monkey always clears the items it has, so no need for an
     ;; intermediate loop.
     ;; however, an intermediate loop is probably easier to comprehend than
@@ -80,7 +83,7 @@
          monkeys monkeys
          counts counts]
     (if (not (contains? monkeys curr-monkey))
-      [monkeys counts worry-f + * divisible?]
+      [monkeys counts worry-f + * square divisible?]
       (let [[items op test-rules] (monkeys curr-monkey)]
         (if (empty? items)
           (recur (inc curr-monkey) monkeys counts)
@@ -90,22 +93,25 @@
             ;; divide its worry level by 3, round down (quot).
             ;; run test.
           (let [item (get-first-item monkeys curr-monkey)
-                item (op item + *)
+                item (op item + * square)
                 item (worry-f item)
                 next-monkey (if (divisible? item (first test-rules))
                               (second test-rules)
-                              (nth test-rules 2))]
+                              (nth test-rules 2))
+                next-counts (assoc counts curr-monkey (inc (if (contains? counts curr-monkey)
+                                                             (counts curr-monkey)
+                                                             0)))]
             (recur curr-monkey
                    (-> monkeys
                        (remove-first-item curr-monkey)
                        (add-item next-monkey item))
-                   (update counts curr-monkey (fn [x v] (if (nil? x) v (+ x v))) 1))
-                   ))))))
+                   next-counts
+                   )))))))
 
 (sort > (vals {:1 2, :3 4}))
 
 ;; this is the answer to part 1
-(->> (iterate process-round [monkeys {} #(quot % 3) + * (fn [x p] (zero? (mod x p)))])
+(->> (iterate process-round [monkeys {} #(quot % 3) + * #(* % %) (fn [x p] (zero? (mod x p)))])
      (take 21)
      (last)
      (second)
@@ -128,22 +134,38 @@
 (def +-mod-p (partial op-mod-p +))
 (def *-mod-p (partial op-mod-p *))
 
-(defn op-modulae [op num x primes]
-  (reduce (fn [num p] (update num p (partial (op p) x))) num primes))
+(defn op-modulae [op num x]
+  (reduce (fn [num p] (update num p (partial (op p) x))) num (keys num)))
 (def +-modulae (partial op-modulae +-mod-p))
 (def *-modulae (partial op-modulae *-mod-p))
+
+(defn square-modulae [num]
+  (reduce (fn [num p] (update num p (fn [x] (mod (* x x) p)))) num (keys num)))
+
 ;; basic but fine enough.  (not sure I need this?)
 (def modulae? map?)
 
 (defn divisible?-modulae [num p] (zero? (num p)))
 
+;; some test stuff
+(def primes (map #(get-in % [2 0]) (vals monkeys)))
+(divisible?-modulae ((to-modulae primes) 119) 23)
 ((to-modulae primes) 123)
-(+-modulae ((to-modulae primes) 123) 12 primes)
-(*-modulae ((to-modulae primes) 123) 12 primes)
+(+-modulae ((to-modulae primes) 123) 12)
+(*-modulae ((to-modulae primes) 123) 12)
+(square-modulae ((to-modulae primes) 123))
 
-monkeys
 (def modulae-monkeys
   (let [primes (map #(get-in % [2 0]) (vals monkeys))]
-    (into {} (for [[k v] monkeys] [k (update v 0 (partial map (to-modulae primes)))]))))
+    (into {} (for [[k v] monkeys] [k (update v 0 (partial mapv (to-modulae primes)))]))))
 
-modulae-monkeys
+;; this is the answer to part 2
+(->>
+ (-> (iterate process-round [modulae-monkeys {} identity +-modulae *-modulae square-modulae divisible?-modulae])
+     (nth 10000)
+     (nth 1)
+     (vals))
+ (sort >)
+ (take 2)
+ (reduce *))
+
