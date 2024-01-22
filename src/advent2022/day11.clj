@@ -105,7 +105,7 @@
 (sort > (vals {:1 2, :3 4}))
 
 ;; this is the answer to part 1
-(->> (iterate process-round [monkeys {} #(quot % 3) + - (fn [x p] (zero? (mod x p)))])
+(->> (iterate process-round [monkeys {} #(quot % 3) + * (fn [x p] (zero? (mod x p)))])
      (take 21)
      (last)
      (second)
