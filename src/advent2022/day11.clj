@@ -26,8 +26,8 @@
              (rest)
              (map utils/try-parse-int))]
     ;; I guess this is pretty cool.
-    (fn [old add-function mult-function]
-      ((case op "*" add-function "+" mult-function)
+    (fn [old + *]
+      ((case op "*" * "+" +)
        (case arg1 "old" old arg1)
        (case arg2 "old" old arg2)))))
 
