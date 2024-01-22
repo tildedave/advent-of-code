@@ -2,7 +2,7 @@
   (:require [advent2022.utils :as utils]
             [clojure.string :as string]))
 
-(def lines (utils/read-resource-lines "input/day11.txt"))
+(def lines (utils/read-resource-lines "input/day11-example.txt"))
 
 (defn parse-monkey-name [monkey-str]
   (->> monkey-str
@@ -26,13 +26,13 @@
              (rest)
              (map utils/try-parse-int))]
     ;; I guess this is pretty cool.
-    (fn [old]
-      ((case op "*" * "+" +)
+    (fn [old add-function mult-function]
+      ((case op "*" add-function "+" mult-function)
        (case arg1 "old" old arg1)
        (case arg2 "old" old arg2)))))
 
 (defn parse-test-rules [monkey-str]
-  (map #(utils/parse-int (second (re-find % monkey-str)))
+  (mapv #(utils/parse-int (second (re-find % monkey-str)))
        [#"Test: divisible by (\d+)"
         #"If true: throw to monkey (\d+)"
         #"If false: throw to monkey (\d+)"]))
@@ -71,7 +71,7 @@
 ;; so this is some kind of iteration, but we need to keep track of the current
 ;; monkey.
 ;; I suppose a recur loop is fine.
-(defn process-round [[monkeys counts]]
+(defn process-round [[monkeys counts worry-f + * divisible?]]
     ;; the current monkey always clears the items it has, so no need for an
     ;; intermediate loop.
     ;; however, an intermediate loop is probably easier to comprehend than
@@ -80,7 +80,7 @@
          monkeys monkeys
          counts counts]
     (if (not (contains? monkeys curr-monkey))
-      [monkeys counts]
+      [monkeys counts worry-f + * divisible?]
       (let [[items op test-rules] (monkeys curr-monkey)]
         (if (empty? items)
           (recur (inc curr-monkey) monkeys counts)
@@ -90,9 +90,9 @@
             ;; divide its worry level by 3, round down (quot).
             ;; run test.
           (let [item (get-first-item monkeys curr-monkey)
-                item (op item)
-                item (quot item 3)
-                next-monkey (if (= 0 (mod item (first test-rules)))
+                item (op item + *)
+                item (worry-f item)
+                next-monkey (if (divisible? item (first test-rules))
                               (second test-rules)
                               (nth test-rules 2))]
             (recur curr-monkey
@@ -105,7 +105,7 @@
 (sort > (vals {:1 2, :3 4}))
 
 ;; this is the answer to part 1
-(->> (iterate process-round [monkeys {}])
+(->> (iterate process-round [monkeys {} #(quot % 3) + - (fn [x p] (zero? (mod x p)))])
      (take 21)
      (last)
      (second)
@@ -113,3 +113,37 @@
      (sort >)
      (take 2)
      (reduce *))
+
+;; for part 2, we need to no longer keep track of ACTUAL item values and
+;; instead keep track of them mod the primes that the monkeys are testing for
+;; divisibility.  e.g. store modulus residue instead of actual numbers.
+;; it seems like a fairly straightforward update.
+;; but how much can I avoid duplicating?
+
+(defn to-modulae [primes]
+  (fn [num]
+    (into {} (map #(vector % (mod num %)) primes))))
+
+(defn op-mod-p [op p] (fn [a b] (mod (op a b) p)))
+(def +-mod-p (partial op-mod-p +))
+(def *-mod-p (partial op-mod-p *))
+
+(defn op-modulae [op num x primes]
+  (reduce (fn [num p] (update num p (partial (op p) x))) num primes))
+(def +-modulae (partial op-modulae +-mod-p))
+(def *-modulae (partial op-modulae *-mod-p))
+;; basic but fine enough.  (not sure I need this?)
+(def modulae? map?)
+
+(defn divisible?-modulae [num p] (zero? (num p)))
+
+((to-modulae primes) 123)
+(+-modulae ((to-modulae primes) 123) 12 primes)
+(*-modulae ((to-modulae primes) 123) 12 primes)
+
+monkeys
+(def modulae-monkeys
+  (let [primes (map #(get-in % [2 0]) (vals monkeys))]
+    (into {} (for [[k v] monkeys] [k (update v 0 (partial map (to-modulae primes)))]))))
+
+modulae-monkeys
