@@ -27,11 +27,6 @@
     :left (> x 0)
     :right (< x (dec num-columns))))
 
-(def all-positions
-  (vec (for [x (range num-columns)
-             y (range num-rows)]
-         [x y])))
-
 (def all-directions (list :up :down :left :right))
 
 (defn move [[x y] direction]
@@ -47,18 +42,18 @@
         neighbor-positions (map (partial move [x y]) valid-dirs)]
     (filter #(<= (dec (elevation-at grid %)) current-elevation)  neighbor-positions)))
 
-(defn get-min-from-queue [queue distances]
-  (->> queue
-       (map (fn [q] [q (distances q)]))
-       (reduce (fn [acc x]
-                 (if (< (second x) (second acc))
-                   x
-                   acc)))
-       (first)))
+(def adjacency-list
+  (reduce
+   (fn [acc idx]
+     (assoc
+      acc
+      idx
+      (set (map to-idx (get-neighbors grid (to-xy idx))))))
+   {}
+   (range (* num-columns num-rows))))
 
-(defn update-neighbor-distances [queue distances idx w]
-  (->> (get-neighbors grid (to-xy idx))
-       (map to-idx)
+(defn update-neighbor-distances [queue distances adjacency-list idx w]
+  (->> (adjacency-list idx)
        (reduce
         (fn [[queue distances] n-idx]
           (if (< w (get distances n-idx Integer/MAX_VALUE))
@@ -66,39 +61,35 @@
             [queue distances]))
         [queue distances])))
 
-(priority-map 5 3)
+(defn min-distances [adjacency-list start-idx]
+  (loop [[queue distances] [(priority-map start-idx 0) {}]]
+    (let [[q d] (peek queue)]
+      (cond
+        (empty? queue) distances
+        :else
+        (recur
+         (update-neighbor-distances (pop queue) (assoc distances q d) adjacency-list q (inc d)))))))
 
-(let [[queue distances] [(priority-map (.indexOf grid \S) 0) {}]]
-  [queue distances])
+;; this is our part 1 answer
+(time ((min-distances adjacency-list (.indexOf grid \S)) (.indexOf grid \E)))
 
-(defn min-path [start-idx]
-  (let [end-idx (.indexOf grid \E)]
-    (loop [[queue distances] [(priority-map start-idx 0) {}]]
-      (let [[q d] (peek queue)]
-        (cond
-          (= q end-idx) d
-          (empty? queue) Integer/MAX_VALUE
-          :else
-          (recur
-           (update-neighbor-distances (pop queue) (assoc distances q d) q (inc d))))))))
+;; for part 2 we can reverse the adjacency list and search from the end pos
+(defn reverse-adjacency-list [adjacency-list]
+  (reduce
+   (fn [acc k]
+     (reduce
+      (fn [acc v] (assoc acc v (conj (get acc v #{}) k)))
+      acc
+      (adjacency-list k))
+     )
+   {}
+   (keys adjacency-list)))
 
-;; this is our part 1 answer.  took a while :/
-(time (min-path (.indexOf grid \S)))
-
-;; just brute force part 2
-;; floyd warshall implementation was too large, ran into OOMs
-;; I expect I would have hit this problem with another language too.
-
-;; takes around 5 seconds.  probably could have memoized the distance array /
-;; parameterize it by source.
 (time
- (->> (range (* num-columns num-rows))
-     (map to-xy)
-     (filter #(= (elevation-at grid %) 0))
-     (map to-idx)
-     (map min-path)
-     (sort <)
-     (first)))
-
-;; I guess an even faster approach would be to apply the
-;; algo to a reversed graph.
+ (let [paths (min-distances (reverse-adjacency-list adjacency-list) (.indexOf grid \E))]
+   (->> (range (* num-columns num-rows))
+        (map to-xy)
+        (filter #(= (elevation-at grid %) 0))
+        (map to-idx)
+        (map #(get paths % Integer/MAX_VALUE))
+        (apply min))))
