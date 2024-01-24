@@ -1,6 +1,9 @@
 (ns advent2022.day12
        (:require [advent2022.utils :as utils]
-                 [clojure.string :as string]))
+                 [clojure.string :as string]
+                 [clojure.data.priority-map :refer [priority-map]]))
+
+(peek (priority-map "abc" 3 "def" 2))
 
 (def lines (utils/read-resource-lines "input/day12-example.txt"))
 (def grid (mapv identity (string/join "" lines)))
@@ -56,46 +59,43 @@
 (defn update-neighbor-distances [queue distances idx w]
   (->> (get-neighbors grid (to-xy idx))
        (map to-idx)
-       (filter #(contains? queue %))
        (reduce
-        (fn [distances n-idx]
-          (if (< w (distances n-idx))
-            (assoc distances n-idx w)
-            distances))
-        distances)))
+        (fn [[queue distances] n-idx]
+          (if (< w (get distances n-idx Integer/MAX_VALUE))
+            [(assoc queue n-idx w) (assoc distances n-idx w)]
+            [queue distances]))
+        [queue distances])))
+
+(priority-map 5 3)
+
+(let [[queue distances] [(priority-map (.indexOf grid \S) 0) {}]]
+  [queue distances])
 
 ;; a very painful dijkstra's algorithm
+(use 'clojure.tools.trace)
 (defn min-path []
-  (let [end-idx (.indexOf grid \E)
-        initial-distances (vec (repeat (* num-rows num-columns) Integer/MAX_VALUE))
-        initial-distances (assoc initial-distances (.indexOf grid \S) 0)]
-    (loop [queue (set (range (* num-rows num-columns)))
-           distances initial-distances]
-      (let [q (get-min-from-queue queue distances)
-            d (distances q)
-            next-queue (disj queue q)]
+  (let [end-idx (.indexOf grid \E)]
+    (loop [[queue distances] [(priority-map (.indexOf grid \S) 0) {}]]
+      (let [[q d] (peek queue)
+            next-queue (pop queue)
+            next-distances (assoc distances q d)]
         (if (= q end-idx)
           ;; done.  answer is our distance
           d
           (recur
-           next-queue
-           (update-neighbor-distances queue distances q (inc d))))))))
+           (update-neighbor-distances next-queue next-distances q (inc d))))))))
 
 ;; this is our part 1 answer.  took a while :/
-;; (time (min-path))
+(min-path)
 
 ;; part 2 is just floyd warshall.  which will probably be kind of painful too.
-all-positions
 
-(def all-positions
-  (vec (for [x (range num-columns)
-             y (range num-rows)]
-         [x y])))
+(def all-idxs (range (* num-columns num-rows)))
 
 (def all-idx-pairs
-  (vec (for [m (range (* num-columns num-rows))
-             n (range (* num-columns num-rows))]
-         [m n])))
+  (for [m all-idxs
+             n all-idxs]
+         [m n]))
 
 (use 'clojure.tools.trace)
 
@@ -108,40 +108,35 @@ all-positions
             (assoc [x n] 1)))
       (assoc next-distances [x x] 0)
       (map to-idx (get-neighbors grid (to-xy x)))))
-   (->> all-idx-pairs
-       (map (fn [q] [q Integer/MAX_VALUE]))
-       (into {}))
-   (range (* num-columns num-rows))))
-
-(initial-distances)
-
-((initial-distances) [2 2])
+   {}
+   all-idxs))
 
 ;; now for every node, we find all its neighbors.
 ;; for each neighbor we put a 1 in the distance placey.
 ;; this is some insane reduce.
 
-(contains? (set all-idx-pairs) [0 1])
-((initial-distances) [4 5])
-
 (defn all-min-paths []
   (reduce
    (fn [distances [k i j]]
-     (let [dist-through-k (+ (distances [i k])
-                             (distances [k j]))]
-       (if (> (distances [i j]) dist-through-k)
-         (assoc distances [i j] dist-through-k)
+     (let [
+           dist-i-j (get distances [i j] Integer/MAX_VALUE)
+           dist-i-k (get distances [i k] Integer/MAX_VALUE)
+           dist-k-j (get distances [k j] Integer/MAX_VALUE)
+           dist-through-k (+ dist-i-k dist-k-j)]
+       (if (> (distances dist-i-j) dist-through-k)
+         (assoc distances dist-i-j dist-through-k)
          distances)))
    (initial-distances)
-   (for [k (range (* num-columns num-rows))
-         i (range (* num-columns num-rows))
-         j (range (* num-columns num-rows))]
+   (for [k all-idxs
+         i all-idxs
+         j all-idxs]
      [k i j])))
 
-((all-min-paths) (.indexOf grid \S) (.indexOf grid \E))
-
+;; answer to part 2
 (let [end-idx (.indexOf grid \E)
-      min-distances (all-min-paths)]
-  (map
-   #(if (= end-idx %) Integer/MAX_VALUE (min-distances [end-idx %]))
-   (range (* num-columns num-rows))))
+      all-min-distances (all-min-paths)]
+  (->> all-idxs
+       (filter #(= 0 (elevation-at grid (to-xy %))))
+       (map #(all-min-distances [% end-idx]))
+       (sort <)
+       (first)))
