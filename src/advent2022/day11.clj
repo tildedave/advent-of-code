@@ -149,11 +149,13 @@
 
 ;; some test stuff
 (def primes (map #(get-in % [2 0]) (vals monkeys)))
-(divisible?-modulae ((to-modulae primes) 119) 23)
-((to-modulae primes) 123)
-(+-modulae ((to-modulae primes) 123) 12)
-(*-modulae ((to-modulae primes) 123) 12)
-(square-modulae ((to-modulae primes) 123))
+primes
+;; (to-modulae primes)
+;; (divisible?-modulae ((to-modulae primes) 176) 23)
+;; ((to-modulae primes) 123)
+;; (+-modulae ((to-modulae primes) 123) 12)
+;; (*-modulae ((to-modulae primes) 123) 12)
+;; (square-modulae ((to-modulae primes) 123))
 
 (def modulae-monkeys
   (let [primes (map #(get-in % [2 0]) (vals monkeys))]
