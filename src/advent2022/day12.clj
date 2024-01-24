@@ -5,7 +5,7 @@
 
 (peek (priority-map "abc" 3 "def" 2))
 
-(def lines (utils/read-resource-lines "input/day12-example.txt"))
+(def lines (utils/read-resource-lines "input/day12.txt"))
 (def grid (mapv identity (string/join "" lines)))
 
 (def num-rows (count lines))
@@ -71,72 +71,34 @@
 (let [[queue distances] [(priority-map (.indexOf grid \S) 0) {}]]
   [queue distances])
 
-;; a very painful dijkstra's algorithm
-(use 'clojure.tools.trace)
-(defn min-path []
+(defn min-path [start-idx]
   (let [end-idx (.indexOf grid \E)]
-    (loop [[queue distances] [(priority-map (.indexOf grid \S) 0) {}]]
-      (let [[q d] (peek queue)
-            next-queue (pop queue)
-            next-distances (assoc distances q d)]
-        (if (= q end-idx)
-          ;; done.  answer is our distance
-          d
+    (loop [[queue distances] [(priority-map start-idx 0) {}]]
+      (let [[q d] (peek queue)]
+        (cond
+          (= q end-idx) d
+          (empty? queue) Integer/MAX_VALUE
+          :else
           (recur
-           (update-neighbor-distances next-queue next-distances q (inc d))))))))
+           (update-neighbor-distances (pop queue) (assoc distances q d) q (inc d))))))))
 
 ;; this is our part 1 answer.  took a while :/
-(min-path)
+(time (min-path (.indexOf grid \S)))
 
-;; part 2 is just floyd warshall.  which will probably be kind of painful too.
+;; just brute force part 2
+;; floyd warshall implementation was too large, ran into OOMs
+;; I expect I would have hit this problem with another language too.
 
-(def all-idxs (range (* num-columns num-rows)))
+;; takes around 5 seconds.  probably could have memoized the distance array /
+;; parameterize it by source.
+(time
+ (->> (range (* num-columns num-rows))
+     (map to-xy)
+     (filter #(= (elevation-at grid %) 0))
+     (map to-idx)
+     (map min-path)
+     (sort <)
+     (first)))
 
-(def all-idx-pairs
-  (for [m all-idxs
-             n all-idxs]
-         [m n]))
-
-(use 'clojure.tools.trace)
-
-(defn initial-distances []
-  (reduce
-   (fn [next-distances x]
-     (reduce
-      (fn [next-distances n]
-        (-> next-distances
-            (assoc [x n] 1)))
-      (assoc next-distances [x x] 0)
-      (map to-idx (get-neighbors grid (to-xy x)))))
-   {}
-   all-idxs))
-
-;; now for every node, we find all its neighbors.
-;; for each neighbor we put a 1 in the distance placey.
-;; this is some insane reduce.
-
-(defn all-min-paths []
-  (reduce
-   (fn [distances [k i j]]
-     (let [
-           dist-i-j (get distances [i j] Integer/MAX_VALUE)
-           dist-i-k (get distances [i k] Integer/MAX_VALUE)
-           dist-k-j (get distances [k j] Integer/MAX_VALUE)
-           dist-through-k (+ dist-i-k dist-k-j)]
-       (if (> (distances dist-i-j) dist-through-k)
-         (assoc distances dist-i-j dist-through-k)
-         distances)))
-   (initial-distances)
-   (for [k all-idxs
-         i all-idxs
-         j all-idxs]
-     [k i j])))
-
-;; answer to part 2
-(let [end-idx (.indexOf grid \E)
-      all-min-distances (all-min-paths)]
-  (->> all-idxs
-       (filter #(= 0 (elevation-at grid (to-xy %))))
-       (map #(all-min-distances [% end-idx]))
-       (sort <)
-       (first)))
+;; I guess an even faster approach would be to apply the
+;; algo to a reversed graph.
