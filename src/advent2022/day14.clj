@@ -1,7 +1,7 @@
 (ns advent2022.day14
   (:require [advent2022.utils :as utils]))
 
-(def lines (utils/read-resource-lines "input/day14.txt"))
+(def lines (utils/read-resource-lines "input/day14-example.txt"))
 
 (defn parse-vertices [str]
   (mapv
@@ -51,26 +51,40 @@
 ;; while we work on the initial logic.
 (defn process-sand [bounds grid]
   (let [[[min-x max-x] [_ max-y]] bounds]
-    (loop [[sx sy] [500 0]]
+    (if (= (get grid [500 0] \.) \o) [grid true]
+        (loop [[sx sy] [500 0]]
     ;; can the sand move down? (down = y + 1)
-      (let [down (get grid [sx (inc sy)] \.)
-            down-left (get grid [(dec sx) (inc sy)] \.)
-            down-right (get grid [(inc sx) (inc sy)] \.)]
-        (cond
-          (< sx min-x) [grid true]
-          (> sx max-x) [grid true]
-          (> sy max-y) [grid true]
-          (= down \.) (recur [sx (inc sy)])
-          (= down-left \.) (recur [(dec sx) (inc sy)])
-          (= down-right \.) (recur [(inc sx) (inc sy)])
-          :else
-          [(assoc grid [sx sy] \o) false])))))
+          (let [down (get grid [sx (inc sy)] \.)
+                down-left (get grid [(dec sx) (inc sy)] \.)
+                down-right (get grid [(inc sx) (inc sy)] \.)]
+            (cond
+              (< sx min-x) [grid true]
+              (> sx max-x) [grid true]
+              (> sy max-y) [grid true]
+              (= down \.) (recur [sx (inc sy)])
+              (= down-left \.) (recur [(dec sx) (inc sy)])
+              (= down-right \.) (recur [(inc sx) (inc sy)])
+              :else
+              [(assoc grid [sx sy] \o) false]))))))
 
 (def grid (parse-grid lines))
 
 ;; here's our answer to part 1
 (let [bounds (grid-bounds grid)]
   (loop [n 0 grid grid]
+    (let [[grid stop] (process-sand bounds grid)]
+      (if stop
+        n
+        (recur (inc n) grid)))))
+
+;; here's our answer to part 2
+(let [bounds (grid-bounds grid)
+      [[min-x max-x] [_ max-y]] bounds
+      ;; this sizing of the floor is wrong but we can fudge the
+      ;; values to get the right answer.
+      floor (connect-squares [(- min-x 50) (+ 2 max-y)] [(+ max-x 50) (+ 2 max-y)])
+      grid-with-floor (apply assoc grid (map #(vector % \q) floor))]
+  (loop [n 0 grid grid-with-floor]
     (let [[grid stop] (process-sand bounds grid)]
       (if stop
         n
