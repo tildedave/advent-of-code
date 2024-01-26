@@ -2,7 +2,7 @@
   (:require [advent2022.utils :as utils]
             [clojure.set :as set]))
 
-(def lines (utils/read-resource-lines "input/day15-example.txt"))
+(def lines (utils/read-resource-lines "input/day15.txt"))
 (def sensor-re #"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)")
 
 (defn manhattan-distance [[x1 y1] [x2 y2]]
@@ -20,69 +20,41 @@
 (def sensors-with-distances
   (map #(vector (first %) (apply manhattan-distance %)) coords))
 
-(defn distance-from [x y sensors-with-distances]
-  (map #(manhattan-distance (first %) [x y]) sensors-with-distances))
+(defn impossible-in-range [y [[sx sy] beacon-distance]]
+  (if (> (manhattan-distance [sx sy] [sx y]) beacon-distance)
+    []
+    (loop [xmin sx
+           xmax sx]
+      (if (= (manhattan-distance [xmin y] [sx sy]) beacon-distance)
+        [[xmin y] [xmax y]]
+        (recur (dec xmin) (inc xmax))))))
 
-(map #(first %) sensors-with-distances)
+(defn interval-overlap? [r1 r2]
+  ;; return if [start end] is inside [interval-start interval-end]
+  ;; took this from day4
+  (not (or (< (second r1) (first r2))
+           (> (first r1) (second r2)))))
 
-(manhattan-distance (first (first sensors-with-distances)) [-3 10])
+(defn interval-merge [r1 r2]
+  [(min (first r1) (first r2)) (max (second r1) (second r2))])
 
-;; sort sensors by X axis.  have a left | right that we are maintaining.
-;; need map from sensor to its distance.
-;; so this lets us do the calculation in something like linear time.
+(interval-merge [2 5] [-2 2])
 
-(vector 1 2 3)
-(defn beacon-elimination [y sensors-with-distances]
-  ;; x needs to start at something ridiculously low and go to something
-  ;; ridiculously high, essentially to make sure the distance is higher
-  ;; than any beacon.
-  ;; this a bit too cute, I bet a brute force approach would worked just as
-  ;; well.
-  (let [sensors-with-distances (vec sensors-with-distances)
-        num-sensors (count sensors-with-distances)
-        y-distances (into {} (map-indexed (fn [n [[_ sy]]] (vector n (abs (- y sy)))) sensors-with-distances))
-        x-coords (into {} (map-indexed (fn [n [[sx _]]] [n sx]) sensors-with-distances))
-        coords-to-x (set/map-invert x-coords)
-        max-x 100]
-    (loop [x -100
-           distances (mapv #(+ (y-distances %) (abs (- x (x-coords %)))) (range num-sensors))
-           num-possible 0]
-      (if (> x max-x)
-        num-possible
-        (let [[next-distances is-possible]
-              (reduce
-               (fn [[next-distances is-possible] n]
+;; perf of this is awful but whatever
+(defn interval-merge-in [intervals r]
+  (loop [merge-in r
+         intervals intervals]
+    (let [[x] (filter (partial interval-overlap? merge-in) intervals)]
+      (if (nil? x)
+        (conj intervals merge-in)
+        (recur (interval-merge x merge-in)
+               (filter #(not= x %) intervals))))))
 
-                 )
-               [distances true]
-               (range num-sensors)
-
-              ])
-        (recur (inc x) next-distances next-possible)
-
-      distances)))
-
-(beacon-elimination 10 sensors-with-distances)
-
-      ;; we expected these to be the same
-      [coords-to-x
-       (map #(+ (y-distances %) (abs (- x (x-coords %)))) (range num-sensors))
-       (map #(manhattan-distance (first (nth sensors-with-distances %)) [x y]) (range num-sensors))])))
-    ;; (loop [x -1000
-    ;;        left {}
-    ;;        right {}
-    ;;        ]
-    ;;   )
-    ;; y-distances))
-
-
-)
-
-  (def sensors-with-distances
-    (map #(vector (first %) (apply manhattan-distance %)) coords))
-
-
-
-  (distance-from 100 10 sensors-with-distances))
-
-  (- (count "..####B######################..") 4)
+;; answer to part 1
+(->> sensors-with-distances
+     (map (partial impossible-in-range 10))
+     (filter #(not= [] %))
+     (mapv #(mapv first %))
+     (reduce interval-merge-in [])
+     (map #(abs (- (second %) (first %))))
+     (reduce + 0))
