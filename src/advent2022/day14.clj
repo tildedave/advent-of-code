@@ -1,7 +1,7 @@
 (ns advent2022.day14
   (:require [advent2022.utils :as utils]))
 
-(def lines (utils/read-resource-lines "input/day14-example.txt"))
+(def lines (utils/read-resource-lines "input/day14.txt"))
 
 (defn parse-vertices [str]
   (mapv
@@ -77,13 +77,17 @@
         n
         (recur (inc n) grid)))))
 
+(into {} [[1 2]])
 ;; here's our answer to part 2
 (let [bounds (grid-bounds grid)
       [[min-x max-x] [_ max-y]] bounds
-      ;; this sizing of the floor is wrong but we can fudge the
-      ;; values to get the right answer.
-      floor (connect-squares [(- min-x 50) (+ 2 max-y)] [(+ max-x 50) (+ 2 max-y)])
-      grid-with-floor (apply assoc grid (map #(vector % \q) floor))]
+      ;; the end state is a triangle with all the sand piled up.
+      ;; it's certain the fudge here is "too much" but it's at least an upper
+      ;; bound.
+      fudge (+ 2 max-y)
+      floor (connect-squares [(- min-x fudge) (+ 2 max-y)] [(+ max-x fudge) (+ 2 max-y)])
+      grid-with-floor (into grid (map #(vector % \q) floor))
+      bounds (grid-bounds grid-with-floor)]
   (loop [n 0 grid grid-with-floor]
     (let [[grid stop] (process-sand bounds grid)]
       (if stop
