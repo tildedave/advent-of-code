@@ -1,6 +1,5 @@
 (ns advent2022.day15
-  (:require [advent2022.utils :as utils]
-            [clojure.set :as set]))
+  (:require [advent2022.utils :as utils]))
 
 (def lines (utils/read-resource-lines "input/day15.txt"))
 (def sensor-re #"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)")
@@ -21,13 +20,13 @@
   (map #(vector (first %) (apply manhattan-distance %)) coords))
 
 (defn impossible-in-range [y [[sx sy] beacon-distance]]
-  (if (> (manhattan-distance [sx sy] [sx y]) beacon-distance)
-    []
-    (loop [xmin sx
-           xmax sx]
-      (if (= (manhattan-distance [xmin y] [sx sy]) beacon-distance)
-        [[xmin y] [xmax y]]
-        (recur (dec xmin) (inc xmax))))))
+  (let [diff (- beacon-distance (manhattan-distance [sx y] [sx sy]))]
+    (if (< diff 0)
+      []
+      [[(- sx diff) y] [(+ sx diff) y]])))
+
+(manhattan-distance [8 7] [8 1])
+(impossible-in-range 10 [[8 7] 9])
 
 (defn interval-overlap? [r1 r2]
   ;; return if [start end] is inside [interval-start interval-end]
@@ -52,7 +51,7 @@
 
 ;; answer to part 1
 (->> sensors-with-distances
-     (map (partial impossible-in-range 10))
+     (map (partial impossible-in-range 2000000))
      (filter #(not= [] %))
      (mapv #(mapv first %))
      (reduce interval-merge-in [])
