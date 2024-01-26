@@ -57,3 +57,16 @@
      (reduce interval-merge-in [])
      (map #(abs (- (second %) (first %))))
      (reduce + 0))
+
+;; brute force part 2!
+(loop [y 0]
+  (let [intervals (->> sensors-with-distances
+                       (map (partial impossible-in-range y))
+                       (filter #(not= [] %))
+                       (mapv #(mapv first %))
+                       (reduce interval-merge-in []))]
+    (if (> (count intervals) 1)
+      (println y intervals)
+      (do
+        (println y intervals)
+        (recur (inc y))))))
