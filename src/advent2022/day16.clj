@@ -1,12 +1,12 @@
 (ns advent2022.day16
   (:require [advent2022.utils :as utils]
             [clojure.set :as set]
-            [clojure.math.combinatorics :as combo]))
+            [clojure.data.priority-map :refer [priority-map]]))
 
 ;; I guess we start with floyd warshall, eliminate the 00 flow nodes, and
 ;; perform some kind of search.
 
-(def lines (utils/read-resource-lines "input/day16.txt"))
+(def lines (utils/read-resource-lines "input/day16-example.txt"))
 
 (def valve-re #"Valve (\w+) has flow rate=(\d+); (tunnels lead to valves|tunnel leads to valve) (\w+(, \w+)*)")
 
@@ -50,37 +50,95 @@
          (if (> dist-i-j (+ dist-i-k dist-k-j))
            (assoc distances [i j] (+ dist-i-k dist-k-j))
            distances)))
-    initial-distances
-    (for [k (keys adjacency)
-          i (keys adjacency)
-          j (keys adjacency)]
-      [k i j]))))
+     initial-distances
+     (for [k (keys adjacency)
+           i (keys adjacency)
+           j (keys adjacency)]
+       [k i j]))))
 
-;; I suppose we can do an exhaustive search now.
-;; part 2 will probably be bad, whatever he asks us to do.
-;; we're only searching for 30 minutes so it seems reasonable to brute force.
-;; how can we cut-off?  if we end up at a certain location with the same
-;; number of open valves - this is actually very similar to the key problem
-;; from AOC 2019.
-;; the puzzle input is also < 64.  so it seems like this is a good direction.
-;; state - [location valves-open pressure-released minutes]
-;; challenge: pressure and minutes left are related but not directly.  it's
-;; not enough to release a valve as the time left matters.
-;; well, the minute we release the pressure we can assume that we get credit
-;; for the entire rest of the time period.
-;; with the floyd-warshall distances, everything is connected to everything
-;; else with accurate times.
-;; I guess the numbers are relatively small, and 30 minutes is reasonable.
-;; let's just code this thing.
 
-;; I guess let's try a greedy approach for part 1.
-;; greedy approach doesn't work of course.
-;; we can easily brute force the example but it's not easy to understand how
-;; to brute force the rest.
+;; following a reddit comment we'll use A* search and use the cost function
+;; as any valve NOT open causes the cost to increase.
+;; we don't have a goal.  our final nodes will all have timeLeft < 0 and we'll
+;; take the min cost from that.
+;; we similarly don't really have a heuristic function.
+;; I guess A* is just fancy Dijkstra's in this case.
 
-;; for any sequence we can understand the score.
-;; this is actually doable if we can cut off when we're done, e.g. multiply
-;; all remaining flows by time left and bail.
+(map-indexed vector [1 2])
+
+(def valves
+  (->> flows
+       (filter #(> (second %) 0))
+       (map first)
+       (apply hash-set)))
+
+(def bit-idx (into {} (map-indexed vector valves)))
+(def reverse-bit-idx (set/map-invert bit-idx))
+
+(defn calculate-cost [open-valves elapsed-time]
+  (->> valves
+       (remove #(bit-test open-valves (reverse-bit-idx %)))
+       (map flows)
+       (reduce + 0)
+       (* elapsed-time)))
+
+(defn search []
+  (let [start ["AA" 0 30]
+        distances (all-pairs-shortest-paths adjacency-matrix)]
+    (loop [[open-set goal-score came-from] [(priority-map start 0)  ;; open-set has fscore
+                                            (assoc {} start 0) ;; goal-score is gscore
+                                            {}]]
+      (if (empty? open-set) [goal-score came-from]
+          (let [[current-node] (peek open-set)
+                [location open-valves time-left] current-node
+                open-set (pop open-set)
+                next-locations (->> valves
+                                    (remove #(bit-test open-valves (reverse-bit-idx %))))
+                ;; add "standing pat" as a goal-score.
+                ;; we DON'T have to add it to the queue.
+                stand-pat-node [location open-valves 0]
+                goal-score (assoc goal-score stand-pat-node (+ (goal-score current-node) (calculate-cost open-valves time-left)))
+                came-from (assoc came-from stand-pat-node current-node)
+                ]
+            ;; we want to end up calling recur() on this
+            ;; I sort of hate this setup, it seems like it forces me to
+            ;; make my loop variables destructured so the recur doesn't need to
+            ;; un-bind/re-bind.
+            (println "I am at" current-node "score is" (goal-score current-node))
+            ;; it feels like we need to also handle the time-ran out case.
+            (recur
+             (reduce
+              (fn [[open-set goal-score came-from] next-location]
+                ;; we need to convert our next-location into a full node in the
+                ;; graph which includes the open valves and time left.
+                ;; also need to calculate the cost.
+                (let [next-open-valves (bit-set open-valves (reverse-bit-idx next-location))
+                      ;; inc because we open the valve at the next location.
+                      elapsed-time (inc (distances [location next-location]))
+                      ;; cost = distance * every closed valve * flow value of every closed valve
+                      ;; we also haven't opened the valve yet so the cost includes the valve
+                      ;; we're about to open.
+                      cost (calculate-cost open-valves elapsed-time)
+                      tentative-gscore (+ (goal-score current-node) cost)
+                      next-time-left (- time-left elapsed-time)
+                      next-node [next-location next-open-valves next-time-left]]
+                  (if (and
+                       (>= next-time-left 0)
+                       (< tentative-gscore (get goal-score next-node Integer/MAX_VALUE)))
+                    (do (println "going to node" next-node "with cost" cost "(takes" elapsed-time "minutes)")
+                    ;; so we add it here
+                        [(assoc open-set next-node tentative-gscore)
+                         (assoc goal-score next-node tentative-gscore)
+                         (assoc came-from next-node current-node)])
+                    ;; otherwise we don't bother
+                    (do (println "no reason to go to" next-node "- next node score" (get goal-score next-node))
+                    [open-set goal-score came-from]))))
+              [open-set goal-score came-from]
+              next-locations)))))))
+
+(def distances (all-pairs-shortest-paths adjacency-matrix))
+
+;; dusting this off to give our final answer
 (defn score [valve-ordering distances flows]
   (loop [location "AA"
          time-left 30
@@ -94,13 +152,22 @@
                   next-score (+ score (* next-time-left (flows next-location)))]
               (recur next-location next-time-left next-score (rest locations))))))))
 
+(defn reconstruct-path [node came-from]
+  (loop [curr node result []]
+    (if (contains? came-from curr)
+      (recur (came-from curr) (conj result curr))
+      (reverse (map first (conj result curr))))))
 
-;; example set has 7, 7! is brute forceable (5420 or something, super EZ)
-;; actual problem has 16, 16! is not brute forceable.
+(let [[goal-score came-from] (search)
+      distances (all-pairs-shortest-paths adjacency-matrix)
+      true-goal-scores (->> goal-score
+                            (filter (fn [[[_ _ time-left]]] (= time-left 0))))
+      best-node (first (sort-by second true-goal-scores))
+      path (drop-last (reconstruct-path (first best-node) came-from))]
+  (println best-node)
+  (println path)
+  (score path distances flows))
 
-(count (combo/permutations (apply hash-set (filter #(> (flows %) 0) (keys flows)))))
-
-(let [interesting-valves (apply hash-set (filter #(> (flows %) 0) (keys flows)))
-      distances (all-pairs-shortest-paths adjacency-matrix)]
-  (apply max (map #(score % distances flows) (take 100 (combo/permutations interesting-valves)))))
-
+;; correct answer is AA DD BB JJ HH EE CC
+;; for whatever reason, we choose the wrong one.
+;; 1522 cost so far.
