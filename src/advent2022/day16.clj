@@ -6,7 +6,7 @@
 ;; I guess we start with floyd warshall, eliminate the 00 flow nodes, and
 ;; perform some kind of search.
 
-(def lines (utils/read-resource-lines "input/day16.txt"))
+(def lines (utils/read-resource-lines "input/day16-example.txt"))
 
 (def valve-re #"Valve (\w+) has flow rate=(\d+); (tunnels lead to valves|tunnel leads to valve) (\w+(, \w+)*)")
 
@@ -167,7 +167,6 @@
       (cond
       ;;  reduce search space by not returning to nodes that we
       ;;  already have a stand-pat score for w/same num open-valves.
-      ;;  for now removing this and hoping floyd warshall reduces search space.
         (contains? goal-score [loc () ele-loc () next-open-valves 0])
         [open-set goal-score came-from]
         ;; TODO: further pruning
@@ -175,6 +174,7 @@
         ;; want to search this node.
         ;; this is more work per-node but it should pay off in pruning search space.
         ;; the challenge is in how to handle the paths.  maybe the pruning is OK.
+
         :else (let [tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
                                    ;; must use our current open valves for cost.
                                          (+ (goal-score current-node) (calculate-cost open-valves 1)))
