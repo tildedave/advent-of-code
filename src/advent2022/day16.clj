@@ -121,15 +121,15 @@
   (let [is-valve-closed (not (is-valve-open? open-valves location))
         should-only-open-valve (>= (flows location) 4)]
     (if (and is-valve-closed should-only-open-valve)
-        [[location (open-valve open-valves location) (dec time-left)]]
+      [[location (open-valve open-valves location) (dec time-left)]]
     ;; otherwise process each neighbor of the adjacency matrix
-        (reduce
-         (fn [acc neighbor-location]
-           (conj acc [neighbor-location open-valves (dec time-left)]))
-         (if (and (> (get flows location 0) 0) is-valve-closed)
-           [[location (open-valve open-valves location) (dec time-left)]]
-           [])
-         (adjacency-matrix location)))))
+      (reduce
+       (fn [acc neighbor-location]
+         (conj acc [neighbor-location open-valves (dec time-left)]))
+       (if (and (> (get flows location 0) 0) is-valve-closed)
+         [[location (open-valve open-valves location) (dec time-left)]]
+         [])
+       (adjacency-matrix location)))))
 
 (defn combo-lists [list1 list2]
   (for [[location open-valves] list1
@@ -162,11 +162,13 @@
            came-from])))))
 
 (defn search-with-elephant [elephant-move? start-time]
-  (let [start ["AA" "AA" 0 start-time]]
+  (let [start ["AA" "AA" 0 start-time]
+        worst-score (calculate-cost 0 start-time)]
     (loop [[open-set goal-score came-from] [(priority-map start 0) (assoc {} start 0) {}]
-           i 0]
+           nodes 0
+           min-so-far Integer/MAX_VALUE]
       (if
-       (empty? open-set) [goal-score came-from i]
+       (empty? open-set) [goal-score came-from nodes (- worst-score min-so-far)]
        (let [[current-node] (peek open-set)
              [location ele-location open-valves time-left] current-node
              open-set (pop open-set)
@@ -180,20 +182,27 @@
              stand-pat-node [location ele-location open-valves 0]
              stand-pat-score (+ (goal-score current-node) (calculate-cost open-valves time-left))
             ;; fun, the logic is basically the same.
-             [goal-score came-from] (maybe-add-score stand-pat-node current-node stand-pat-score goal-score came-from)]
+             [goal-score came-from] (maybe-add-score stand-pat-node current-node stand-pat-score goal-score came-from)
+             min-so-far (if (< (get goal-score stand-pat-node) min-so-far)
+                          (do (printf "new min %d (scanned %d nodes)\n" (- worst-score stand-pat-score) nodes)
+                              (flush)
+                              (get goal-score stand-pat-node))
+                          min-so-far)]
+
         ;;  (println "my neighbors" (get-neighbor-node-list [location open-valves time-left]))
         ;;  (println "elephant neighbors" (get-neighbor-node-list [ele-location open-valves time-left]))
-          (recur
-           (reduce
-            (process-elephant-neighbor current-node)
-            [open-set goal-score came-from]
-            (combo-lists
-             (get-neighbor-node-list [location open-valves time-left])
-             (if elephant-move?
-               (get-neighbor-node-list [ele-location open-valves time-left])
-               [["AA" open-valves (dec time-left)]])))
+         (recur
+          (reduce
+           (process-elephant-neighbor current-node)
+           [open-set goal-score came-from]
+           (combo-lists
+            (get-neighbor-node-list [location open-valves time-left])
+            (if elephant-move?
+              (get-neighbor-node-list [ele-location open-valves time-left])
+              [["AA" open-valves (dec time-left)]])))
             ;;  ))
-            (inc i)))))))
+          (inc nodes)
+          min-so-far))))))
 
 ;; so this is implemented but it does not work.
 ;; I suppose an easy way to check this is if the elephant doesn't move and we
@@ -201,20 +210,12 @@
 
 (println
  "part 1 answer (should be 1651)"
- (let [[goal-score came-from nodes] (search-with-elephant false 30)
-       _ (println "A* search scanned" nodes "nodes")
-       true-goal-scores (->> goal-score
-                             (filter (fn [[[_ _ _ time-left]]] (= time-left 0))))
-       best-node (first (sort-by second true-goal-scores))
-       worst-score (calculate-cost 0 30)]
-   (- worst-score (second best-node))))
+ (let [[goal-score came-from nodes result] (search-with-elephant false 30)
+       _ (println "A* search scanned" nodes "nodes")]
+   result))
 
 (println
  "part 2 answer (should be 1707)"
- (let [[goal-score came-from nodes] (search-with-elephant true 26)
-       _ (println "A* search scanned" nodes "nodes")
-       true-goal-scores (->> goal-score
-                             (filter (fn [[[_ _ _ time-left]]] (= time-left 0))))
-       best-node (first (sort-by second true-goal-scores))
-       worst-score (calculate-cost 0 26)]
-   (- worst-score (second best-node))))
+ (let [[goal-score came-from nodes result] (search-with-elephant true 26)
+       _ (println "A* search scanned" nodes "nodes")]
+   result))
