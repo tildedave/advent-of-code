@@ -165,6 +165,8 @@
       (recur (came-from curr) (conj result curr))
       (reverse (map first (conj result curr))))))
 
+(def goal-score (first (search)))
+
 (let [[goal-score] (search)
       true-goal-scores (->> goal-score
                             (filter (fn [[[_ _ time-left]]] (= time-left 0))))
@@ -207,12 +209,9 @@
 (> (get flows "DD" 0) 0)
 
 (defn combo-lists [list1 list2]
-  (remove
-   nil?
-   (for [[location open-valves time-left] list1
-         [elephant-location ele-open-valves time-left] list2]
-     (if (= location elephant-location) nil
-         [location elephant-location (bit-or open-valves ele-open-valves) time-left]))))
+  (for [[location open-valves time-left] list1
+        [elephant-location ele-open-valves time-left] list2]
+    [location elephant-location (bit-or open-valves ele-open-valves) time-left]))
 
 (adjacency-matrix "AA")
 
@@ -220,10 +219,8 @@
  (get-neighbor-node-list ["AA" 0 26])
  (get-neighbor-node-list ["AA" 0 26]))
 
-(use 'clojure.tools.trace)
-
-(defn search-with-elephant []
-  (let [start ["AA" "AA" 0 30]]
+(defn search-with-elephant [elephant-move? start-time]
+  (let [start ["AA" "AA" 0 start-time]]
     (loop [[open-set goal-score came-from] [(priority-map start 0) (assoc {} start 0) {}]
            i 0]
       (if
@@ -240,6 +237,7 @@
             ;; oh yes, standing pat should also be added.
              stand-pat-node [location ele-location open-valves 0]
              stand-pat-score (+ (goal-score current-node) (calculate-cost open-valves time-left))
+             _ (println "stand pat" stand-pat-node "score" stand-pat-score)
             ;; fun, the logic is basically the same.
              [goal-score came-from] (maybe-add-score stand-pat-node current-node stand-pat-score goal-score came-from)]
          (println "current node" current-node)
@@ -249,29 +247,63 @@
            (reduce
             (fn
               [[open-set goal-score came-from] next-node]
-              (let [[_ _ open-valves time-left] next-node
-                    tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
-                                         (+ (goal-score current-node) (calculate-cost open-valves 1)))
-                    [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)
-                    heuristic-fudge (- 30 (flows (first next-node)) (flows (second next-node)))]
-                [(if added
-                   (assoc open-set next-node (+ tentative-gscore heuristic-fudge))
-                   open-set)
-                 goal-score
-                 came-from]))
-            [open-set goal-score came-from]
-            (combo-lists
-             (get-neighbor-node-list [location open-valves time-left])
-             [["AA" open-valves (dec time-left)]]))
-            ;;  (get-neighbor-node-list [ele-location open-valves time-left])))
-           (inc i)))))))
+              (let [[loc ele-loc next-open-valves time-left] next-node]
+                (if
+                 ;; reduce search space by not returning to nodes that we
+                 ;; already have a stand-pat score for w/same num open-valves.
+                 (contains? goal-score [loc ele-loc next-open-valves 0])
+                  (do (println "not returning to " [loc ele-loc next-open-valves 0])
+                  [open-set goal-score came-from])
+                  (let [tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
+                                             (+ (goal-score current-node) (calculate-cost open-valves 1)))
+                        [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)
+                        heuristic-fudge  (- 30 (flows (first next-node)) (flows (second next-node)))]
+                    [(if added
+                       (do
+                         (println "adding" next-node "to open set with score" (+ tentative-gscore heuristic-fudge))
+                         (assoc open-set next-node (+ tentative-gscore heuristic-fudge)))
+                       (do
+                         (println "not adding" next-node "score not good enough" tentative-gscore "vs" (get goal-score next-node Integer/MAX_VALUE))
+                         open-set))
+                     goal-score
+                     came-from]))))
+              [open-set goal-score came-from]
+              (combo-lists
+               (get-neighbor-node-list [location open-valves time-left])
+               (if elephant-move?
+                 (get-neighbor-node-list [ele-location open-valves time-left])
+                 [["AA" open-valves (dec time-left)]])))
+            ;;  ))
+            (inc i)))))))
 
 ;; so this is implemented but it does not work.
 ;; I suppose an easy way to check this is if the elephant doesn't move and we
 ;; start at 30 minutes left.
-(let [[goal-score] (search-with-elephant)
+
+(reduce open-valve 0 (list "BB" "CC" "DD" "EE" "HH" "JJ"))
+(open-valve 0 "BB")
+(def result (search-with-elephant false 30))
+(def goal-score2 (first result))
+
+(goal-score2 ["BB" "AA" (open-valve 4 "BB") 25])
+(goal-score2 ["BB" "AA" 20 0])
+(goal-score ["BB" 20 25])
+(goal-score ["BB" 20 0])
+
+;; (+ 13 2 20 3 22 21)
+;; (* 81 30)
+(->> goal-score
+     (filter (fn [[[_ _ _ time-left]]] (= time-left 0)))
+     (sort-by second)
+     (first)
+     (first)
+     (#(reconstruct-path % came-from)))
+
+
+(let [[goal-score came-from] (search-with-elephant false 30)
       true-goal-scores (->> goal-score
                             (filter (fn [[[_ _ _ time-left]]] (= time-left 0))))
       best-node (first (sort-by second true-goal-scores))
+      _ (println (reconstruct-path best-node came-from))
       worst-score (calculate-cost 0 30)]
   (- worst-score (second best-node)))
