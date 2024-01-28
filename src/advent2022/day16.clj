@@ -93,13 +93,19 @@
 
 (my-test [1 2 3 4 5 6 7] 8)
 
+(defn is-valve-open? [open-valves valve]
+  (bit-test open-valves (reverse-bit-idx valve)))
+
+(defn open-valve [open-valves valve]
+  (bit-set open-valves (reverse-bit-idx valve)))
+
 (defn process-neighbor [current-node distances]
   (let [[location open-valves time-left] current-node]
     (fn [[open-set goal-score came-from] next-location]
                 ;; we need to convert our next-location into a full node in the
                 ;; graph which includes the open valves and time left.
                 ;; also need to calculate the cost.
-      (let [next-open-valves (bit-set open-valves (reverse-bit-idx next-location))
+      (let [next-open-valves (open-valve open-valves next-location)
                       ;; inc because we open the valve at the next location.
             elapsed-time (inc (distances [location next-location]))
                       ;; cost = distance * every closed valve * flow value of every closed valve
@@ -121,6 +127,7 @@
                       ;; (println "no reason to go to" next-node "- next node score" (get goal-score next-node))
           [open-set goal-score came-from])))))
 
+
 (defn search []
   (let [start ["AA" 0 30]
         distances (all-pairs-shortest-paths adjacency-matrix)]
@@ -132,7 +139,7 @@
                 [location open-valves time-left] current-node
                 open-set (pop open-set)
                 next-locations (->> valves
-                                    (remove #(bit-test open-valves (reverse-bit-idx %))))
+                                    (remove (partial is-valve-open? open-valves)))
                 ;; add "standing pat" as a valid location, and try to understand its cost.
                 ;; we DON'T have to add it to the queue.
                 stand-pat-node [location open-valves 0]
@@ -158,15 +165,113 @@
       (recur (came-from curr) (conj result curr))
       (reverse (map first (conj result curr))))))
 
-(let [[goal-score came-from] (search)
-      distances (all-pairs-shortest-paths adjacency-matrix)
+(let [[goal-score] (search)
       true-goal-scores (->> goal-score
                             (filter (fn [[[_ _ time-left]]] (= time-left 0))))
       best-node (first (sort-by second true-goal-scores))
       worst-score (calculate-cost 0 30)]
   (- worst-score (second best-node)))
 
-;; correct answer is AA DD BB JJ HH EE CC
-;; for whatever reason, we choose the wrong one.
-;; also not clear why we don't include EE / CC in the final.
-;; 1522 cost so far.
+;; so this works for part 1
+;; for part 2, we have an elephant, and less time.
+;; kind of feels like floyd-warshall isn't helpful, though it does increase
+;; the search state.  the elephant and you moving at once seems important,
+;; and if it takes you + elephant different time to get there, things are
+;; going to get rough in the logic.
+;; so OK, we'll rewrite the algorithm to have the elephant, won't try to share
+;; code, at least at first.  but scale isn't much worse and our approach
+;; was shown to work for part 1.
+
+(peek (priority-map "abc" 1))
+
+;; actually we can make this usable for both me and elephant (bffs).
+;; the real elephant combo logic will be in list merging.
+(defn get-neighbor-node-list [[location open-valves time-left]]
+  (if (and (> (get flows location 0) 0)
+           (not (is-valve-open? open-valves location)))
+    [[location (open-valve open-valves location) (dec time-left)]]
+    ;; otherwise process each neighbor of the adjacency matrix
+    (reduce
+     (fn [acc neighbor-location]
+       (conj acc [neighbor-location open-valves (dec time-left)]))
+     []
+     (adjacency-matrix location))))
+
+(adjacency-matrix "DD")
+
+(get-neighbor-node-list ["DD" 4 28])
+
+(and (> (get flows "DD" 0) 0)
+     (not (is-valve-open? 0 "DD")))
+
+(> (get flows "DD" 0) 0)
+
+(defn combo-lists [list1 list2]
+  (remove
+   nil?
+   (for [[location open-valves time-left] list1
+         [elephant-location ele-open-valves time-left] list2]
+     (if (= location elephant-location) nil
+         [location elephant-location (bit-or open-valves ele-open-valves) time-left]))))
+
+(adjacency-matrix "AA")
+
+(combo-lists
+ (get-neighbor-node-list ["AA" 0 26])
+ (get-neighbor-node-list ["AA" 0 26]))
+
+(use 'clojure.tools.trace)
+
+(defn search-with-elephant []
+  (let [start ["AA" "AA" 0 30]]
+    (loop [[open-set goal-score came-from] [(priority-map start 0) (assoc {} start 0) {}]
+           i 0]
+      (if
+       (empty? open-set) [goal-score came-from]
+       (let [[current-node] (peek open-set)
+             [location ele-location open-valves time-left] current-node
+             open-set (pop open-set)
+            ;; we need to process both my action and the elephant's action
+            ;; IF I open a valve, we move on to the elephant.
+            ;; if there's no valve worth opening we generate a list of next
+            ;; positions and need to glom the elephants on.
+            ;; so it's like, my-next and elephant-next, these are lists, then
+            ;; there's some method of merging the lists.
+            ;; oh yes, standing pat should also be added.
+             stand-pat-node [location ele-location open-valves 0]
+             stand-pat-score (+ (goal-score current-node) (calculate-cost open-valves time-left))
+            ;; fun, the logic is basically the same.
+             [goal-score came-from] (maybe-add-score stand-pat-node current-node stand-pat-score goal-score came-from)]
+         (println "current node" current-node)
+        ;;  (println "my neighbors" (get-neighbor-node-list [location open-valves time-left]))
+        ;;  (println "elephant neighbors" (get-neighbor-node-list [ele-location open-valves time-left]))
+          (recur
+           (reduce
+            (fn
+              [[open-set goal-score came-from] next-node]
+              (let [[_ _ open-valves time-left] next-node
+                    tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
+                                         (+ (goal-score current-node) (calculate-cost open-valves 1)))
+                    [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)
+                    heuristic-fudge (- 30 (flows (first next-node)) (flows (second next-node)))]
+                [(if added
+                   (assoc open-set next-node (+ tentative-gscore heuristic-fudge))
+                   open-set)
+                 goal-score
+                 came-from]))
+            [open-set goal-score came-from]
+            (combo-lists
+             (get-neighbor-node-list [location open-valves time-left])
+             [["AA" open-valves (dec time-left)]]))
+            ;;  (get-neighbor-node-list [ele-location open-valves time-left])))
+           (inc i)))))))
+
+;; so this is implemented but it does not work.
+;; I suppose an easy way to check this is if the elephant doesn't move and we
+;; start at 30 minutes left.
+(let [[goal-score] (search-with-elephant)
+      true-goal-scores (->> goal-score
+                            (filter (fn [[[_ _ _ time-left]]] (= time-left 0))))
+      best-node (first (sort-by second true-goal-scores))
+      worst-score (calculate-cost 0 30)]
+  (- worst-score (second best-node)))
