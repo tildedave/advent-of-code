@@ -100,6 +100,9 @@
        (* elapsed-time)))
 
 (defn maybe-add-score [node current-node score goal-score came-from]
+  ;; if we have a better score opening MORE valves with MORE time, we don't
+  ;; want to search this node.
+  ;; this is more work per-node but it should pay off in pruning search space.
   (let [should-add (< score (get goal-score node Integer/MAX_VALUE))]
     [(if should-add (assoc goal-score node score) goal-score)
      (if should-add (assoc came-from node current-node) came-from)
@@ -117,18 +120,7 @@
       (recur (came-from curr) (conj result curr))
       (reverse (map first (conj result curr))))))
 
-;; so this works for part 1
-;; for part 2, we have an elephant, and less time.
-;; kind of feels like floyd-warshall isn't helpful, though it does increase
-;; the search state.  the elephant and you moving at once seems important,
-;; and if it takes you + elephant different time to get there, things are
-;; going to get rough in the logic.
-;; so OK, we'll rewrite the algorithm to have the elephant, won't try to share
-;; code, at least at first.  but scale isn't much worse and our approach
-;; was shown to work for part 1.
-
-valves
-;; actually we can make this usable for both me and elephant (bffs).
+;; we can make this usable for both me and elephant (bffs).
 ;; the real elephant combo logic will be in list merging.
 (defn get-neighbors [[location path open-valves time-left]]
   ;; if we're on a path, we just push the path.
@@ -146,14 +138,14 @@ valves
     ;; we will filter out joint-destinations during the combo list phase.
         (reduce
          (fn [acc valve-to-open]
-           (let [[next-location :as path] (get-path prev location valve-to-open)]
+           (let [[next-location :as path] (rest (get-path prev location valve-to-open))]
              (conj acc [next-location (rest path) open-valves (dec time-left)])))
          (if (and has-flow is-valve-closed)
            [[location (list) (open-valve open-valves location) (dec time-left)]]
            [])
          ;; this needs to be all currently closed valves that we might ever
          ;; want to open
-         (remove (partial is-valve-open? open-valves) interesting-valves)
+         (remove #(or (= % location) (is-valve-open? open-valves %)) interesting-valves)
          ))))
 
 ;; this seems to do what we want.
@@ -174,17 +166,18 @@ valves
   (fn [[open-set goal-score came-from] next-node]
     (let [[_ _ _ _ open-valves] current-node
           [loc path ele-loc ele-path next-open-valves time-left] next-node]
-      ;; (if
+      (if
       ;;  reduce search space by not returning to nodes that we
       ;;  already have a stand-pat score for w/same num open-valves.
       ;;  for now removing this and hoping floyd warshall reduces search space.
-      ;;  (contains? goal-score [loc ele-loc next-open-valves 0])
-      ;;   [open-set goal-score came-from]
+       (contains? goal-score [loc () ele-loc () next-open-valves 0])
+        [open-set goal-score came-from]
         (let [tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
                                    ;; must use our current open valves for cost.
                                    (+ (goal-score current-node) (calculate-cost open-valves 1)))
               [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)
               ;; heuristic rewards changing the valve state.
+              ;; can use heuristic for more goodness
               heuristic (if (not= next-open-valves open-valves) 5 15)] ;(- 30 (flows (first next-node)) (flows (second next-node)))]
           [(if added
              (do
@@ -194,7 +187,7 @@ valves
               ;;  (println "not adding" next-node "score not good enough" tentative-gscore "vs" (get goal-score next-node Integer/MAX_VALUE))
                open-set))
            goal-score
-           came-from]))))
+           came-from])))))
 
 (defn search-with-elephant [elephant-move? start-time]
   (let [start ["AA" (list) "AA" (list) 0 start-time]
@@ -256,6 +249,8 @@ valves
 (first (sort-by second goal-score))
 (goal-score ["CC" () "AA" () 691 0])
 (reconstruct-path-full ["CC" () "AA" () 691 0] came-from)
+
+(get-neighbors ["AA" () 0 30])
 
 (time (println
  "part 1 answer (should be 1651)"
