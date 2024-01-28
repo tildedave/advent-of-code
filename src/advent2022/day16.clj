@@ -208,14 +208,14 @@
 ;; I suppose an easy way to check this is if the elephant doesn't move and we
 ;; start at 30 minutes left.
 
-(println
+(time (println
  "part 1 answer (should be 1651)"
  (let [[goal-score came-from nodes result] (search-with-elephant false 30)
        _ (println "A* search scanned" nodes "nodes")]
-   result))
+   result)))
 
-(println
+(time (println
  "part 2 answer (should be 1707)"
  (let [[goal-score came-from nodes result] (search-with-elephant true 26)
        _ (println "A* search scanned" nodes "nodes")]
-   result))
+   result)))
