@@ -6,7 +6,7 @@
 ;; I guess we start with floyd warshall, eliminate the 00 flow nodes, and
 ;; perform some kind of search.
 
-(def lines (utils/read-resource-lines "input/day16-example.txt"))
+(def lines (utils/read-resource-lines "input/day16.txt"))
 
 (def valve-re #"Valve (\w+) has flow rate=(\d+); (tunnels lead to valves|tunnel leads to valve) (\w+(, \w+)*)")
 
@@ -100,9 +100,6 @@
        (* elapsed-time)))
 
 (defn maybe-add-score [node current-node score goal-score came-from]
-  ;; if we have a better score opening MORE valves with MORE time, we don't
-  ;; want to search this node.
-  ;; this is more work per-node but it should pay off in pruning search space.
   (let [should-add (< score (get goal-score node Integer/MAX_VALUE))]
     [(if should-add (assoc goal-score node score) goal-score)
      (if should-add (assoc came-from node current-node) came-from)
@@ -164,30 +161,32 @@
 
 (defn process-neighbor [current-node]
   (fn [[open-set goal-score came-from] next-node]
-    (let [[_ _ _ _ open-valves] current-node
-          [loc path ele-loc ele-path next-open-valves time-left] next-node]
-      (if
+    (let
+     [[_ _ _ _ open-valves] current-node
+      [loc path ele-loc ele-path next-open-valves time-left] next-node]
+      (cond
       ;;  reduce search space by not returning to nodes that we
       ;;  already have a stand-pat score for w/same num open-valves.
       ;;  for now removing this and hoping floyd warshall reduces search space.
-       (contains? goal-score [loc () ele-loc () next-open-valves 0])
+        (contains? goal-score [loc () ele-loc () next-open-valves 0])
         [open-set goal-score came-from]
-        (let [tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
+        ;; TODO: further pruning
+        ;; if we have a better score opening MORE valves with MORE time, we don't
+        ;; want to search this node.
+        ;; this is more work per-node but it should pay off in pruning search space.
+        ;; the challenge is in how to handle the paths.  maybe the pruning is OK.
+        :else (let [tentative-gscore (if (< time-left 0) Integer/MAX_VALUE
                                    ;; must use our current open valves for cost.
-                                   (+ (goal-score current-node) (calculate-cost open-valves 1)))
-              [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)
+                                         (+ (goal-score current-node) (calculate-cost open-valves 1)))
+                    [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)
               ;; heuristic rewards changing the valve state.
-              ;; can use heuristic for more goodness
-              heuristic (if (not= next-open-valves open-valves) 5 15)] ;(- 30 (flows (first next-node)) (flows (second next-node)))]
-          [(if added
-             (do
-              ;;  (println "adding" next-node "to open set with score" (+ tentative-gscore heuristic))
-               (assoc open-set next-node (+ tentative-gscore heuristic)))
-             (do
-              ;;  (println "not adding" next-node "score not good enough" tentative-gscore "vs" (get goal-score next-node Integer/MAX_VALUE))
-               open-set))
-           goal-score
-           came-from])))))
+              ;; can use heuristic for more goodness / reducing search state
+                    heuristic (if (not= next-open-valves open-valves) 5 15)] ;(- 30 (flows (first next-node)) (flows (second next-node)))]
+                [(if added
+                   (assoc open-set next-node (+ tentative-gscore heuristic))
+                   open-set)
+                 goal-score
+                 came-from])))))
 
 (defn search-with-elephant [elephant-move? start-time]
   (let [start ["AA" (list) "AA" (list) 0 start-time]
@@ -230,27 +229,11 @@
           (inc nodes)
           min-so-far))))))
 
-;; so this is implemented but it does not work.
-;; I suppose an easy way to check this is if the elephant doesn't move and we
-;; start at 30 minutes left.
-
-(def goal-score (first (search-with-elephant false 30)))
-(def came-from (second (search-with-elephant false 30)))
-(reduce open-valve 0 (list "BB" "CC" "DD" "EE" "HH" "JJ"))
-
-
 (defn reconstruct-path-full [node came-from]
   (loop [curr node result []]
     (if (contains? came-from curr)
       (recur (came-from curr) (conj result curr))
       (reverse (conj result curr)))))
-
-
-(first (sort-by second goal-score))
-(goal-score ["CC" () "AA" () 691 0])
-(reconstruct-path-full ["CC" () "AA" () 691 0] came-from)
-
-(get-neighbors ["AA" () 0 30])
 
 (time (println
  "part 1 answer (should be 1651)"
