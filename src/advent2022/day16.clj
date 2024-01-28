@@ -6,7 +6,7 @@
 ;; I guess we start with floyd warshall, eliminate the 00 flow nodes, and
 ;; perform some kind of search.
 
-(def lines (utils/read-resource-lines "input/day16.txt"))
+(def lines (utils/read-resource-lines "input/day16-example.txt"))
 
 (def valve-re #"Valve (\w+) has flow rate=(\d+); (tunnels lead to valves|tunnel leads to valve) (\w+(, \w+)*)")
 
@@ -41,34 +41,48 @@
 (defn all-pairs-shortest-paths [adjacency]
   (let [initial-distances (->> (keys adjacency)
                                (into {} (map #(vector [% %] 0)))
-                               (merge (into {} (map #(vector % 1) (adjacency-edges adjacency)))))]
+                               (merge (into {} (map #(vector % 1) (adjacency-edges adjacency)))))
+        initial-prev (->> (keys adjacency)
+                          (into {} (map #(vector [% %] %)))
+                          (merge (into {} (map (fn [[u v]] (vector [u v] u)) (adjacency-edges adjacency)))))]
     (reduce
-     (fn [distances [k i j]]
+     (fn [[distances prev] [k i j]]
        (let [dist-i-j (get distances [i j] Integer/MAX_VALUE)
              dist-k-j (get distances [k j] Integer/MAX_VALUE)
              dist-i-k (get distances [i k] Integer/MAX_VALUE)]
          (if (> dist-i-j (+ dist-i-k dist-k-j))
-           (assoc distances [i j] (+ dist-i-k dist-k-j))
-           distances)))
-     initial-distances
+           [(assoc distances [i j] (+ dist-i-k dist-k-j))
+            (assoc prev [i j] (prev [k j]))]
+           [distances prev])))
+     [initial-distances initial-prev]
      (for [k (keys adjacency)
            i (keys adjacency)
            j (keys adjacency)]
        [k i j]))))
 
 
+(def prev (second (all-pairs-shortest-paths adjacency-matrix)))
+(defn get-path [prev u v]
+  (if
+   (not (contains? prev [u v]))
+    nil
+    (loop [v v
+           path '()]
+      (if (not= u v)
+        (recur (prev [u v]) (cons v path))
+        (cons u path)))))
+
 ;; following a reddit comment we'll use A* search and use the cost function
 ;; as any valve NOT open causes the cost to increase.
 ;; we don't have a goal.  our final nodes will all have timeLeft < 0 and we'll
 ;; take the min cost from that.
-;; we similarly don't really have a heuristic function.
+;; we similarly don't really have a heuristic function, though we can fudge it.
 ;; I guess A* is just fancy Dijkstra's in this case.
-
-(map-indexed vector [1 2])
 
 (def valves
   (->> flows
-      ;;  (filter #(> (second %) 0))
+       ;; filtering this makes some of our conditionals later a bit easier.
+       ;;  (filter #(> (second %) 0))
        (map first)
        (apply hash-set)))
 
@@ -87,11 +101,6 @@
     [(if should-add (assoc goal-score node score) goal-score)
      (if should-add (assoc came-from node current-node) came-from)
      should-add]))
-
-(defn my-test [[a b c :as all] d]
-  {:a a :b b :c c :d d :all all})
-
-(my-test [1 2 3 4 5 6 7] 8)
 
 (defn is-valve-open? [open-valves valve]
   (bit-test open-valves (reverse-bit-idx valve)))
