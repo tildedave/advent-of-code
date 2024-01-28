@@ -88,6 +88,39 @@
      (if should-add (assoc came-from node current-node) came-from)
      should-add]))
 
+(defn my-test [[a b c :as all] d]
+  {:a a :b b :c c :d d :all all})
+
+(my-test [1 2 3 4 5 6 7] 8)
+
+(defn process-neighbor [current-node distances]
+  (let [[location open-valves time-left] current-node]
+    (fn [[open-set goal-score came-from] next-location]
+                ;; we need to convert our next-location into a full node in the
+                ;; graph which includes the open valves and time left.
+                ;; also need to calculate the cost.
+      (let [next-open-valves (bit-set open-valves (reverse-bit-idx next-location))
+                      ;; inc because we open the valve at the next location.
+            elapsed-time (inc (distances [location next-location]))
+                      ;; cost = distance * every closed valve * flow value of every closed valve
+                      ;; we also haven't opened the valve yet so the cost includes the valve
+                      ;; we're about to open.
+            next-time-left (- time-left elapsed-time)
+            tentative-gscore (if (< next-time-left 0) Integer/MAX_VALUE
+                                 (+ (goal-score current-node) (calculate-cost open-valves elapsed-time)))
+            next-node [next-location next-open-valves next-time-left]
+            [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)]
+        (if added
+                      ;; (println "going to node" next-node "with cost" cost "(takes" elapsed-time "minutes)")
+                      ;; (println "setting goal-score" next-node "to" tentative-gscore)
+                    ;; so we add it here
+          [(assoc open-set next-node (+ tentative-gscore (- 30 (flows next-location))))
+           goal-score
+           came-from]
+                    ;; otherwise we don't bother
+                      ;; (println "no reason to go to" next-node "- next node score" (get goal-score next-node))
+          [open-set goal-score came-from])))))
+
 (defn search []
   (let [start ["AA" 0 30]
         distances (all-pairs-shortest-paths adjacency-matrix)]
@@ -113,31 +146,7 @@
             ;; (println "stand pat node" stand-pat-node "with score" stand-pat-score)
             (recur
              (reduce
-              (fn [[open-set goal-score came-from] next-location]
-                ;; we need to convert our next-location into a full node in the
-                ;; graph which includes the open valves and time left.
-                ;; also need to calculate the cost.
-                (let [next-open-valves (bit-set open-valves (reverse-bit-idx next-location))
-                      ;; inc because we open the valve at the next location.
-                      elapsed-time (inc (distances [location next-location]))
-                      ;; cost = distance * every closed valve * flow value of every closed valve
-                      ;; we also haven't opened the valve yet so the cost includes the valve
-                      ;; we're about to open.
-                      next-time-left (- time-left elapsed-time)
-                      tentative-gscore (if (< next-time-left 0) Integer/MAX_VALUE
-                                           (+ (goal-score current-node) (calculate-cost open-valves elapsed-time)))
-                      next-node [next-location next-open-valves next-time-left]
-                      [goal-score came-from added] (maybe-add-score next-node current-node tentative-gscore goal-score came-from)]
-                  (if added
-                      ;; (println "going to node" next-node "with cost" cost "(takes" elapsed-time "minutes)")
-                      ;; (println "setting goal-score" next-node "to" tentative-gscore)
-                    ;; so we add it here
-                      [(assoc open-set next-node (+ tentative-gscore (- 30 (flows next-location))))
-                       goal-score
-                       came-from]
-                    ;; otherwise we don't bother
-                      ;; (println "no reason to go to" next-node "- next node score" (get goal-score next-node))
-                    [open-set goal-score came-from])))
+              (process-neighbor current-node distances)
               [open-set goal-score came-from]
               next-locations)))))))
 
