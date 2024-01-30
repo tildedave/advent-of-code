@@ -5,7 +5,7 @@
 
 (def line (first (utils/read-resource-lines "input/day17.txt")))
 (defn parse-pattern [jet-pattern-str]
-  (map #(case % \> :right \< :left) jet-pattern-str))
+  (mapv #(case % \> :right \< :left) jet-pattern-str))
 
 (def parsed-line (parse-pattern line))
 
@@ -131,7 +131,7 @@
 ;; stepping through the next shape needs to take a list of gusts
 ;; and return the next list of gusts.
 
-(defn step [[rock-cavern gust-seq shape-seq new-shape? gust? ymin ymax]]
+(defn step [[rock-cavern gust-idx shape-seq new-shape? gust? ymin ymax]]
   ;; returns new rock-cavern, new gusts.
   ;; does it know when it's time for a new shape?  it has to.
   ;; this is also what fall returns - if it becomes rock, new shape time.
@@ -139,15 +139,15 @@
     new-shape?
     (let [[cavern ymin ymax] (add-shape (first shape-seq) rock-cavern)]
       [cavern
-       gust-seq
+       gust-idx
        (rest shape-seq)
        false
        true
        ymin
        ymax])
     gust?
-    [((gust (first gust-seq)) rock-cavern ymin ymax)
-     (rest gust-seq)
+    [((gust (nth parsed-line gust-idx)) rock-cavern ymin ymax)
+     (mod (inc gust-idx) (count parsed-line))
      shape-seq
      false
      false
@@ -157,7 +157,7 @@
     :else
     (let [[done next-cavern] (fall rock-cavern ymin ymax)]
       [next-cavern
-       gust-seq
+       gust-idx
        shape-seq
        done
        true
@@ -165,7 +165,7 @@
        (dec ymax)])))
 
 
-(first (step (step [(new-cavern) (cycle parsed-line) (cycle shape-order) true false -1 -1])))
+(first (step (step [(new-cavern) 0 (cycle shape-order) true false -1 -1])))
 
 ;; (do
 ;;   (doall (map-indexed (fn [n x] (println "------- ")
@@ -175,15 +175,88 @@
 ;;   1)
 
 ;; answer to part 1
-(let [state-seq (iterate step [(new-cavern) (cycle parsed-line) (cycle shape-order) true false -1 -1])
+(let [state-seq (iterate step [(new-cavern) 0 (cycle shape-order) true false -1 -1])
       [state-num] (->> state-seq
-                     (map-indexed (fn [n [cavern _ _ gust?]] (if gust? [n true] [n false])))
-                     (filter #(true? (second %)))
-                     (rest) ;; drop index 0 since it is dumb.
-                     (take 2022)
-                     (last))
-      _ (println state-num)
+                       (map-indexed (fn [n [_ _ _ new-shape?]] (if new-shape? [n true] [n false])))
+                       (filter #(true? (second %)))
+                       (rest) ;; drop index 0 since it is dumb.
+                       (take 2022)
+                       (last))
       [cavern] (nth state-seq state-num)]
-  (dec (count (remove-empty-rows cavern))))
+  (println "part 1 answer:" (dec (count (remove-empty-rows cavern)))))
 
 ;; uh, I hope part 2 can be solved via some approximation.
+;; there must be a cycle at some point.  the shapes cycle and the gusts cycle.
+;; we have to start repeating the cavern.
+;; the example has a shorter gust pattern but the real version has 10k gusts.
+;; cycles will be longer.
+;; OK, so, let's convert cavern rows into numbers.
+;; then we start looking for a cycle in the numbers.
+
+(defn row-to-number [v]
+  (reduce bit-set 0 (->> (map-indexed vector v)
+                         (filter #(= (second %) \#))
+                         (map first))))
+
+(def search-cycle-cutoff (* (count parsed-line) (count shape-order)))
+
+(defn calculate-cycle-length []
+  (let [orig-state-seq (->> (iterate step [(new-cavern) 0 (cycle shape-order) true false -1 -1])
+                            (map-indexed (fn [n [_ _ _ new-shape? :as state]] (if new-shape? [n true state] [n false state])))
+                            (filter #(true? (second %)))
+                            (map (fn [[_ _ state]] state)))] ;; drop index 0 since it is dumb.
+    (loop [state-seq orig-state-seq state-set {} n 0]
+      (let [[cavern gust-idx [next-shape]] (first state-seq)
+            state-hash [(map row-to-number (subvec cavern (max 0 (- (count cavern) 20)))) gust-idx next-shape]]
+        (cond
+          (> n search-cycle-cutoff) nil
+          (contains? state-set state-hash)
+          (let [indexed-state-seq (vec (take n orig-state-seq))
+                cycle-start (state-set state-hash)
+                original-rows (dec (count (remove-empty-rows (first (nth indexed-state-seq cycle-start)))))
+                map-with-cycle-order (->> (vals state-set)
+                                          (filter #(>= % cycle-start))
+                                          (map #(nth indexed-state-seq %))
+                                          (map first)
+                                          (map #(count (remove-empty-rows %)))
+                                          (map #(- % original-rows))
+                                          (map dec)
+                                          (sort)
+                                          (vec))
+                rocks-per-cycle (- (dec (count (remove-empty-rows cavern))) original-rows)]
+            [(state-set state-hash) n rocks-per-cycle map-with-cycle-order state-set])
+          :else
+          (recur
+           (rest state-seq)
+           (assoc state-set state-hash n)
+           (inc n)))))))
+
+(defn cavern-after-n-rocks [num-rocks]
+  (-> (filter
+       #(nth % 3)
+       (iterate step [(new-cavern) 0 (cycle shape-order) true false -1 -1]))
+      (nth num-rocks)
+      (first)))
+
+(defn cavern-height-brute-force [num-rocks]
+  (-> (cavern-after-n-rocks num-rocks)
+      (remove-empty-rows)
+      (count)
+      (dec)))
+
+(defn cavern-height [num-rocks]
+  (let [[cycle-start cycle-end rocks-per-cycle rock-seq] (calculate-cycle-length)]
+    (if (< num-rocks cycle-start)
+      (cavern-height-brute-force num-rocks)
+      ;; otherwise the answer is based on where we are in the cycle
+      (let [cycle-length (- cycle-end cycle-start)
+            cycle-idx (mod (- num-rocks cycle-start) cycle-length)
+            rocks-at-start (cavern-height-brute-force cycle-start)
+            num-full-cycles (quot (- num-rocks cycle-start) cycle-length)]
+        (+
+         (* num-full-cycles rocks-per-cycle)
+         rocks-at-start
+         (nth rock-seq cycle-idx))))))
+
+;; answer to part 2
+(println "part 2 answer:" (cavern-height 1000000000000))
