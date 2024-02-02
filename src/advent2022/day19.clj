@@ -41,16 +41,17 @@ Blueprint 1:
 (defn spend-resources [resources m]
   (into {} (map (fn [[k v]] [k (- v (get m k 0))]) resources)))
 
-(spend-resources  {:clay 5 :geode 12}  {:clay 2})
-
 ;; I suppose greedy probably works here but we can start with A*
 ;; can actually use the heuristic to incentivize doing the right stuff (more
 ;; geode robots at an earlier time).
 
+(use 'clojure.tools.trace)
 (defn can-build? [blueprint {:keys [resources]} resource]
   (every?
    (fn [[resource num]] (>= (get resources resource 0) num))
    (blueprint resource)))
+
+(can-build? blueprint {:resources {:ore 2}} :clay)
 
 (defn collect-resources [resources robots]
   (into {}
@@ -78,16 +79,24 @@ Blueprint 1:
                {:time-left (dec time-left)
                 :resources (spend-resources resources (blueprint resource))
                 :robots (update robots resource (fnil inc 0))
+                :spent-resources (blueprint resource)
                 :built-robot resource})))
        {:time-left (dec time-left)
         :resources resources
         :robots robots}))))
 
+
+(next-states blueprint {:time-left 22, :resources {:ore 2, :geode 0, :obsidian 0, :clay 0}, :robots {:ore 1}})
+
 (collect-resources {:geode 2 :ore 1} {:geode 2 :ore 3})
 
-(take 8 (iterate #(mapcat (fn [s] (next-states blueprint s)) %) [{:time-left 24
-                                                                  :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
-                                                                  :robots {:ore 1}}]))
+;; (take 8 (iterate #(mapcat (fn [s] (next-states blueprint s)) %) [{:time-left 24
+;;                                                                   :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
+;;                                                                   :robots {:ore 1}}]))
+
+(next-states blueprint {:time-left 100
+                        :resources {:ore 100 :geode 100 :obsidian 100 :clay 100}
+                        :robots {:ore 1 :geode 1 :obsidian 1 :clay 1}})
 
 (next-states blueprint
              {:time-left 24
@@ -117,41 +126,46 @@ Blueprint 1:
 
 (defn should-cutoff [state best-so-far]
   (let [{:keys [time-left resources robots]} state]
-    (and (not (contains? robots :geode)) (<= (dec time-left) best-so-far))))
+    (or
+     (= time-left 0)
+     (and (= (get robots :geode 0) 0)
+          (< time-left best-so-far)))))
 
 ;; this is BFS with a heuristic
 (defn best-score [blueprint]
-  (let [start {:time-left 24
+  (let [start {:time-left 25 ;; "minute 0", initial state
                :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
                :robots {:ore 1}}]
     (loop
-     [pqueue (priority-map start (heuristic start))
+     [[pqueue prev] [(priority-map start (heuristic start)) {}]
       best-so-far 0
       nodes 0]
-      (cond (empty? pqueue) [best-so-far nodes]
+      (cond (empty? pqueue) [best-so-far nodes prev]
        ;; we actually want the highest geode score here, but w/e at this point.
             (> nodes 1000000000) "cutoff" ;; just cutoff
             :else
             (let [[state] (peek pqueue)
                   {:keys [time-left resources robots]} state
-                  best-so-far (if (= time-left 0)
+                  next-best-so-far (if (= time-left 0)
                                 (max best-so-far (resources :geode))
                                 best-so-far)
+                  best-so-far next-best-so-far
                   pqueue (pop pqueue)]
               (cond (should-cutoff state best-so-far)
-                    (recur pqueue best-so-far (inc nodes))
+                    (recur [pqueue prev] best-so-far (inc nodes))
                     :else
                     (recur
                      (reduce
-                      (fn [pqueue neighbor]
+                      (fn [[pqueue prev] neighbor]
                         (let [{:keys [time-left resources robots built-robot]} neighbor
                               has-geode-robot (contains? robots :geode)]
                  ;; use built-robot to cutoff things we don't want to explore
-                          (assoc pqueue neighbor 0)
+                          [(assoc pqueue neighbor 0)
+                           (assoc prev neighbor state)]
                ;; 2) cutoff if there's no way to beat max-score-so-far in the
                ;; remaining time
                           ))
-                      pqueue
+                      [pqueue prev]
                       (next-states blueprint state))
                      best-so-far
                      (inc nodes))))))))
@@ -162,5 +176,19 @@ Blueprint 1:
   Each obsidian robot costs 3 ore and 8 clay.
   Each geode robot costs 3 ore and 12 obsidian.")
 
-(println "best score for blueprint" (best-score blueprint))
+(def prev (nth (best-score blueprint) 2))
+
+(prev {:time-left 22, :resources {:ore 1, :geode 0, :obsidian 0, :clay 0}, :robots {:ore 1 :clay 1} :built-robot :clay})
+
+(let [[score nodes prev] (best-score blueprint)
+      best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
+  (println "best score for blueprint" score "in" nodes "nodes")
+  (loop [node best-node]
+    (if (nil? node)
+      (println "done")
+      (do
+        (println node)
+        (recur (prev node)))))
+  (println best-node))
+
 ;; (println "best score for blueprint" (best-score (parse-blueprint blueprint2)))
