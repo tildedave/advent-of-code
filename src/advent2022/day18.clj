@@ -1,6 +1,5 @@
 (ns advent2022.day18
   (:require [advent2022.utils :as utils]
-            [clojure.set :as set]
             [clojure.math.combinatorics :as combo]))
 
 (defn parse-line [str]
