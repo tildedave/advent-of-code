@@ -41,11 +41,6 @@ Blueprint 1:
 (defn spend-resources [resources m]
   (into {} (map (fn [[k v]] [k (- v (get m k 0))]) resources)))
 
-;; I suppose greedy probably works here but we can start with A*
-;; can actually use the heuristic to incentivize doing the right stuff (more
-;; geode robots at an earlier time).
-
-(use 'clojure.tools.trace)
 (defn can-build? [blueprint {:keys [resources]} resource]
   (every?
    (fn [[resource num]] (>= (get resources resource 0) num))
@@ -106,13 +101,17 @@ Blueprint 1:
 (defn heuristic [state]
   ;; what is the format of the state?  obviously, time left, amount of
   ;; materials, what robots you have.
-  ;; heuristic seems bugged now.
-  (let [{:keys [resources robots]} state
+  (let [{:keys [time-left resources robots built-robot]} state
         score 0]
     (+ score
        ;; feels more natural to list the things that we like
        ;; vs the things we don't like for the min heap.
-       (* (get resources :geode 0) -100)
+      ;;  (if (= time-left 0) -100 0)
+       (* (if (= built-robot :geode) -20 0))
+       (* (if (= built-robot :obsidian) -10 0))
+       (* (if (= built-robot :clay) -5 0))
+       (* (if (= built-robot :ore) -2 0))
+       (* (get resources :geode 0) -10)
        (* (get resources :obsidian 0) -5)
        (* (get resources :clay 0) -1)
        (* (get robots :geode 0) -20)
@@ -124,16 +123,70 @@ Blueprint 1:
 ;; if this can't beat our best score so far, no reason to
 ;; look at this node.
 
-(defn should-cutoff [state best-so-far]
+
+(defn max-geode-potential
+  "max number of geodes we could potentially get from this state"
+  [blueprint state]
+  ;; we have to be careful because we might be able to build a geode robot
+  ;; this turn, a geode robot next turn, etc.
+  ;; we'd have to understand resource intake to be able to do the calculation
+  ;; intelligently.
+  (let [{:keys [time-left resources robots]} state]
+    ((first
+     (reduce
+     (fn [[resources robots] _]
+       (if (can-build? blueprint {:resources resources} :geode)
+         [(spend-resources
+           (collect-resources resources robots)
+           (blueprint :geode))
+          (update robots :geode (fnil inc 0))]
+         [(collect-resources resources robots)
+          robots]))
+     [resources robots]
+     (range (max 0 time-left))))
+     :geode)))
+
+(max-geode-potential blueprint {:time-left 7, :resources {:ore 3, :geode 0, :obsidian 7, :clay 16}, :robots {:ore 1, :clay 4, :obsidian 2}})
+
+(defn should-cutoff [blueprint state best-so-far]
   (let [{:keys [time-left resources robots]} state]
     (or
      (= time-left 0)
-     (and (= (get robots :geode 0) 0)
-          (< time-left best-so-far)))))
+     ;; cutoff if we can't beat best score JUST building geode robots
+     ;; if we have no robot and we build one this turn, we get (time-left - 1)
+     ;; geodes total.
+     ;; so if we build one next turn, we get time-left - 2 geodes.
+     ;; we should stop building robots if we already get as much per turn to
+     ;; build geode robots.
+     ;; 8 is a magic number.
+     (and (< time-left 6) (<= (max-geode-potential blueprint state) best-so-far)))))
+
+(max-geode-potential
+ blueprint
+ {:time-left 1, :resources {:ore 3, :geode 6, :obsidian 5, :clay 43}, :robots {:ore 1, :clay 5, :obsidian 2, :geode 2}})
+
+(blueprint :geode)
+
+;; a robot is useless if we already have enough resources coming in a turn to
+;; build any other type of robot.
+(defn robot-useless? [blueprint robots built-robot]
+  (if (= built-robot :geode) false
+      (->> (keys blueprint)
+           (remove #(= % built-robot))
+           (map #(get (blueprint %) built-robot 0))
+           (every? #(>= (get robots built-robot 0) %)))))
+
+(defn should-explore-neighbor [blueprint {:keys [time-left resources robots built-robot]}]
+  ;; we don't want to build another robot if we have enough resources coming in
+  ;; to build the next robot
+  (if built-robot
+    (not (robot-useless? blueprint robots built-robot))
+    true
+    ))
 
 ;; this is BFS with a heuristic
 (defn best-score [blueprint]
-  (let [start {:time-left 25 ;; "minute 0", initial state
+  (let [start {:time-left 24
                :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
                :robots {:ore 1}}]
     (loop
@@ -149,22 +202,23 @@ Blueprint 1:
                   next-best-so-far (if (= time-left 0)
                                 (max best-so-far (resources :geode))
                                 best-so-far)
+                  _ (if (not= next-best-so-far best-so-far) (println "new best score" next-best-so-far state))
                   best-so-far next-best-so-far
                   pqueue (pop pqueue)]
-              (cond (should-cutoff state best-so-far)
+              (cond (should-cutoff blueprint state best-so-far)
                     (recur [pqueue prev] best-so-far (inc nodes))
                     :else
                     (recur
                      (reduce
                       (fn [[pqueue prev] neighbor]
-                        (let [{:keys [time-left resources robots built-robot]} neighbor
-                              has-geode-robot (contains? robots :geode)]
+                        (if (should-explore-neighbor blueprint neighbor)
                  ;; use built-robot to cutoff things we don't want to explore
-                          [(assoc pqueue neighbor 0)
+                          [(assoc pqueue neighbor (heuristic neighbor))
                            (assoc prev neighbor state)]
+                          [pqueue prev])
                ;; 2) cutoff if there's no way to beat max-score-so-far in the
                ;; remaining time
-                          ))
+                        )
                       [pqueue prev]
                       (next-states blueprint state))
                      best-so-far
@@ -175,10 +229,6 @@ Blueprint 1:
   Each clay robot costs 3 ore.
   Each obsidian robot costs 3 ore and 8 clay.
   Each geode robot costs 3 ore and 12 obsidian.")
-
-(def prev (nth (best-score blueprint) 2))
-
-(prev {:time-left 22, :resources {:ore 1, :geode 0, :obsidian 0, :clay 0}, :robots {:ore 1 :clay 1} :built-robot :clay})
 
 (let [[score nodes prev] (best-score blueprint)
       best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
@@ -191,4 +241,6 @@ Blueprint 1:
         (recur (prev node)))))
   (println best-node))
 
-;; (println "best score for blueprint" (best-score (parse-blueprint blueprint2)))
+(let [[score nodes prev] (best-score (parse-blueprint blueprint2))
+      best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
+  (println "best score for blueprint2" score best-node))
