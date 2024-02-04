@@ -25,6 +25,11 @@ Blueprint 1:
 (defn can-acquire? [resource robots]
   (contains? robots resource))
 
+(defn quot-round-up [n m]
+  (let [x (quot n m)
+        r (mod n m)]
+    (if (= r 0) x (inc x))))
+
 (defn time-to-acquire [resource resource-amount robots]
   ;; this is blueprint agnostic, e.g. if you have 2 ore robots and want 8 ore
   ;; this is 4 seconds.
@@ -38,8 +43,10 @@ Blueprint 1:
 
 (blueprint :clay)
 
-(defn spend-resources [resources m]
-  (into {} (map (fn [[k v]] [k (- v (get m k 0))]) resources)))
+(defn spend-resources [state m]
+  (let [{:keys [resources]} state]
+    (assoc state :resources
+           (into {} (map (fn [[k v]] [k (- v (get m k 0))]) resources)))))
 
 (defn can-build? [blueprint {:keys [resources]} resource]
   (every?
@@ -55,70 +62,128 @@ Blueprint 1:
            [resource (+ num (get robots resource 0))])
          resources)))
 
-(defn next-states [blueprint state]
-  (let [{:keys [time-left resources robots]} state
-        resources (collect-resources resources robots)]
-    (cond
-      ;; we shouldn't ever get here, but just in case.
-      (zero? time-left) (list)
-      ;; no reason to build a robot in the last minute
-      (= time-left 1) (list {:time-left (dec time-left)
-                             :resources resources
-                             :robots robots})
-      :else
+;; next states will be build each robot (perhaps waiting several minutes)
+;; OR stand pat until the end.
+
+(defn transition [state t]
+  (let [{:keys [resources robots]} state]
+    ;; for each robot, add * t resource resources.
+    (-> state
+        (update :time-left #(- % t))
+        (assoc :resources
+               (merge-with
+                +
+                resources
+                (into {} (map (fn [[resource num]]
+                                [resource (* t num)])
+                              robots)))))))
+
+(defn stand-pat [state]
+  (transition state (state :time-left)))
+
+(defn time-to-build [blueprint state resource]
+  (let [{:keys [robots resources]} state]
+    ;; for each dependency, max of incoming rates.
+    ;; OK, needs to include our current stockpile.
+    (reduce
+     max
+     (map #(quot-round-up
+            (- (get-in blueprint [resource %]) (get resources % 0))
+            (get robots % 0))
+          (keys (blueprint resource))))))
+
+;; (use 'clojure.tools.trace)
+(get {:ore 2} :ore)
+(get-in blueprint [:clay :ore])
+
+(time-to-build blueprint {:resources {:ore 2} :robots {:ore 1}} :clay)
+
+(defn can-ever-build? [blueprint state resource]
+  (let [{:keys [time-left resources robots]} state]
+    (and (every? #(> (get robots % 0) 0) (keys (blueprint resource)))
+         ;; I think this needs to be <, potentially needs to be even more
+         ;; aggressive.  if I can build a geode robot with 1 second left, it
+         ;; should be as if I can't build it.
+         (< (time-to-build blueprint state resource) time-left))))
+
+(def start-state {:time-left 24
+                  :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
+                  :robots {:ore 1}})
+(def better-state {:time-left 24
+                   :robots {:obsidian 1 :ore 1}})
+(def out-of-time-state {:time-left 7
+                   :robots {:obsidian 1 :ore 1}})
+(can-ever-build? blueprint better-state :geode)
+(can-ever-build? blueprint start-state :obsidian)
+(can-ever-build? blueprint out-of-time-state :geode)
+(stand-pat better-state) ;; should be 24 24
+(transition better-state 0) ;; should be 24 24
+
+;; this is off by one, the minute spend collecting the resources is not taken
+;; into account.
+;; transition zooms forward to the START of the time.
+;; we then build the robot.
+(defn build-robot [blueprint state resource]
+  (let [t (time-to-build blueprint state resource)
+        ;; head forward to the start of a time when we have the resources to
+        ;; build the robot.
+        next-state (transition state t)]
+    (-> next-state
+        ;; "tick" the state; we need to do this first because we don't want to
+        ;; count the being-created robot for collection.
+        (transition 1)
+        (update-in [:robots resource] (fnil inc 0))
+        (spend-resources (blueprint resource)))))
+
+(def brb (partial build-robot blueprint))
+
+(brb (brb start-state :clay) :clay)
+(time-to-build blueprint (brb start-state :clay) :clay)
+
+(brb (brb start-state :clay) :clay)
+
+(let [l (list :clay :clay :clay :obsidian :clay :obsidian :geode :geode )]
+  (loop [state start-state
+         l l]
+    (if (empty? l) (stand-pat state)
+        (recur (build-robot blueprint state (first l)) (rest l)))))
+
+(defn next-states-better [blueprint state]
+  (let [{:keys [time-left resources robots]} state]
+    ;; not clear if this will get many hits.
+    (if (can-build? blueprint state :geode)
+      ;; just build that geode robot.
+      (list (build-robot blueprint state :geode))
+      ;; otherwise, decide what to do next.
       (conj
        (->> '(:ore :clay :obsidian :geode)
-            (filter (partial can-build? blueprint state))
-            (map
-             (fn [resource]
-               {:time-left (dec time-left)
-                :resources (spend-resources resources (blueprint resource))
-                :robots (update robots resource (fnil inc 0))
-                :spent-resources (blueprint resource)
-                :built-robot resource})))
-       {:time-left (dec time-left)
-        :resources resources
-        :robots robots}))))
+            (filter (partial can-ever-build? blueprint state))
+            (map (partial build-robot blueprint state)))
+       (stand-pat state)))))
 
+(take 8
+      (iterate #(mapcat (fn [s] (next-states-better blueprint s)) %) [start-state]))
 
-(next-states blueprint {:time-left 22, :resources {:ore 2, :geode 0, :obsidian 0, :clay 0}, :robots {:ore 1}})
-
-(collect-resources {:geode 2 :ore 1} {:geode 2 :ore 3})
-
-;; (take 8 (iterate #(mapcat (fn [s] (next-states blueprint s)) %) [{:time-left 24
-;;                                                                   :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
-;;                                                                   :robots {:ore 1}}]))
-
-(next-states blueprint {:time-left 100
-                        :resources {:ore 100 :geode 100 :obsidian 100 :clay 100}
-                        :robots {:ore 1 :geode 1 :obsidian 1 :clay 1}})
-
-(next-states blueprint
-             {:time-left 24
-              :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
-              :robots {:ore 1}})
 
 (defn heuristic [state]
   ;; what is the format of the state?  obviously, time left, amount of
   ;; materials, what robots you have.
   (let [{:keys [time-left resources robots built-robot]} state
         score 0]
-    0))
-
-    ;; (+ score
-    ;;    ;; feels more natural to list the things that we like
-    ;;    ;; vs the things we don't like for the min heap.
-    ;;   ;;  (if (= time-left 0) -100 0)
-    ;;    (* (if (= built-robot :geode) -20 0))
-    ;;    (* (if (= built-robot :obsidian) -10 0))
-    ;;    (* (if (= built-robot :clay) -5 0))
-    ;;    (* (if (= built-robot :ore) -2 0))
-    ;;    (* (get resources :geode 0) -10)
-    ;;    (* (get resources :obsidian 0) -5)
-    ;;    (* (get resources :clay 0) -1)
-    ;;    (* (get robots :geode 0) -20)
-    ;;    (* (get robots :obsidian 0) -5)
-    ;;    (* (get robots :clay 0) -3))))
+    (+ score
+       ;; feels more natural to list the things that we like
+       ;; vs the things we don't like for the min heap.
+      ;;  (if (= time-left 0) -100 0)
+       (* (if (= built-robot :geode) -20 0))
+       (* (if (= built-robot :obsidian) -10 0))
+       (* (if (= built-robot :clay) -5 0))
+       (* (if (= built-robot :ore) -2 0))
+       (* (get resources :geode 0) -10)
+       (* (get resources :obsidian 0) -5)
+       (* (get resources :clay 0) -1)
+       (* (get robots :geode 0) -20)
+       (* (get robots :obsidian 0) -5)
+       (* (get robots :clay 0) -3))))
 
 ;; if you have no geode robot and you build a geode robot
 ;; in this minute, you will collect (dec time-left) geodes.
@@ -168,9 +233,9 @@ Blueprint 1:
   (let [{:keys [built-robot]} neighbor]
   ;; we don't want to build another robot if we have enough resources coming in
   ;; to build the next robot
-  (if built-robot
-    (not (robot-useless? blueprint neighbor))
-    true)))
+    (if built-robot
+      (not (robot-useless? blueprint neighbor))
+      true)))
 
 ;; this is BFS with a heuristic
 (defn best-score [blueprint]
@@ -188,8 +253,8 @@ Blueprint 1:
             (let [[state] (peek pqueue)
                   {:keys [time-left resources robots]} state
                   next-best-so-far (if (= time-left 0)
-                                (max best-so-far (resources :geode))
-                                best-so-far)
+                                     (max best-so-far (resources :geode))
+                                     best-so-far)
                   _ (if (not= next-best-so-far best-so-far) (println "new best score" next-best-so-far state))
                   best-so-far next-best-so-far
                   pqueue (pop pqueue)]
@@ -208,7 +273,7 @@ Blueprint 1:
                ;; remaining time
                         )
                       [pqueue prev]
-                      (next-states blueprint state))
+                      (next-states-better blueprint state))
                      best-so-far
                      (inc nodes))))))))
 
@@ -217,7 +282,6 @@ Blueprint 1:
   Each clay robot costs 3 ore.
   Each obsidian robot costs 3 ore and 8 clay.
   Each geode robot costs 3 ore and 12 obsidian.")
-
 
 (defn search [blueprint]
   (let [[score nodes prev] (best-score blueprint)
