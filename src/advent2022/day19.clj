@@ -156,35 +156,15 @@ Blueprint 1:
       (= time-left 1) (list (stand-pat state))
       (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
       ;; otherwise, decide what to do next.
+      ;; we prioritize building robots in order of priority.
       :else (conj
-       (->> '(:ore :clay :obsidian :geode)
+       (->> '(:geode :obsidian :clay :ore)
             (filter (partial can-ever-build? blueprint state))
             (map (partial build-robot blueprint state)))
        (stand-pat state)))))
 
 (take 8
       (iterate #(mapcat (fn [s] (next-states-better blueprint s)) %) [start-state]))
-
-
-(defn heuristic [state]
-  ;; what is the format of the state?  obviously, time left, amount of
-  ;; materials, what robots you have.
-  (let [{:keys [time-left resources robots built-robot]} state
-        score 0]
-    (+ score
-       ;; feels more natural to list the things that we like
-       ;; vs the things we don't like for the min heap.
-      ;;  (if (= time-left 0) -100 0)
-       (* (if (= built-robot :geode) -20 0))
-       (* (if (= built-robot :obsidian) -10 0))
-       (* (if (= built-robot :clay) -5 0))
-       (* (if (= built-robot :ore) -2 0))
-       (* (get resources :geode 0) -5)
-       (* (get resources :obsidian 0) -3)
-       (* (get resources :clay 0) -1)
-       (* (get robots :geode 0) -20)
-       (* (get robots :obsidian 0) -5)
-       (* (get robots :clay 0) -3))))
 
 ;; if you have no geode robot and you build a geode robot
 ;; in this minute, you will collect (dec time-left) geodes.
@@ -244,21 +224,21 @@ Blueprint 1:
                :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
                :robots {:ore 1}}]
     (loop
-     [[pqueue prev] [(priority-map start (heuristic start)) {}]
+     [[pqueue prev] [[start] {}]
       best-so-far 0
       nodes 0]
       (cond (empty? pqueue) [best-so-far nodes prev]
        ;; we actually want the highest geode score here, but w/e at this point.
             (> nodes 1000000000) "cutoff" ;; just cutoff
             :else
-            (let [[state] (peek pqueue)
+            (let [[state] pqueue
                   {:keys [time-left resources robots]} state
                   next-best-so-far (if (= time-left 0)
                                      (max best-so-far (resources :geode))
                                      best-so-far)
                   _ (if (not= next-best-so-far best-so-far) (println "new best score" next-best-so-far state))
                   best-so-far next-best-so-far
-                  pqueue (pop pqueue)]
+                  pqueue (subvec pqueue 1)]
               (cond (should-cutoff blueprint state best-so-far)
                     (recur [pqueue prev] best-so-far (inc nodes))
                     :else
@@ -267,7 +247,7 @@ Blueprint 1:
                       (fn [[pqueue prev] neighbor]
                         (if (should-explore-neighbor blueprint neighbor)
                  ;; use built-robot to cutoff things we don't want to explore
-                          [(assoc pqueue neighbor (heuristic neighbor))
+                          [(conj pqueue neighbor)
                           ;;  (assoc prev neighbor state)
                            prev
                            ]
