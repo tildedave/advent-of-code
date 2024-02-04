@@ -131,20 +131,18 @@ Blueprint 1:
   ;; this turn, a geode robot next turn, etc.
   ;; we'd have to understand resource intake to be able to do the calculation
   ;; intelligently.
-  (let [{:keys [time-left resources robots]} state]
-    ((first
-     (reduce
-     (fn [[resources robots] _]
-       (if (can-build? blueprint {:resources resources} :geode)
-         [(spend-resources
-           (collect-resources resources robots)
-           (blueprint :geode))
-          (update robots :geode (fnil inc 0))]
-         [(collect-resources resources robots)
-          robots]))
-     [resources robots]
-     (range (max 0 time-left))))
-     :geode)))
+  ;; https://old.reddit.com/r/adventofcode/comments/zujwgo/comment/j1jobsq
+  (let [{:keys [time-left resources robots]} state
+        time-factor (/ (* time-left (dec time-left)) 2)
+        max-ore (+ (get resources :ore 0) (* (get robots :ore 0) time-left) time-factor)
+        max-obs (+ (get resources :obsidian 0) (* (get robots :obsidian 0) time-left) time-factor)
+        max-geobots (max (quot max-ore ((blueprint :geode) :ore)) (quot max-obs ((blueprint :obsidian) :ore)))
+        can-gather (+ (get resources :geode 0) (* (get robots :geode 0) time-left))]
+    (if (>= max-geobots time-left)
+      (+ can-gather time-factor)
+      (+ can-gather
+         (quot (* max-geobots (dec max-geobots)) 2)
+         (* (- time-left max-geobots) max-geobots)))))
 
 (max-geode-potential blueprint {:time-left 7, :resources {:ore 3, :geode 0, :obsidian 7, :clay 16}, :robots {:ore 1, :clay 4, :obsidian 2}})
 
