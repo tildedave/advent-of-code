@@ -103,20 +103,22 @@ Blueprint 1:
   ;; materials, what robots you have.
   (let [{:keys [time-left resources robots built-robot]} state
         score 0]
-    (+ score
-       ;; feels more natural to list the things that we like
-       ;; vs the things we don't like for the min heap.
-      ;;  (if (= time-left 0) -100 0)
-       (* (if (= built-robot :geode) -20 0))
-       (* (if (= built-robot :obsidian) -10 0))
-       (* (if (= built-robot :clay) -5 0))
-       (* (if (= built-robot :ore) -2 0))
-       (* (get resources :geode 0) -10)
-       (* (get resources :obsidian 0) -5)
-       (* (get resources :clay 0) -1)
-       (* (get robots :geode 0) -20)
-       (* (get robots :obsidian 0) -5)
-       (* (get robots :clay 0) -3))))
+    0))
+
+    ;; (+ score
+    ;;    ;; feels more natural to list the things that we like
+    ;;    ;; vs the things we don't like for the min heap.
+    ;;   ;;  (if (= time-left 0) -100 0)
+    ;;    (* (if (= built-robot :geode) -20 0))
+    ;;    (* (if (= built-robot :obsidian) -10 0))
+    ;;    (* (if (= built-robot :clay) -5 0))
+    ;;    (* (if (= built-robot :ore) -2 0))
+    ;;    (* (get resources :geode 0) -10)
+    ;;    (* (get resources :obsidian 0) -5)
+    ;;    (* (get resources :clay 0) -1)
+    ;;    (* (get robots :geode 0) -20)
+    ;;    (* (get robots :obsidian 0) -5)
+    ;;    (* (get robots :clay 0) -3))))
 
 ;; if you have no geode robot and you build a geode robot
 ;; in this minute, you will collect (dec time-left) geodes.
@@ -148,20 +150,7 @@ Blueprint 1:
   (let [{:keys [time-left resources robots]} state]
     (or
      (= time-left 0)
-     ;; cutoff if we can't beat best score JUST building geode robots
-     ;; if we have no robot and we build one this turn, we get (time-left - 1)
-     ;; geodes total.
-     ;; so if we build one next turn, we get time-left - 2 geodes.
-     ;; we should stop building robots if we already get as much per turn to
-     ;; build geode robots.
-     ;; 8 is a magic number.
      (<= (max-geode-potential blueprint state) best-so-far))))
-
-(max-geode-potential
- blueprint
- {:time-left 1, :resources {:ore 3, :geode 6, :obsidian 5, :clay 43}, :robots {:ore 1, :clay 5, :obsidian 2, :geode 2}})
-
-(blueprint :geode)
 
 ;; a robot is useless if we already have enough resources coming in a turn to
 ;; build any other type of robot.
