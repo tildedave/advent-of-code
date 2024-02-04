@@ -144,8 +144,6 @@ Blueprint 1:
          (quot (* max-geobots (dec max-geobots)) 2)
          (* (- time-left max-geobots) max-geobots)))))
 
-(max-geode-potential blueprint {:time-left 7, :resources {:ore 3, :geode 0, :obsidian 7, :clay 16}, :robots {:ore 1, :clay 4, :obsidian 2}})
-
 (defn should-cutoff [blueprint state best-so-far]
   (let [{:keys [time-left resources robots]} state]
     (or
@@ -157,7 +155,7 @@ Blueprint 1:
      ;; we should stop building robots if we already get as much per turn to
      ;; build geode robots.
      ;; 8 is a magic number.
-     (and (< time-left 6) (<= (max-geode-potential blueprint state) best-so-far)))))
+     (<= (max-geode-potential blueprint state) best-so-far))))
 
 (max-geode-potential
  blueprint
