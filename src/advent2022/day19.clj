@@ -104,7 +104,8 @@ Blueprint 1:
          ;; I think this needs to be <, potentially needs to be even more
          ;; aggressive.  if I can build a geode robot with 1 second left, it
          ;; should be as if I can't build it.
-         (< (time-to-build blueprint state resource) time-left))))
+         ;; being more aggressive is managed by (dec time-left)
+         (< (time-to-build blueprint state resource) (dec time-left)))))
 
 (def start-state {:time-left 24
                   :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
@@ -151,11 +152,11 @@ Blueprint 1:
 (defn next-states-better [blueprint state]
   (let [{:keys [time-left resources robots]} state]
     ;; not clear if this will get many hits.
-    (if (can-build? blueprint state :geode)
-      ;; just build that geode robot.
-      (list (build-robot blueprint state :geode))
+    (cond
+      (= time-left 1) (list (stand-pat state))
+      (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
       ;; otherwise, decide what to do next.
-      (conj
+      :else (conj
        (->> '(:ore :clay :obsidian :geode)
             (filter (partial can-ever-build? blueprint state))
             (map (partial build-robot blueprint state)))
@@ -178,8 +179,8 @@ Blueprint 1:
        (* (if (= built-robot :obsidian) -10 0))
        (* (if (= built-robot :clay) -5 0))
        (* (if (= built-robot :ore) -2 0))
-       (* (get resources :geode 0) -10)
-       (* (get resources :obsidian 0) -5)
+       (* (get resources :geode 0) -5)
+       (* (get resources :obsidian 0) -3)
        (* (get resources :clay 0) -1)
        (* (get robots :geode 0) -20)
        (* (get robots :obsidian 0) -5)
@@ -267,7 +268,9 @@ Blueprint 1:
                         (if (should-explore-neighbor blueprint neighbor)
                  ;; use built-robot to cutoff things we don't want to explore
                           [(assoc pqueue neighbor (heuristic neighbor))
-                           (assoc prev neighbor state)]
+                          ;;  (assoc prev neighbor state)
+                           prev
+                           ]
                           [pqueue prev])
                ;; 2) cutoff if there's no way to beat max-score-so-far in the
                ;; remaining time
@@ -284,7 +287,7 @@ Blueprint 1:
   Each geode robot costs 3 ore and 12 obsidian.")
 
 (defn search [blueprint]
-  (let [[score nodes prev] (best-score blueprint)
+  (let [[score nodes prev] (time (best-score blueprint))
         best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
     (println "best score for blueprint" score "in" nodes "nodes")
     (loop [node best-node]
