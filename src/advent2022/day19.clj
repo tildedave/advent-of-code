@@ -165,20 +165,23 @@ Blueprint 1:
 
 ;; a robot is useless if we already have enough resources coming in a turn to
 ;; build any other type of robot.
-(defn robot-useless? [blueprint robots built-robot]
-  (if (= built-robot :geode) false
-      (->> (keys blueprint)
-           (remove #(= % built-robot))
-           (map #(get (blueprint %) built-robot 0))
-           (every? #(>= (get robots built-robot 0) %)))))
+(defn robot-useless? [blueprint {:keys [time-left resources robots built-robot]}]
+  (cond
+    (= built-robot :geode) false
+    (= time-left 1) true
+    (and (= time-left 2) (not= built-robot :geode)) true
+    :else (->> (keys blueprint)
+               (remove #(= % built-robot))
+               (map #(get (blueprint %) built-robot 0))
+               (every? #(>= (get robots built-robot 0) %)))))
 
-(defn should-explore-neighbor [blueprint {:keys [time-left resources robots built-robot]}]
+(defn should-explore-neighbor [blueprint neighbor]
+  (let [{:keys [built-robot]} neighbor]
   ;; we don't want to build another robot if we have enough resources coming in
   ;; to build the next robot
   (if built-robot
-    (not (robot-useless? blueprint robots built-robot))
-    true
-    ))
+    (not (robot-useless? blueprint neighbor))
+    true)))
 
 ;; this is BFS with a heuristic
 (defn best-score [blueprint]
@@ -226,17 +229,18 @@ Blueprint 1:
   Each obsidian robot costs 3 ore and 8 clay.
   Each geode robot costs 3 ore and 12 obsidian.")
 
-(let [[score nodes prev] (best-score blueprint)
-      best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
-  (println "best score for blueprint" score "in" nodes "nodes")
-  (loop [node best-node]
-    (if (nil? node)
-      (println "done")
-      (do
-        (println node)
-        (recur (prev node)))))
-  (println best-node))
 
-(let [[score nodes prev] (best-score (parse-blueprint blueprint2))
-      best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
-  (println "best score for blueprint2" score best-node))
+(defn search [blueprint]
+  (let [[score nodes prev] (best-score blueprint)
+        best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
+    (println "best score for blueprint" score "in" nodes "nodes")
+    (loop [node best-node]
+      (if (nil? node)
+        (println "done")
+        (do
+          (println node)
+          (recur (prev node)))))
+    (println best-node)))
+
+(search blueprint)
+(search (parse-blueprint blueprint2))
