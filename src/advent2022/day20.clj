@@ -3,7 +3,7 @@
 
 ;; grove positioning system
 
-(def lines (utils/read-resource-lines "input/day20.txt"))
+(def lines (utils/read-resource-lines "input/day20-example.txt"))
 (def parsed-lines (map utils/parse-int lines))
 
 (defn swap [v m n]
@@ -19,7 +19,6 @@
 (defn initial [parsed-lines]
   [(into {} (map-indexed (fn [n x] [x n]) parsed-lines))
    (vec parsed-lines)])
-
 
 (defn step [[pos-set num-list] n]
   (let [di (if (< n 0) -1 1)
@@ -43,41 +42,37 @@
            (swap pos-set (get num-list curr-idx) (get num-list next-idx))
            (swap num-list curr-idx next-idx)))))))
 
-
-(def foo (step (initial parsed-lines) (first parsed-lines)))
-
-(def bar (initial parsed-lines))
-
-((first bar) 6362)
-
-(first foo)
-(second foo)
-(= (first foo) (initial (second foo)))
-((first foo) (ini))
-(nth (second foo) 1704)
-
-parsed-lines
-((first (initial parsed-lines)) 6362)
-
 (-> (initial parsed-lines)
     (step (nth parsed-lines 0))
     (step (nth parsed-lines 1)))
 
 ;; (reduce step (initial parsed-lines) parsed-lines)
 
-(defn answer [parsed-lines]
-  (let [[pos-set num-list] (reduce step (initial parsed-lines) parsed-lines)]
-    (loop [i 0
-           idx (pos-set 0)
-           num 0]
-      (let [next-idx (mod (inc idx) (count num-list))]
+(.indexOf parsed-lines 0)
+
+(defn answer-indices [num-list]
+  (let [num-list (vec num-list)]
+  (loop [i 0
+         idx (.indexOf num-list 0)
+         result (list)]
+    (let [next-idx (mod (inc idx) (count num-list))]
       (cond
-        (= i 3000) (+ num (num-list idx))
+        (= i 3000) (cons (num-list idx) result)
         (= i 2000)
-          (recur (inc i) next-idx (+ num (num-list idx)))
+        (recur (inc i) next-idx (cons (num-list idx) result))
         (= i 1000)
-          (recur (inc i) next-idx (+ num (num-list idx)))
-        :else (recur (inc i) next-idx num))))))
+        (recur (inc i) next-idx (cons (num-list idx) result))
+        :else (recur (inc i) next-idx result))))))
+
+(defn num-list-after [parsed-lines process-list]
+  (second (reduce step (initial parsed-lines) process-list)))
+
+(loop [i 0]
+  (if (= i 8)
+    nil
+    (do
+      (println (answer-indices (num-list-after parsed-lines (take i parsed-lines))))
+      (recur (inc i)))))
 
 ;; part 1 answer
 ;; (println (answer parsed-lines))
