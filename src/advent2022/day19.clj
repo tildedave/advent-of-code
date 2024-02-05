@@ -143,14 +143,29 @@ Blueprint 1:
 
 ;; a robot is useless if we already have enough resources coming in a turn to
 ;; build any other type of robot.
+
+(def max-robots
+  (memoize
+   (fn [blueprint]
+     (apply merge
+     (for [resource '(:obsidian :clay :ore)]
+       {resource
+        (->>
+         (dissoc blueprint :number)
+         (map (fn [[k x]] (x resource)))
+         (remove nil?)
+         (reduce max))})))))
+
+(map (fn [x] x) (dissoc blueprint :number))
+
+(map identity blueprint)
+(max-robots blueprint)
+
 (defn robot-useless? [blueprint {:keys [time-left resources robots built-robot]}]
   (cond
     (= built-robot :geode) false
     (= time-left 1) (not= built-robot :geode)
-    :else (->> (keys blueprint)
-               (remove #(= % built-robot))
-               (map #(get (blueprint %) built-robot 0))
-               (every? #(> (get robots built-robot 0) %)))))
+    :else (->> (>= (get robots built-robot 0) ((max-robots blueprint) built-robot)))))
 
 (defn next-states-better [blueprint state]
   (let [{:keys [time-left resources robots]} state]
@@ -163,7 +178,8 @@ Blueprint 1:
       (let [next (->> '(:geode :obsidian :clay :ore)
                       (filter (partial can-ever-build? blueprint state))
                       (map (partial build-robot blueprint state))
-                      (remove (partial robot-useless? blueprint)))]
+                      (remove (partial robot-useless? blueprint))
+                      )]
         (if (empty? next) (list (stand-pat state)) next)))))
 
 ;; if you have no geode robot and you build a geode robot
@@ -265,12 +281,13 @@ Blueprint 1:
  "total quality (examples)"
  (total-quality [blueprint (parse-blueprint blueprint2)]))
 
-;; (println
-;;  "total quality (input)"
-;;  (total-quality (map parse-blueprint (utils/read-resource-lines "input/day19.txt"))))
+(println
+ "total quality (input)"
+ (total-quality (map parse-blueprint (utils/read-resource-lines "input/day19.txt"))))
 
 (def input-blueprints
   (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))
 
+(max-robots (first input-blueprints))
 (search (first input-blueprints))
 ;; (reduce * (map search (take 3 input-blueprints)))
