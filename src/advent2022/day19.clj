@@ -136,19 +136,6 @@ Blueprint 1:
         (update-in [:robots resource] (fnil inc 0))
         (spend-resources (blueprint resource)))))
 
-(def brb (partial build-robot blueprint))
-
-(brb (brb start-state :clay) :clay)
-(time-to-build blueprint (brb start-state :clay) :clay)
-
-(brb (brb start-state :clay) :clay)
-
-(let [l (list :clay :clay :clay :obsidian :clay :obsidian :geode :geode)]
-  (loop [state start-state
-         l l]
-    (if (empty? l) (stand-pat state)
-        (recur (build-robot blueprint state (first l)) (rest l)))))
-
 (defn next-states-better [blueprint state]
   (let [{:keys [time-left resources robots]} state]
     ;; not clear if this will get many hits.
@@ -157,14 +144,11 @@ Blueprint 1:
       (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
       ;; otherwise, decide what to do next.
       ;; we prioritize building robots in order of priority.
-      :else (conj
-             (->> '(:geode :obsidian :clay :ore)
-                  (filter (partial can-ever-build? blueprint state))
-                  (map (partial build-robot blueprint state)))
-             (stand-pat state)))))
-
-(take 8
-      (iterate #(mapcat (fn [s] (next-states-better blueprint s)) %) [start-state]))
+      :else
+      (let [next (->> '(:geode :obsidian :clay :ore)
+             (filter (partial can-ever-build? blueprint state))
+             (map (partial build-robot blueprint state)))]
+        (if (empty? next) (list (stand-pat state)) next)))))
 
 ;; if you have no geode robot and you build a geode robot
 ;; in this minute, you will collect (dec time-left) geodes.
