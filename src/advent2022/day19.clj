@@ -148,7 +148,7 @@ Blueprint 1:
     (= built-robot :geode) false
     (= time-left 1) (not= built-robot :geode)
     :else (->> (keys blueprint)
-              ;;  (remove #(= % built-robot))
+               (remove #(= % built-robot))
                (map #(get (blueprint %) built-robot 0))
                (every? #(> (get robots built-robot 0) %)))))
 
@@ -162,12 +162,6 @@ Blueprint 1:
       :else
       (let [next (->> '(:geode :obsidian :clay :ore)
                       (filter (partial can-ever-build? blueprint state))
-             ;; massive hackiness but it solves the examples.
-                      ;; (filter #(case %
-                      ;;            :geode true
-                      ;;            :obsidian (> (robots :clay) 0)
-                      ;;            :clay (> time-left 7)
-                      ;;            :ore (> time-left 7)))
                       (map (partial build-robot blueprint state))
                       (remove (partial robot-useless? blueprint)))]
         (if (empty? next) (list (stand-pat state)) next)))))
@@ -177,6 +171,8 @@ Blueprint 1:
 ;; if this can't beat our best score so far, no reason to
 ;; look at this node.
 
+(def triangle-seq (mapv #(* % (dec %)) (range 0 25)))
+
 (defn max-geode-potential
   "max number of geodes we could potentially get from this state"
   [state]
@@ -185,16 +181,11 @@ Blueprint 1:
   ;; we'd have to understand resource intake to be able to do the calculation
   ;; intelligently.
   ;; https://old.reddit.com/r/adventofcode/comments/zujwgo/comment/j1jobsq
-  (let [{:keys [time-left resources robots]} state]
+  (let [{:keys [time-left resources robots]} state
         ;; assume we could build a geode robot each turn
-    (loop [time-left time-left
-           geodes (get resources :geode 0)
-           geode-robots (get robots :geode 0)]
-      (if (= time-left 0) geodes
-          (recur
-           (dec time-left)
-           (+ geodes geode-robots)
-           (inc geode-robots))))))
+        geodes (get resources :geode 0)
+        geode-robots (get robots :geode 0)]
+    (+ geodes (* geode-robots time-left) (nth triangle-seq time-left))))
 
     ;;        )
     ;;    ))
@@ -278,5 +269,8 @@ Blueprint 1:
 ;;  "total quality (input)"
 ;;  (total-quality (map parse-blueprint (utils/read-resource-lines "input/day19.txt"))))
 
+(def input-blueprints
+  (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))
 
-(reduce * (map search (take 3 (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))))
+(search (first input-blueprints))
+;; (reduce * (map search (take 3 input-blueprints)))
