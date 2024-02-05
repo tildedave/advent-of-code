@@ -2,7 +2,7 @@
   (:require [advent2022.utils :as utils]
             [clojure.data.priority-map :refer [priority-map]]))
 
-(def blueprint-re #"Blueprint \d+:\s+Each ore robot costs (\d+) ore.\s+Each clay robot costs (\d)+ ore.\s+Each obsidian robot costs (\d+) ore and (\d+) clay.\s+Each geode robot costs (\d+) ore and (\d+) obsidian.")
+(def blueprint-re #"Blueprint (\d+):\s+Each ore robot costs (\d+) ore.\s+Each clay robot costs (\d)+ ore.\s+Each obsidian robot costs (\d+) ore and (\d+) clay.\s+Each geode robot costs (\d+) ore and (\d+) obsidian.")
 
 (def test-str "
 Blueprint 1:
@@ -12,12 +12,16 @@ Blueprint 1:
   Each geode robot costs 2 ore and 7 obsidian.
 ")
 
+(re-matches blueprint-re (.replaceAll test-str "\n" ""))
+
 (defn parse-blueprint [robot-string]
   (let [[_ & parts] (re-matches blueprint-re (.replaceAll robot-string "\n" ""))
-        [ore-cost clay-ore-cost
+        [blueprint-num
+         ore-cost clay-ore-cost
          obs-ore-cost obs-clay-cost
          geode-ore-cost geode-obs-cost] (map utils/parse-int parts)]
-    {:ore {:ore ore-cost}
+    {:number blueprint-num
+     :ore {:ore ore-cost}
      :clay {:ore clay-ore-cost}
      :obsidian {:ore obs-ore-cost :clay obs-clay-cost}
      :geode {:ore geode-ore-cost :obsidian geode-obs-cost}}))
@@ -207,7 +211,7 @@ Blueprint 1:
   (cond
     (= built-robot :geode) false
     :else (->> (keys blueprint)
-              ;;  (remove #(= % built-robot))
+               (remove #(= % built-robot))
                (map #(get (blueprint %) built-robot 0))
                (every? #(> (get robots built-robot 0) %)))))
 
@@ -256,16 +260,16 @@ Blueprint 1:
   Each geode robot costs 3 ore and 12 obsidian.")
 
 (defn search [blueprint]
-  (let [[best-scores _ nodes] (time (best-score blueprint))
+  (let [[best-scores _ nodes] (best-score blueprint)
         score (best-scores 0)]
-    (println "best score for blueprint" score "in" nodes "nodes")
+    (println "blueprint" (blueprint :number) "has max" score "with" nodes "nodes")
     score))
 
 (defn total-quality [blueprint-list]
   (reduce
    +
-   (map-indexed
-    (fn [n blueprint] (* (inc n) (search blueprint)))
+   (map
+    (fn [blueprint] (* (blueprint :number) (search blueprint)))
     blueprint-list)))
 
 (println
