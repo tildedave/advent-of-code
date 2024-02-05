@@ -134,7 +134,8 @@ Blueprint 1:
         ;; count the being-created robot for collection.
         (transition 1)
         (update-in [:robots resource] (fnil inc 0))
-        (spend-resources (blueprint resource)))))
+        (spend-resources (blueprint resource))
+        (assoc :built-robot resource))))
 
 (defn next-states-better [blueprint state]
   (let [{:keys [time-left resources robots]} state]
@@ -148,11 +149,11 @@ Blueprint 1:
       (let [next (->> '(:geode :obsidian :clay :ore)
                       (filter (partial can-ever-build? blueprint state))
              ;; massive hackiness but it solves the examples.
-                      (filter #(case %
-                                 :geode true
-                                 :obsidian true
-                                 :clay (> time-left 5)
-                                 :ore (> time-left 5)))
+                      ;; (filter #(case %
+                      ;;            :geode true
+                      ;;            :obsidian (> (robots :clay) 0)
+                      ;;            :clay (> time-left 7)
+                      ;;            :ore (> time-left 7)))
                       (map (partial build-robot blueprint state)))]
         (if (empty? next) (list (stand-pat state)) next)))))
 
@@ -205,12 +206,10 @@ Blueprint 1:
 (defn robot-useless? [blueprint {:keys [time-left resources robots built-robot]}]
   (cond
     (= built-robot :geode) false
-    (= time-left 1) true
-    (and (= time-left 2) (not= built-robot :geode)) true
     :else (->> (keys blueprint)
-               (remove #(= % built-robot))
+              ;;  (remove #(= % built-robot))
                (map #(get (blueprint %) built-robot 0))
-               (every? #(>= (get robots built-robot 0) %)))))
+               (every? #(> (get robots built-robot 0) %)))))
 
 (defn should-explore-neighbor [blueprint neighbor]
   (let [{:keys [built-robot]} neighbor]
