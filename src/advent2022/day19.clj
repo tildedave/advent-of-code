@@ -146,8 +146,14 @@ Blueprint 1:
       ;; we prioritize building robots in order of priority.
       :else
       (let [next (->> '(:geode :obsidian :clay :ore)
-             (filter (partial can-ever-build? blueprint state))
-             (map (partial build-robot blueprint state)))]
+                      (filter (partial can-ever-build? blueprint state))
+             ;; massive hackiness but it solves the examples.
+                      (filter #(case %
+                                 :geode true
+                                 :obsidian true
+                                 :clay (> time-left 5)
+                                 :ore (> time-left 5)))
+                      (map (partial build-robot blueprint state)))]
         (if (empty? next) (list (stand-pat state)) next)))))
 
 ;; if you have no geode robot and you build a geode robot
@@ -155,33 +161,44 @@ Blueprint 1:
 ;; if this can't beat our best score so far, no reason to
 ;; look at this node.
 
-
 (defn max-geode-potential
   "max number of geodes we could potentially get from this state"
-  [blueprint state]
+  [state]
   ;; we have to be careful because we might be able to build a geode robot
   ;; this turn, a geode robot next turn, etc.
   ;; we'd have to understand resource intake to be able to do the calculation
   ;; intelligently.
   ;; https://old.reddit.com/r/adventofcode/comments/zujwgo/comment/j1jobsq
-  (let [{:keys [time-left resources robots]} state
-        time-factor (/ (* time-left (dec time-left)) 2)
-        max-ore (+ (get resources :ore 0) (* (get robots :ore 0) time-left) time-factor)
-        max-obs (+ (get resources :obsidian 0) (* (get robots :obsidian 0) time-left) time-factor)
-        max-geobots (max (quot max-ore ((blueprint :geode) :ore)) (quot max-obs ((blueprint :obsidian) :ore)))
-        can-gather (+ (get resources :geode 0) (* (get robots :geode 0) time-left))]
-    (if (>= max-geobots time-left)
-      (+ can-gather time-factor)
-      (+ can-gather
-         (quot (* max-geobots (dec max-geobots)) 2)
-         (* (- time-left max-geobots) max-geobots)))))
+  (let [{:keys [time-left resources robots]} state]
+        ;; assume we could build a geode robot each turn
+    (loop [time-left time-left
+           geodes (get resources :geode 0)
+           geode-robots (get robots :geode 0)]
+      (if (= time-left 0) geodes
+          (recur
+           (dec time-left)
+           (+ geodes geode-robots)
+           (inc geode-robots))))))
+
+    ;;        )
+    ;;    ))
+    ;;     time-factor (/ (* time-left (dec time-left)) 2)
+    ;;     max-ore (+ (get resources :ore 0) (* (get robots :ore 0) time-left) time-factor)
+    ;;     max-obs (+ (get resources :obsidian 0) (* (get robots :obsidian 0) time-left) time-factor)
+    ;;     max-geobots (max (quot max-ore ((blueprint :geode) :ore)) (quot max-obs ((blueprint :obsidian) :ore)))
+    ;;     can-gather (+ (get resources :geode 0) (* (get robots :geode 0) time-left))]
+    ;; (if (>= max-geobots time-left)
+    ;;   (+ can-gather time-factor)
+    ;;   (+ can-gather
+    ;;      (quot (* max-geobots (dec max-geobots)) 2)
+    ;;      (* (- time-left max-geobots) max-geobots)))))
 
 (defn should-cutoff [blueprint state best-so-far]
   (let [{:keys [time-left resources robots]} state]
     (or
      (= time-left 0)
      (< (get resources :geode 0) (best-so-far time-left))
-     (<= (max-geode-potential blueprint state) (get best-so-far 0 -1)))))
+     (<= (max-geode-potential state) (get best-so-far 0 -1)))))
 
 ;; a robot is useless if we already have enough resources coming in a turn to
 ;; build any other type of robot.
@@ -213,8 +230,7 @@ Blueprint 1:
 (defn best-score-dfs [blueprint state best-so-far visited nodes]
   ;; for this to work, we need to return a best-so-far visited nodes.
   ;; e.g. this is monadic.
-  (let [{:keys [time-left resources robots]} state
-        best-so-far (get-next-best-so-far state best-so-far)]
+  (let [best-so-far (get-next-best-so-far state best-so-far)]
     (cond
       (should-cutoff blueprint state best-so-far) [best-so-far visited nodes]
       :else
@@ -225,7 +241,7 @@ Blueprint 1:
          (cond
            (contains? visited neighbor) [best-so-far visited nodes]
            (should-explore-neighbor blueprint neighbor)
-              (best-score-dfs blueprint neighbor best-so-far (conj visited neighbor) (inc nodes))
+           (best-score-dfs blueprint neighbor best-so-far (conj visited neighbor) (inc nodes))
            :else [best-so-far visited nodes]))
        [best-so-far visited nodes]
        (next-states-better blueprint state)))))
@@ -243,7 +259,20 @@ Blueprint 1:
 (defn search [blueprint]
   (let [[best-scores _ nodes] (time (best-score blueprint))
         score (best-scores 0)]
-    (println "best score for blueprint" score "in" nodes "nodes")))
+    (println "best score for blueprint" score "in" nodes "nodes")
+    score))
 
-(search blueprint)
-(search (parse-blueprint blueprint2))
+(defn total-quality [blueprint-list]
+  (reduce
+   +
+   (map-indexed
+    (fn [n blueprint] (* (inc n) (search blueprint)))
+    blueprint-list)))
+
+(println
+ "total quality (examples)"
+ (total-quality [blueprint (parse-blueprint blueprint2)]))
+
+(println
+ "total quality (input)"
+ (total-quality (map parse-blueprint (utils/read-resource-lines "input/day19.txt"))))
