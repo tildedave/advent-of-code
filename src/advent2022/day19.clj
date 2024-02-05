@@ -141,9 +141,19 @@ Blueprint 1:
         (spend-resources (blueprint resource))
         (assoc :built-robot resource))))
 
+;; a robot is useless if we already have enough resources coming in a turn to
+;; build any other type of robot.
+(defn robot-useless? [blueprint {:keys [time-left resources robots built-robot]}]
+  (cond
+    (= built-robot :geode) false
+    (= time-left 1) (not= built-robot :geode)
+    :else (->> (keys blueprint)
+              ;;  (remove #(= % built-robot))
+               (map #(get (blueprint %) built-robot 0))
+               (every? #(> (get robots built-robot 0) %)))))
+
 (defn next-states-better [blueprint state]
   (let [{:keys [time-left resources robots]} state]
-    ;; not clear if this will get many hits.
     (cond
       (= time-left 1) (list (stand-pat state))
       (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
@@ -158,7 +168,8 @@ Blueprint 1:
                       ;;            :obsidian (> (robots :clay) 0)
                       ;;            :clay (> time-left 7)
                       ;;            :ore (> time-left 7)))
-                      (map (partial build-robot blueprint state)))]
+                      (map (partial build-robot blueprint state))
+                      (remove (partial robot-useless? blueprint)))]
         (if (empty? next) (list (stand-pat state)) next)))))
 
 ;; if you have no geode robot and you build a geode robot
@@ -205,23 +216,11 @@ Blueprint 1:
      (< (get resources :geode 0) (best-so-far time-left))
      (<= (max-geode-potential state) (get best-so-far 0 -1)))))
 
-;; a robot is useless if we already have enough resources coming in a turn to
-;; build any other type of robot.
-(defn robot-useless? [blueprint {:keys [time-left resources robots built-robot]}]
-  (cond
-    (= built-robot :geode) false
-    :else (->> (keys blueprint)
-               (remove #(= % built-robot))
-               (map #(get (blueprint %) built-robot 0))
-               (every? #(> (get robots built-robot 0) %)))))
-
 (defn should-explore-neighbor [blueprint neighbor]
   (let [{:keys [built-robot]} neighbor]
   ;; we don't want to build another robot if we have enough resources coming in
   ;; to build the next robot
-    (if built-robot
-      (not (robot-useless? blueprint neighbor))
-      true)))
+    true))
 
 (def start-state {:time-left 24
                   :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
@@ -243,9 +242,8 @@ Blueprint 1:
          ;; neighbors in the event of a cutoff.
          (cond
            (contains? visited neighbor) [best-so-far visited nodes]
-           (should-explore-neighbor blueprint neighbor)
-           (best-score-dfs blueprint neighbor best-so-far (conj visited neighbor) (inc nodes))
-           :else [best-so-far visited nodes]))
+           :else
+           (best-score-dfs blueprint neighbor best-so-far (conj visited neighbor) (inc nodes))))
        [best-so-far visited nodes]
        (next-states-better blueprint state)))))
 
@@ -276,6 +274,9 @@ Blueprint 1:
  "total quality (examples)"
  (total-quality [blueprint (parse-blueprint blueprint2)]))
 
-(println
- "total quality (input)"
- (total-quality (map parse-blueprint (utils/read-resource-lines "input/day19.txt"))))
+;; (println
+;;  "total quality (input)"
+;;  (total-quality (map parse-blueprint (utils/read-resource-lines "input/day19.txt"))))
+
+
+(reduce * (map search (take 3 (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))))
