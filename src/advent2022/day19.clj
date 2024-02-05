@@ -113,7 +113,7 @@ Blueprint 1:
 (def better-state {:time-left 24
                    :robots {:obsidian 1 :ore 1}})
 (def out-of-time-state {:time-left 7
-                   :robots {:obsidian 1 :ore 1}})
+                        :robots {:obsidian 1 :ore 1}})
 (can-ever-build? blueprint better-state :geode)
 (can-ever-build? blueprint start-state :obsidian)
 (can-ever-build? blueprint out-of-time-state :geode)
@@ -143,7 +143,7 @@ Blueprint 1:
 
 (brb (brb start-state :clay) :clay)
 
-(let [l (list :clay :clay :clay :obsidian :clay :obsidian :geode :geode )]
+(let [l (list :clay :clay :clay :obsidian :clay :obsidian :geode :geode)]
   (loop [state start-state
          l l]
     (if (empty? l) (stand-pat state)
@@ -158,10 +158,10 @@ Blueprint 1:
       ;; otherwise, decide what to do next.
       ;; we prioritize building robots in order of priority.
       :else (conj
-       (->> '(:geode :obsidian :clay :ore)
-            (filter (partial can-ever-build? blueprint state))
-            (map (partial build-robot blueprint state)))
-       (stand-pat state)))))
+             (->> '(:geode :obsidian :clay :ore)
+                  (filter (partial can-ever-build? blueprint state))
+                  (map (partial build-robot blueprint state)))
+             (stand-pat state)))))
 
 (take 8
       (iterate #(mapcat (fn [s] (next-states-better blueprint s)) %) [start-state]))
@@ -196,7 +196,8 @@ Blueprint 1:
   (let [{:keys [time-left resources robots]} state]
     (or
      (= time-left 0)
-     (<= (max-geode-potential blueprint state) best-so-far))))
+     (< (get resources :geode 0) (best-so-far time-left))
+     (<= (max-geode-potential blueprint state) (get best-so-far 0 -1)))))
 
 ;; a robot is useless if we already have enough resources coming in a turn to
 ;; build any other type of robot.
@@ -218,47 +219,36 @@ Blueprint 1:
       (not (robot-useless? blueprint neighbor))
       true)))
 
-;; this is BFS with a heuristic
+(def start-state {:time-left 24
+                  :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
+                  :robots {:ore 1}})
+
+(defn get-next-best-so-far [{:keys [time-left resources]} best-so-far]
+  (assoc best-so-far time-left (max (get best-so-far time-left -1) (get resources :geode 0))))
+
+(defn best-score-dfs [blueprint state best-so-far visited nodes]
+  ;; for this to work, we need to return a best-so-far visited nodes.
+  ;; e.g. this is monadic.
+  (let [{:keys [time-left resources robots]} state
+        best-so-far (get-next-best-so-far state best-so-far)]
+    (cond
+      (should-cutoff blueprint state best-so-far) [best-so-far visited nodes]
+      :else
+      (reduce
+       (fn [[best-so-far visited nodes] neighbor]
+         ;; TODO: we can exploit neighbor ordering + cutoffs to skip all
+         ;; neighbors in the event of a cutoff.
+         (cond
+           (contains? visited neighbor) [best-so-far visited nodes]
+           (should-explore-neighbor blueprint neighbor)
+              (best-score-dfs blueprint neighbor best-so-far (conj visited neighbor) (inc nodes))
+           :else [best-so-far visited nodes]))
+       [best-so-far visited nodes]
+       (next-states-better blueprint state)))))
+
+;; we're going to use DFS here.
 (defn best-score [blueprint]
-  (let [start {:time-left 24
-               :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
-               :robots {:ore 1}}]
-    (loop
-     [[pqueue prev] [[start] {}]
-      best-so-far 0
-      nodes 0]
-      (cond (empty? pqueue) [best-so-far nodes prev]
-       ;; we actually want the highest geode score here, but w/e at this point.
-            (> nodes 1000000000) "cutoff" ;; just cutoff
-            :else
-            (let [[state] pqueue
-                  {:keys [time-left resources robots]} state
-                  next-best-so-far (if (= time-left 0)
-                                     (max best-so-far (resources :geode))
-                                     best-so-far)
-                  _ (if (not= next-best-so-far best-so-far) (println "new best score" next-best-so-far state))
-                  best-so-far next-best-so-far
-                  pqueue (subvec pqueue 1)]
-              (cond (should-cutoff blueprint state best-so-far)
-                    (recur [pqueue prev] best-so-far (inc nodes))
-                    :else
-                    (recur
-                     (reduce
-                      (fn [[pqueue prev] neighbor]
-                        (if (should-explore-neighbor blueprint neighbor)
-                 ;; use built-robot to cutoff things we don't want to explore
-                          [(conj pqueue neighbor)
-                          ;;  (assoc prev neighbor state)
-                           prev
-                           ]
-                          [pqueue prev])
-               ;; 2) cutoff if there's no way to beat max-score-so-far in the
-               ;; remaining time
-                        )
-                      [pqueue prev]
-                      (next-states-better blueprint state))
-                     best-so-far
-                     (inc nodes))))))))
+  (best-score-dfs blueprint start-state {} #{} 0))
 
 (def blueprint2 "Blueprint 2:
   Each ore robot costs 2 ore.
@@ -267,16 +257,9 @@ Blueprint 1:
   Each geode robot costs 3 ore and 12 obsidian.")
 
 (defn search [blueprint]
-  (let [[score nodes prev] (time (best-score blueprint))
-        best-node (first (filter #(= ((% :resources) :geode) score) (keys prev)))]
-    (println "best score for blueprint" score "in" nodes "nodes")
-    (loop [node best-node]
-      (if (nil? node)
-        (println "done")
-        (do
-          (println node)
-          (recur (prev node)))))
-    (println best-node)))
+  (let [[best-scores _ nodes] (time (best-score blueprint))
+        score (best-scores 0)]
+    (println "best score for blueprint" score "in" nodes "nodes")))
 
 (search blueprint)
 (search (parse-blueprint blueprint2))
