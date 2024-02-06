@@ -128,15 +128,11 @@ Blueprint 1:
          ;; being more aggressive is managed by (dec time-left)
          (< (time-to-build blueprint state resource) (dec time-left)))))
 
-(def start-state {:time-left 24
-                  :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
-                  :robots {:ore 1}})
 (def better-state {:time-left 24
                    :robots {:obsidian 1 :ore 1}})
 (def out-of-time-state {:time-left 7
                         :robots {:obsidian 1 :ore 1}})
 (can-ever-build? blueprint better-state :geode)
-(can-ever-build? blueprint start-state :obsidian)
 (can-ever-build? blueprint out-of-time-state :geode)
 (stand-pat better-state) ;; should be 24 24
 (transition better-state 0) ;; should be 24 24
@@ -192,7 +188,7 @@ Blueprint 1:
     (cond
       (= time-left 1) (list (stand-pat state))
       ;; this
-      ;; (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
+      (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
       ;; otherwise, decide what to do next.
       ;; we prioritize building robots in order of priority.
       :else
@@ -208,7 +204,7 @@ Blueprint 1:
 ;; if this can't beat our best score so far, no reason to
 ;; look at this node.
 
-(def triangle-seq (mapv #(* % (dec %)) (range 0 25)))
+(def triangle-seq (mapv #(* % (dec %)) (range 0 33)))
 
 (defn max-geode-potential
   "max number of geodes we could potentially get from this state"
@@ -224,19 +220,6 @@ Blueprint 1:
         geode-robots (get robots :geode 0)]
     (+ geodes (* geode-robots time-left) (nth triangle-seq time-left))))
 
-    ;;        )
-    ;;    ))
-    ;;     time-factor (/ (* time-left (dec time-left)) 2)
-    ;;     max-ore (+ (get resources :ore 0) (* (get robots :ore 0) time-left) time-factor)
-    ;;     max-obs (+ (get resources :obsidian 0) (* (get robots :obsidian 0) time-left) time-factor)
-    ;;     max-geobots (max (quot max-ore ((blueprint :geode) :ore)) (quot max-obs ((blueprint :obsidian) :ore)))
-    ;;     can-gather (+ (get resources :geode 0) (* (get robots :geode 0) time-left))]
-    ;; (if (>= max-geobots time-left)
-    ;;   (+ can-gather time-factor)
-    ;;   (+ can-gather
-    ;;      (quot (* max-geobots (dec max-geobots)) 2)
-    ;;      (* (- time-left max-geobots) max-geobots)))))
-
 (defn should-cutoff [blueprint state best-so-far]
   (let [{:keys [time-left resources robots]} state]
     (or
@@ -244,9 +227,6 @@ Blueprint 1:
      (< (get resources :geode 0) (best-so-far time-left))
      (<= (max-geode-potential state) (get best-so-far 0 -1)))))
 
-(def start-state {:time-left 24
-                  :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
-                  :robots {:ore 1}})
 
 rich-state
 (next-states-better blueprint rich-state)
@@ -273,8 +253,23 @@ rich-state
        (next-states-better blueprint state)))))
 
 ;; we're going to use DFS here.
-(defn best-score [blueprint]
-  (best-score-dfs blueprint start-state {} #{} 0))
+(defn best-score-part1 [blueprint]
+  (best-score-dfs
+   blueprint
+   {:time-left 24
+    :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
+    :robots {:ore 1}}
+   {} #{} 0))
+
+(defn best-score-part2 [blueprint]
+  (best-score-dfs
+   blueprint
+   {:time-left 32
+    :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
+    :robots {:ore 1}}
+   {} #{} 0))
+
+(best-score-part2 blueprint)
 
 (def blueprint2 "Blueprint 2:
   Each ore robot costs 2 ore.
@@ -282,17 +277,23 @@ rich-state
   Each obsidian robot costs 3 ore and 8 clay.
   Each geode robot costs 3 ore and 12 obsidian.")
 
-(defn search [blueprint]
-  (let [[best-scores _ nodes] (best-score blueprint)
+(defn search-part1 [blueprint]
+  (let [[best-scores _ nodes] (best-score-part1 blueprint)
         score (best-scores 0)]
     (println "blueprint" (blueprint :number) "has max" score "with" nodes "nodes")
     score))
+
+(defn search-part2 [blueprint]
+  (let [[best-scores _ nodes] (best-score-part2 blueprint)
+         score (best-scores 0)]
+     (println "blueprint" (blueprint :number) "has max" score "with" nodes "nodes (part 2)")
+     score))
 
 (defn total-quality [blueprint-list]
   (reduce
    +
    (map
-    (fn [blueprint] (* (blueprint :number) (search blueprint)))
+    (fn [blueprint] (* (blueprint :number) (search-part1 blueprint)))
     blueprint-list)))
 
 (println
@@ -306,4 +307,7 @@ rich-state
 (def input-blueprints
   (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))
 
-(search (first input-blueprints))
+(reduce * (map search-part2 (take 3 input-blueprints)))
+
+;; (search-part2 (first input-blueprints))
+(search-part2 (parse-blueprint blueprint2))
