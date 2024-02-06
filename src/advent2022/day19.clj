@@ -85,16 +85,33 @@ Blueprint 1:
 (defn stand-pat [state]
   (transition state (state :time-left)))
 
+(def rich-state {:time-left 20 :resources {:ore 100 :obsidian 100 :clay 100 :geode 100} :robots {}})
+
+(get-in rich-state [:resources :geode])
+(use 'clojure.tools.trace)
+
 (defn time-to-build [blueprint state resource]
   (let [{:keys [robots resources]} state]
-    ;; for each dependency, max of incoming rates.
-    ;; OK, needs to include our current stockpile.
-    (reduce
-     max
-     (map #(quot-round-up
-            (- (get-in blueprint [resource %]) (get resources % 0))
-            (get robots % 0))
-          (keys (blueprint resource))))))
+    (let [needed (->> (blueprint resource)
+                      (map (fn [[r v]] [r (- v (get resources r 0))]))
+                      (filter (fn [[_ v]] (> v 0))))]
+      (if (empty? needed) 0
+          ;; rate for each one
+          (->> needed
+               ;; we don't check that this is possible
+               (map (fn [[r v]] (quot-round-up v (get robots r 0))))
+               (reduce max))))))
+
+(time-to-build blueprint rich-state :geode)
+
+    ;; ;; for each dependency, max of incoming rates.
+    ;; ;; OK, needs to include our current stockpile.
+    ;; (reduce
+    ;;  max
+    ;;  (map #(quot-round-up
+    ;;         (- (get-in blueprint [resource %]) (get resources % 0))
+    ;;         (get robots % 0))
+    ;;       (keys (blueprint resource))))))
 
 ;; (use 'clojure.tools.trace)
 (get {:ore 2} :ore)
@@ -165,13 +182,17 @@ Blueprint 1:
   (cond
     (= built-robot :geode) false
     (= time-left 1) (not= built-robot :geode)
-    :else (->> (>= (get robots built-robot 0) ((max-robots blueprint) built-robot)))))
+    ;; since the robot-useless filter is done AFTER the robot is built,
+    ;; this has to be >
+    :else (->> (> (get robots built-robot 0)
+                   ((max-robots blueprint) built-robot)))))
 
 (defn next-states-better [blueprint state]
   (let [{:keys [time-left resources robots]} state]
     (cond
       (= time-left 1) (list (stand-pat state))
-      (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
+      ;; this
+      ;; (can-build? blueprint state :geode) (list (build-robot blueprint state :geode))
       ;; otherwise, decide what to do next.
       ;; we prioritize building robots in order of priority.
       :else
@@ -223,15 +244,12 @@ Blueprint 1:
      (< (get resources :geode 0) (best-so-far time-left))
      (<= (max-geode-potential state) (get best-so-far 0 -1)))))
 
-(defn should-explore-neighbor [blueprint neighbor]
-  (let [{:keys [built-robot]} neighbor]
-  ;; we don't want to build another robot if we have enough resources coming in
-  ;; to build the next robot
-    true))
-
 (def start-state {:time-left 24
                   :resources {:ore 0 :geode 0 :obsidian 0 :clay 0}
                   :robots {:ore 1}})
+
+rich-state
+(next-states-better blueprint rich-state)
 
 (defn get-next-best-so-far [{:keys [time-left resources]} best-so-far]
   (assoc best-so-far time-left (max (get best-so-far time-left -1) (get resources :geode 0))))
@@ -288,6 +306,4 @@ Blueprint 1:
 (def input-blueprints
   (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))
 
-(max-robots (first input-blueprints))
 (search (first input-blueprints))
-;; (reduce * (map search (take 3 input-blueprints)))
