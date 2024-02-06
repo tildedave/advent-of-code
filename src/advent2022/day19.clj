@@ -307,7 +307,5 @@ rich-state
 (def input-blueprints
   (map parse-blueprint (utils/read-resource-lines "input/day19.txt")))
 
-(reduce * (map search-part2 (take 3 input-blueprints)))
 
-;; (search-part2 (first input-blueprints))
-(search-part2 (parse-blueprint blueprint2))
+(println "answer to part 2" (reduce * (map search-part2 (take 3 input-blueprints))))
