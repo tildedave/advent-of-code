@@ -55,15 +55,16 @@
 (let [g (reduce merge (map parse-monkey input-lines))
       g (assoc-in g ["root" :op] "=")
       [arg1 arg2] (get-in g ["root" :args])]
-  (for [x (list 0)]
+  (for [x (list 3243420789721)]
     [(calc (try-num g x) arg1) (calc (try-num g x) arg2)]))
 
 ; denominator seems to be 6125.
 ; numerator differs by 59778 (downwards) every time.
 ; so: what is our number at 0?
 ; 313382588286266688
-; we want our numerator to be 119497380318324750
+; we want our numerator to be 119497380318324750 (19509776378502 * 6125)
 
+(/ (- 313382588286266688 119497380318324750) 59778)
 
 
 (* 44768941183752384 7)

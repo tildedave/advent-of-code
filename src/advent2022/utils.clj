@@ -8,7 +8,7 @@
 (defn try-parse-int [str]
   (try
     (Integer/valueOf str)
-    (catch IllegalArgumentException e str)))
+    (catch IllegalArgumentException _ str)))
 
 
 ;; https://github.com/clojure/core.incubator/blob/be509fd967df8ce1ee43c43bca52360cf710252a/src/main/clojure/clojure/core/incubator.clj#L63-L75
