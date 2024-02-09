@@ -3,54 +3,36 @@
 
 ;; grove positioning system
 
-(def lines (utils/read-resource-lines "input/day20-example.txt"))
-(def parsed-lines (map utils/parse-int lines))
+(def example-lines (utils/read-resource-lines "input/day20-example.txt"))
+(def input-lines (utils/read-resource-lines "input/day20.txt"))
 
-(defn swap [v m n]
-  (-> v
-      (assoc n (get v m))
-      (assoc m (get v n))))
+(defn mix-idx [num-list idx]
+  ;; idx is the place in the original list.
+  (let [[loc x] (->> num-list
+                  ;; yes, this double indexes it.
+                  (map-indexed vector)
+                  (filter (fn [[_ [orig-idx]]] (= orig-idx idx)))
+                  (first))
+        ;; OK, it is probably just simplest reset the list so that
+        ;; loc is at the front.  then the cuts are much clearer.
+        [_ n] x
+        num-list (into (subvec num-list loc) (subvec num-list 0 loc))
+        new-idx (mod n (dec (count num-list)))]
+    (cond (= new-idx 0) num-list
+        :else (into (conj (subvec num-list 1 (inc new-idx)) x)
+                    (subvec num-list (inc new-idx))))))
 
-(swap [0 1 2 3 4] 3 4)
-(swap {4 5, 3 2} 3 4)
+(subvec [1 2 3 4] 1 2)
 
-;; this is very inefficient.  how can it be more efficient?
+(defn mix-list [lines]
+  (let [num-list (->> lines
+                      (map utils/parse-int)
+                      (map-indexed vector)
+                      (vec))
+        mixed-list (reduce mix-idx num-list (range 0 (count num-list)))]
+    (mapv second mixed-list)))
 
-(defn initial [parsed-lines]
-  [(into {} (map-indexed (fn [n x] [x n]) parsed-lines))
-   (vec parsed-lines)])
-
-(defn step [[pos-set num-list] n]
-  (let [di (if (< n 0) -1 1)
-        start-idx (pos-set n)
-        l (count num-list)]
-    (if (not= pos-set (first (initial num-list)))
-      (println "inconsistency"
-               pos-set (first (initial num-list))))
-    (loop
-     [i 0
-      pos-set pos-set
-      num-list num-list]
-      (if (= i n)
-        [pos-set num-list]
-         ;; otherwise swap everything, recur on i + direction
-        (let [curr-idx (mod (+ start-idx i) l)
-              next-idx (mod (+ curr-idx di) l)]
-          (recur
-           (+ i di)
-         ;; we want to swap position i and i + di
-           (swap pos-set (get num-list curr-idx) (get num-list next-idx))
-           (swap num-list curr-idx next-idx)))))))
-
-(-> (initial parsed-lines)
-    (step (nth parsed-lines 0))
-    (step (nth parsed-lines 1)))
-
-;; (reduce step (initial parsed-lines) parsed-lines)
-
-(.indexOf parsed-lines 0)
-
-(defn answer-indices [num-list]
+(defn answer [num-list]
   (let [num-list (vec num-list)]
   (loop [i 0
          idx (.indexOf num-list 0)
@@ -64,15 +46,9 @@
         (recur (inc i) next-idx (cons (num-list idx) result))
         :else (recur (inc i) next-idx result))))))
 
-(defn num-list-after [parsed-lines process-list]
-  (second (reduce step (initial parsed-lines) process-list)))
 
-(loop [i 0]
-  (if (= i 8)
-    nil
-    (do
-      (println (answer-indices (num-list-after parsed-lines (take i parsed-lines))))
-      (recur (inc i)))))
+(reduce + (answer (mix-list example-lines)))
+(reduce + (answer (mix-list input-lines)))
 
 ;; part 1 answer
 ;; (println (answer parsed-lines))
