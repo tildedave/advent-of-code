@@ -110,13 +110,13 @@
 
 (bounds (parse-grid example2-lines))
 
-(defn neighbors [[x y] t blizzard-cycle-time grid blizzard-positions]
+(defn neighbors [[[x y] t trip-num] blizzard-cycle-time grid blizzard-positions]
    ;; NOTE: you can't wait if you're going to be hit by a blizzard.
   (->> (for [[dx dy] [[-1 0] [1 0] [0 -1] [0 1] [0 0]]]
          [(+ x dx) (+ y dy)])
        (remove #(contains? blizzard-positions %))
        (remove #(nil? (get-in grid [(second %) (first %)] nil)))
-       (map #(vector % (mod (inc t) blizzard-cycle-time)))))
+       (map #(vector % (mod (inc t) blizzard-cycle-time) trip-num))))
 
 ;; (positions (parse-grid example2-lines))
 
@@ -132,26 +132,40 @@
 
 ;; (println "Cycle length" (cycle-length (parse-grid example2-lines)))
 
-(defn search [lines]
+(defn search
+  ([lines] (search lines false))
+  ([lines part2?]
   (let [grid (parse-grid lines)
         blizzard-by-time (blizzard-seq grid)
         queue (priority-map)
         [start end] (bounds grid)
         blizzard-cycle-time (cycle-length grid)]
-    (loop [[queue distances nodes] [(assoc queue [start 0] 0) {} 0]]
+    (loop [[queue distances nodes] [(assoc queue [start 0 0] 0) {} 0]]
       (cond
         (empty? queue)
         (println "error, queue should not have been empty")
         (> nodes 10000000) (println "too many nodes")
         :else
         (let [current (peek queue)
-              [[[x y] _] t] current
+              [[[x y] nt trip-num] t] current
               ;; actually we can just mod the cycle time.
               blizzard-pos (second (nth blizzard-by-time (mod (inc t) blizzard-cycle-time)))
               queue (pop queue)]
-          (if (= [x y] end)
-            ;; we did it!
-            t
+          (cond
+            (and (= [x y] end) (not part2?))
+                ;; done
+                t
+            (and (= [x y] end)
+                 (not= trip-num 1)
+                 part2?)
+            (case trip-num
+              0 (recur [(assoc queue [[x y] nt (inc trip-num)] t) distances (inc nodes)])
+              ;; we did it!
+              2 t)
+              ;; we'll just recur with trip-num 1.
+            (and (= [x y] start) (= trip-num 1))
+            (recur [(assoc queue [[x y] nt (inc trip-num)] t) distances (inc nodes)])
+            :else
             (recur
              (reduce
               (fn [[queue distances nodes] neighbor]
@@ -169,11 +183,13 @@
                      (assoc distances neighbor alt)
                      nodes]
                     :else
-                      [queue distances nodes])))
+                    [queue distances nodes])))
               [queue distances (inc nodes)]
-              (neighbors [x y] t blizzard-cycle-time grid blizzard-pos)))))))))
+              (neighbors (first current) blizzard-cycle-time grid blizzard-pos))))))))))
+
 (println "cycle length" (cycle-length (parse-grid input-lines)))
 (println "part 1 answer" (search input-lines))
+(println "part 2 answer" (search input-lines :part2))
 
 ;; (println "testing")
 ;; (let [[g pos] (-> (blizzard-seq (parse-grid example2-lines))
