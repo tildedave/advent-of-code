@@ -105,54 +105,73 @@
 
 (bounds (parse-grid example-lines))
 
-(defn neighbors [[x y] t grid blizzard-positions]
+(defn neighbors [[x y] t blizzard-cycle-time grid blizzard-positions]
    ;; NOTE: you can't wait if you're going to be hit by a blizzard.
   (->> (for [[dx dy] [[-1 0] [1 0] [0 -1] [0 1] [0 0]]]
          [(+ x dx) (+ y dy)])
        (remove #(contains? blizzard-positions %))
        (remove #(nil? (get-in grid [(second %) (first %)] nil)))
-       (map #(vector % (inc t)))))
+       (map #(vector % (mod (inc t) blizzard-cycle-time)))))
 
 (positions (parse-grid example2-lines))
 
+(defn cycle-length [grid]
+  (let [blizzard-by-time (blizzard-seq grid)]
+    (loop [i 0
+           seen {}]
+      (let [pos (second (nth blizzard-by-time i))]
+      (cond
+        (contains? seen pos) (- i (seen pos))
+        (> i 500) -1
+        :else (recur (inc i) (assoc seen pos i)))))))
+
+(println "Cycle length" (cycle-length (parse-grid example2-lines)))
+
 (use 'clojure.tools.trace)
 ;; I guess this is A* search again
+;; we can use dijkstra's algorithm including the time in it.
 (defn search [lines]
   (let [grid (parse-grid lines)
         blizzard-by-time (blizzard-seq grid)
         queue (priority-map)
-        [start end] (bounds grid)]
-    (loop [[queue goal-score nodes] [(assoc queue start 0)
-                                     {[start 0] 0}
-                                     0]]
+        [start end] (bounds grid)
+        blizzard-cycle-time (cycle-length grid)]
+    (loop [[queue distances nodes] [(assoc queue [start 0] 0) {} 0]]
       (cond
         (empty? queue)
         (println "error, queue should not have been empty")
         (> nodes 100000) (println "too many nodes")
         :else
         (let [current (peek queue)
-              [[x y] t] current
+              [[[x y] _] t] current
               ;; nth is probably fine here unless time gets very high.
               blizzard-pos (second (nth blizzard-by-time (inc t)))
               queue (pop queue)]
+      (println current)
           (if (= [x y] end)
             ;; we did it!
             t
             (recur
               (reduce
-              (fn [[queue goal-score nodes] neighbor]
-                (let [[[nx ny] t] neighbor
-                      tentative-gscore (+ (goal-score current) 1)
-                       current-gscore (get goal-score neighbor Integer/MAX_VALUE)]
-                  (cond
-                    (= (get-in grid [ny nx] \#) \#) [queue goal-score nodes]
-                    (< tentative-gscore current-gscore)
-                    [(assoc queue [nx ny] t)
-                     (assoc goal-score neighbor tentative-gscore)
-                     nodes]
-                    :else [queue goal-score nodes])))
-              [queue goal-score (inc nodes)]
-              (neighbors [x y] t grid blizzard-pos)))))))))
+               (fn [[queue distances nodes] neighbor]
+                 (let [[[nx ny] nt] neighbor
+                      ;; nt is normalized, t is real.
+                      ;; when we put neighbor on the priority map, needs to be
+                      ;; with inc t distance.
+                       alt (inc t)]
+                   (cond
+                     (= (get-in grid [ny nx] \#) \#) [queue distances nodes]
+                     (< alt (get distances neighbor Integer/MAX_VALUE))
+                    ;; yes
+                     [(assoc queue neighbor alt)
+                      (assoc distances neighbor alt)
+                      nodes]
+                     :else
+                     (do
+                       (println "not visiting" neighbor "because" alt "<" (get distances neighbor))
+                     [queue distances nodes]))))
+               [queue distances (inc nodes)]
+               (neighbors [x y] t blizzard-cycle-time grid blizzard-pos)))))))))
 
 (println "example2" (search example-lines))
 
