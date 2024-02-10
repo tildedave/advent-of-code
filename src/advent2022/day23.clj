@@ -146,7 +146,6 @@
        (count)))
 
 (defn prune-to-elves [grid]
-  (println "prune to elves" (print-grid grid))
   ;; first elf, last elf in each row.
   (let [elf-bounds
         (map
@@ -185,21 +184,29 @@
 
 (prune-to-elves (parse-grid smaller-example-lines))
 
-(-> (iterate
+(defn elf-sequence [lines]
+  (let [grid (parse-grid lines)]
+    (iterate
      (fn [[grid elf-pos-list dir-idx]]
        (round-two
         grid elf-pos-list dir-idx
         (round-one grid elf-pos-list dir-idx)))
-     [(parse-grid example-lines)
-      (elf-positions (parse-grid example-lines))
-      0])
+     [grid
+      (elf-positions grid)
+      0])))
+
+;; answer 1
+(-> (elf-sequence input-lines)
     (nth 10)
     (first)
     (prune-to-elves)
     (empty-tiles))
-    ;; (empty-tiles)
-    ;; (println "tiles"))
-    ;; (prune-to-elves)
-    ;; (print-grid)
-    ;; (empty-tiles)
 
+(nth (elf-sequence example-lines) 1)
+
+(let [elf-seq (elf-sequence input-lines)]
+  (loop [i 0]
+    (let [[_ elf1] (nth elf-seq i)
+          [_ elf2] (nth elf-seq (inc i))]
+      (if (= elf1 elf2) (println "Done at" (inc i))
+          (recur (inc i))))))
