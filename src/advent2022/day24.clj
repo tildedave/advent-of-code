@@ -5,6 +5,7 @@
 
 (def example-lines (utils/read-resource-lines "input/day24-example.txt"))
 (def example2-lines (utils/read-resource-lines "input/day24-example2.txt"))
+(def input-lines (utils/read-resource-lines "input/day24.txt"))
 
 (defn parse-grid [lines]
   (->> lines
@@ -67,11 +68,15 @@
             (for [ch (positions [x y])]
               [[x y] ch])))))
 
-(defn print-grid [grid positions]
+(defn print-grid
+  ([grid positions] (print-grid grid positions nil))
+  ([grid positions curr]
   (->> (for [y (range 0 (count grid))]
          (for [x (range 0 (count (first grid)))]
-           (if
+           (cond
             (= (get-in grid [y x]) \#) \#
+            (= [x y] curr) "E"
+            :else
             (let [pos-set (get positions [x y] #{})]
               (condp = (count pos-set)
                 0 \.
@@ -79,9 +84,9 @@
                 (count pos-set))))))
        (map string/join)
        (string/join "\n")
-       (println)))
+       (println))))
 
-(print-grid (parse-grid example-lines) (blizzard-positions (parse-grid example-lines)))
+;; (print-grid (parse-grid example-lines) (blizzard-positions (parse-grid example-lines)))
 
 (defn blizzard-seq [grid]
   (iterate #(vector grid (apply tick %)) [grid (blizzard-positions grid)]))
@@ -100,10 +105,10 @@
                                 (filter #(= (second %) \.))
                                 (first)
                                 (first)))]
-    [[0 (->> grid (first) (dot-idx))]
-     [(dec (count grid)) (->> grid (last) (dot-idx))]]))
+    [[(->> grid (first) (dot-idx)) 0]
+     [(->> grid (last) (dot-idx)) (dec (count grid))]]))
 
-(bounds (parse-grid example-lines))
+(bounds (parse-grid example2-lines))
 
 (defn neighbors [[x y] t blizzard-cycle-time grid blizzard-positions]
    ;; NOTE: you can't wait if you're going to be hit by a blizzard.
@@ -113,7 +118,7 @@
        (remove #(nil? (get-in grid [(second %) (first %)] nil)))
        (map #(vector % (mod (inc t) blizzard-cycle-time)))))
 
-(positions (parse-grid example2-lines))
+;; (positions (parse-grid example2-lines))
 
 (defn cycle-length [grid]
   (let [blizzard-by-time (blizzard-seq grid)]
@@ -122,14 +127,11 @@
       (let [pos (second (nth blizzard-by-time i))]
       (cond
         (contains? seen pos) (- i (seen pos))
-        (> i 500) -1
+        (> i 50000) -1
         :else (recur (inc i) (assoc seen pos i)))))))
 
-(println "Cycle length" (cycle-length (parse-grid example2-lines)))
+;; (println "Cycle length" (cycle-length (parse-grid example2-lines)))
 
-(use 'clojure.tools.trace)
-;; I guess this is A* search again
-;; we can use dijkstra's algorithm including the time in it.
 (defn search [lines]
   (let [grid (parse-grid lines)
         blizzard-by-time (blizzard-seq grid)
@@ -140,42 +142,40 @@
       (cond
         (empty? queue)
         (println "error, queue should not have been empty")
-        (> nodes 100000) (println "too many nodes")
+        (> nodes 10000000) (println "too many nodes")
         :else
         (let [current (peek queue)
               [[[x y] _] t] current
-              ;; nth is probably fine here unless time gets very high.
-              blizzard-pos (second (nth blizzard-by-time (inc t)))
+              ;; actually we can just mod the cycle time.
+              blizzard-pos (second (nth blizzard-by-time (mod (inc t) blizzard-cycle-time)))
               queue (pop queue)]
-      (println current)
           (if (= [x y] end)
             ;; we did it!
             t
             (recur
-              (reduce
-               (fn [[queue distances nodes] neighbor]
-                 (let [[[nx ny] nt] neighbor
+             (reduce
+              (fn [[queue distances nodes] neighbor]
+                (let [[[nx ny] nt] neighbor
                       ;; nt is normalized, t is real.
+                      ;; normalized is only important for queue memoization.
                       ;; when we put neighbor on the priority map, needs to be
-                      ;; with inc t distance.
-                       alt (inc t)]
-                   (cond
-                     (= (get-in grid [ny nx] \#) \#) [queue distances nodes]
-                     (< alt (get distances neighbor Integer/MAX_VALUE))
+                      ;; with real distance.
+                      alt (inc t)]
+                  (cond
+                    (= (get-in grid [ny nx] \#) \#) [queue distances nodes]
+                    (< alt (get distances neighbor Integer/MAX_VALUE))
                     ;; yes
-                     [(assoc queue neighbor alt)
-                      (assoc distances neighbor alt)
-                      nodes]
-                     :else
-                     (do
-                       (println "not visiting" neighbor "because" alt "<" (get distances neighbor))
-                     [queue distances nodes]))))
-               [queue distances (inc nodes)]
-               (neighbors [x y] t blizzard-cycle-time grid blizzard-pos)))))))))
+                    [(assoc queue neighbor alt)
+                     (assoc distances neighbor alt)
+                     nodes]
+                    :else
+                      [queue distances nodes])))
+              [queue distances (inc nodes)]
+              (neighbors [x y] t blizzard-cycle-time grid blizzard-pos)))))))))
+(println "cycle length" (cycle-length (parse-grid input-lines)))
+(println "part 1 answer" (search input-lines))
 
-(println "example2" (search example-lines))
-
-(println "testing")
-(let [[g pos] (-> (blizzard-seq (parse-grid example2-lines))
-           (nth 1))]
-  (print-grid g pos))
+;; (println "testing")
+;; (let [[g pos] (-> (blizzard-seq (parse-grid example2-lines))
+;;            (nth 1))]
+;;   (print-grid g pos))
