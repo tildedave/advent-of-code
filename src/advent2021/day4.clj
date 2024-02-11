@@ -67,11 +67,3 @@
 
 (answer-part2 (utils/read-resource-lines "input/day4-example.txt"))
 (answer-part2 (utils/read-resource-lines "input/day4.txt"))
-
-
-(->> (utils/read-resource-lines "input/day4-example.txt")
-     (partition-by #(= % ""))
-     (remove #(= % (list "")))
-     (first)
-     (first))
-
