@@ -46,9 +46,27 @@
 (answer-part1 (utils/read-resource-lines "input/day4-example.txt"))
 (answer-part1 (utils/read-resource-lines "input/day4.txt"))
 
-(score (lines-to-bingo '("22 13 17 11  0" " 8  2 23  4 24" "21  9 14 16  7" " 6 10  3 18  5" " 1 12 20 15 19")) 1)
 
+;; part 2 is really the same, except we wait for the final board to win.
 
+(defn answer-part2 [lines]
+  (let [parsed-lines (->> lines
+                          (partition-by #(= % ""))
+                          (remove #(= % (list ""))))
+        numbers (map utils/parse-int (.split (first (first parsed-lines)) ","))
+        bingo-cards (map lines-to-bingo (rest parsed-lines))]
+    (loop [bingo-cards bingo-cards
+           numbers numbers]
+      (let [num (first numbers)
+            bingo-cards (map #(mark-number % num) bingo-cards)
+            complete-cards (filter is-complete? bingo-cards)
+            remaining-cards (remove is-complete? bingo-cards)]
+        (if (empty? remaining-cards)
+          (score (first complete-cards) num)
+          (recur remaining-cards (rest numbers)))))))
+
+(answer-part2 (utils/read-resource-lines "input/day4-example.txt"))
+(answer-part2 (utils/read-resource-lines "input/day4.txt"))
 
 
 (->> (utils/read-resource-lines "input/day4-example.txt")
