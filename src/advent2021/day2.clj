@@ -25,6 +25,23 @@
         [0 0])
        (reduce *)))
 
+(defn answer-part2 [lines]
+   (->> lines
+       (map parse-line)
+       (reduce
+        (fn [[x depth aim] parsed-line]
+           (let [n (second parsed-line)]
+             (case
+              (first parsed-line)
+               :forward [(+ x n) (+ depth (* aim n)) aim]
+               :down [x depth (+ aim n)]
+               :up [x depth (- aim n)])))
+        [0 0 0])
+        (take 2)
+        (reduce *)))
+
 (answer-part1 (utils/read-resource-lines "input/day2-example.txt"))
 (answer-part1 (utils/read-resource-lines "input/day2.txt"))
 
+(answer-part2 (utils/read-resource-lines "input/day2-example.txt"))
+(answer-part2 (utils/read-resource-lines "input/day2.txt"))
