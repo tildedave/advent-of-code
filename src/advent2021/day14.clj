@@ -25,7 +25,7 @@
 
 (defn start [template]
   (reduce
-   (fn [m p] (assoc m p 1))
+   (fn [m p] (update m p (fnil inc 0)))
    {}
    (template-pairs template)))
 
