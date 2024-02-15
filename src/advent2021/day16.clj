@@ -103,3 +103,31 @@
 (answer-part1 "C0015000016115A2E0802F182340")
 (answer-part1 "A0016C880162017C3686B18A3D4780")
 (answer-part1 (first (utils/read-input "day16.txt")))
+
+(defn eval-packet [packet]
+  (let [{:keys [type contents]} packet]
+    (case type
+      4 contents
+      0 (reduce + (map eval-packet contents))
+      1 (reduce * (map eval-packet contents))
+      2 (reduce min (map eval-packet contents))
+      3 (reduce max (map eval-packet contents))
+      5 (if (apply > (map eval-packet contents)) 1 0)
+      6 (if (apply < (map eval-packet contents)) 1 0)
+      7 (if (apply = (map eval-packet contents)) 1 0))))
+
+(defn answer-part2 [hex-str]
+  (->> hex-str
+       (parse-packet)
+       (eval-packet)))
+
+(assert (= 3 (answer-part2 "C200B40A82")))
+(assert (= 54 (answer-part2 "04005AC33890")))
+(assert (= 7 (answer-part2 "880086C3E88112")))
+(assert (= 9 (answer-part2 "CE00C43D881120")))
+(assert (= 1 (answer-part2 "D8005AC2A8F0")))
+(assert (= 0 (answer-part2 "F600BC2D8F")))
+(assert (= 0 (answer-part2 "9C005AC2F8F0")))
+(assert (= 1 (answer-part2 "9C0141080250320F1802104A08")))
+
+(answer-part2 (first (utils/read-input "day16.txt")))
