@@ -16,7 +16,7 @@
 (def parse-sq (fn [ch] (utils/parse-int (str ch))))
 
 (defn answer-part1 [lines]
-  (let [grid (grid/parse-grid lines parse-sq)]
+  (let [grid (grid/parse lines parse-sq)]
     (->> (low-points grid)
          (map #(inc (get-in grid [(second %) (first %)])))
          (reduce +))))
@@ -53,7 +53,7 @@
           (higher-neighbors grid curr)))))))
 
 (defn answer-part2 [lines]
-  (let [grid (grid/parse-grid lines parse-sq)]
+  (let [grid (grid/parse lines parse-sq)]
     (->>
      (low-points grid)
      (map (partial search-from grid))

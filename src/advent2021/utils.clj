@@ -4,7 +4,11 @@
 (defn read-resource-lines [resource]
   (line-seq (io/reader (io/resource resource))))
 
+(defn read-input [str]
+  (read-resource-lines (format "input/%s" str)))
+
 (defn parse-int [str] (Integer/valueOf str))
+
 (defn try-parse-int [str]
   (try
     (Integer/valueOf str)

@@ -1,11 +1,15 @@
 (ns advent2021.grid
   (:require [advent2021.utils :as utils]))
 
-(defn parse-grid [lines sq-f]
+(defn parse [lines sq-f]
   (->> lines
        (map seq)
        (map #(mapv sq-f %))
        (vec)))
+
+(defn bounds [grid]
+  [(count (first grid))
+   (count grid)])
 
 (defn out-of-bounds? [grid [x y]]
   (or (< y 0)
