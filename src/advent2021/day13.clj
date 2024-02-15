@@ -36,7 +36,7 @@
   ;; we fold vertical lines LEFT
   ;; so we partition the coords based on their axis
   (let [idx (case axis "x" 0 "y" 1)
-        [orig-points fold-points] (utils/sml-partition #(< (get % idx) fold-line) coords)]
+        {orig-points true fold-points false} (group-by #(< (get % idx) fold-line) coords)]
     (->> fold-points
          (map (fn [[x y]]
                 (case axis
@@ -47,9 +47,9 @@
 
 (defn answer-part1 [lines]
   (let [[coords instr] (parse-lines lines)]
-    (->> coords
-         (fold (first instr))
-         (count))))
+    (-> coords
+        (fold (first instr))
+        (count))))
 
 (answer-part1 (utils/read-resource-lines "input/day13-example.txt"))
 (answer-part1 (utils/read-resource-lines "input/day13.txt"))

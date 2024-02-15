@@ -28,8 +28,6 @@
                           (conj false-list x)))
        [true-list false-list]))))
 
-(sml-partition #(> % 5) [1 2 3 4 5 6 7 8 9])
-
 ;; https://github.com/clojure/core.incubator/blob/be509fd967df8ce1ee43c43bca52360cf710252a/src/main/clojure/clojure/core/incubator.clj#L63-L75
        (defn dissoc-in
          " Dissociates an entry from a nested associative structure returning a new
