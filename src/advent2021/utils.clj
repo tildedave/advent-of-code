@@ -9,6 +9,11 @@
 
 (defn parse-int [str] (Integer/valueOf str))
 
+(defn quot-round-up [n m]
+  (case (mod n m)
+    0 (quot n m)
+    (inc (quot n m))))
+
 (defn try-parse-int [str]
   (try
     (Integer/valueOf str)
