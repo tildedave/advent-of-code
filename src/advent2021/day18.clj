@@ -87,41 +87,60 @@
       :else
       (recur (f num path)))))
 
+
+;; OK so the problem is that we need to check ALL for splits.
+;; then we check ALL for explodes.
+
 (defn reduce-snailfish-num-step [num]
   (loop [path [0]]
-    (if (nil? path)
+    (if
+     (nil? path)
       [num false]
-    (let [curr (get-in num path)]
-     (cond
-       (number? curr)
-       (if (>= curr 10)
-         ;; split the number.
-         [(assoc-in num path [(quot curr 2) (utils/quot-round-up curr 2)]) true]
-         (recur (next-path num path)))
-       (vector? num)
-       (if (>= (count path) 4)
+      (let [curr (get-in num path)]
+        (cond
+          (vector? curr)
+          (if (>= (count path) 4)
          ;; we explode this one.
          ;; we have to find the left/right paths that are numbers,
          ;; update the number by adding x / y, then replace current path
          ;; with 0.
          ;; so this just looks like a few assoc-in statements.
          ;; but they are conditional.
-         (let [[x y] curr
-               left-path (follow-path num prev-path path)
+            (let [[x y] curr
+                  left-path (follow-path num prev-path path)
                ;; we have to "next-path" ourselves out of the current vector
-               right-path (follow-path num next-path (conj path 1))]
-           [(->> num
-                 (#(if (nil? left-path) % (update-in % left-path (partial + x))))
-                 (#(if (nil? right-path) % (update-in % right-path (partial + y))))
-                 (#(assoc-in % path 0)))
-            true])
-         (recur (next-path num path))))))))
+                  right-path (follow-path num next-path (conj path 1))]
+              [(->> num
+                 ;; question: does this invalidate the paths?
+                    (#(if (nil? left-path) % (update-in % left-path (partial + x))))
+                    (#(if (nil? right-path) % (update-in % right-path (partial + y))))
+                    (#(assoc-in % path 0)))
+               [:explode curr]])
+            (recur (next-path num path)))
+          (number? curr)
+          (if (>= curr 10)
+                ;; split the number.
+            [(assoc-in num path [(quot curr 2) (utils/quot-round-up curr 2)])
+             [:split curr]]
+            (recur (next-path num path))))))))
 
-(get-in x [0 0 0 0])
+(def explode-examples
+  [
+  {:input [[[[[9,8],1],2],3],4] :expected [[[[0,9],2],3],4]}
+  {:input [7,[6,[5,[4,[3,2]]]]] :expected [7,[6,[5,[7,0]]]]}
+  {:input [[6,[5,[4,[3,2]]]],1] :expected [[6,[5,[7,0]]],3]}
+  {:input [[3,[2,[1,[7,3]]]],[6,[5,[4,[3,2]]]]]
+    :expected [[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]}
+  {:input [[3,[2,[8,0]]],[9,[5,[4,[3,2]]]]]
+    :expected [[3,[2,[8,0]]],[9,[5,[7,0]]]]}
+  ])
 
-(def y [[[[0 7] 4] [[7 8] [0 [6 7]]]] [1 1]])
+(doseq [example explode-examples]
+  (let [{:keys [input expected]} example]
+    (assert (= (first (reduce-snailfish-num-step input)) expected))))
 
-(follow-path y next-path [0 1 1 1 1])
+(= (reduce-snailfish-num-step [[[[[9 8] 1] 2] 3] 4])
+   [[[[[0 9] 2] 3] 4] [:explode [9 8]]])
 
 (defn reduce-snailfish-num [num]
   (loop [num num]
@@ -132,9 +151,37 @@
 (defn add-snailfish-num [num1 num2]
   (reduce-snailfish-num [num1 num2]))
 
+;; so this is wrong
 (add-snailfish-num
  [[[0 [4 5]] [0 0]] [[[4 5] [2 6]] [9 5]]]
  [7 [[[3 7] [4 3]] [[6 3] [8 8]]]])
+
+(def add-list-examples
+  [{:input [[1,1]
+            [2,2]
+            [3,3]
+            [4,4]]
+     :expected [[[[1,1],[2,2]],[3,3]],[4,4]]}
+   {:input [[1,1]
+             [2,2]
+             [3,3]
+             [4,4]
+             [5,5]]
+     :expected [[[[3,0],[5,3]],[4,4]],[5,5]]}
+   {:input [[1,1]
+             [2,2]
+             [3,3]
+             [4,4]
+             [5,5]
+             [6,6]]
+     :expected [[[[5,0],[7,4]],[5,5]],[6,6]]}])
+
+(for [example add-list-examples]
+  (let [{:keys [input expected]} example]
+    (assert (= (reduce add-snailfish-num input) expected))))
+
+(add-snailfish-num [[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]]
+                   [7,[[[3,7],[4,3]],[[6,3],[8,8]]]])
 
 (reduce-snailfish-num [[[[[4 3] 4] 4] [7 [[8 4] 9]]] [1 1]])
 
