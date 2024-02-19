@@ -46,7 +46,6 @@
                     :else (recur (pop path))))
             :else (throw (Exception. "invalid logic (next-path)")))))))
 
-;; (def x [[3 [2 [1 [7 3]]]] [6 [5 [4 [3 2]]]]])
 (->> (iterate #(next-path x %) [0])
      (partition-by nil?)
      (first)
@@ -56,6 +55,8 @@
 ;; an incredibly stupid hack here would be to start from 0 and
 ;; iterate until next-path is the path we want.
 ;; let's do the stupid hack.
+;; this implementation is wrong, when you go backwards to a vector,
+;; it needs to wind forward in the vector to the "end" of the tree.
 (defn prev-path-too-smart [num path]
   (if (empty? path) nil
       (let [curr (get-in num path)
@@ -259,29 +260,3 @@
 
 (answer-part2 (utils/read-input "day18-example.txt"))
 (answer-part2 (utils/read-input "day18.txt"))
-
-(reduce add-snailfish-num (map ))
-
-(def z [[[[0,[4,5]],[0,0]],[[[4,5],[2,6]],[9,5]]] [7,[[[3,7],[4,3]],[[6,3],[8,8]]]]])
-
-(iterate #(first (reduce-snailfish-num-step %)) z)
-
-(reduce-snailfish-num [[[[[4 3] 4] 4] [7 [[8 4] 9]]] [1 1]])
-
-(reduce-snailfish-num-step [7 [6 [5 [4 [3 2]]]]])
-
-(reduce-snailfish-num [7 [6 [5 [4 [3 2]]]]])
-
-(update-in [[[[[9 8] 1] 2] 3] 4] [0 0 0 0 0] inc)
-
-       (vector? num) (let [[x y] num]
-                       (if (= depth 4) ;; we need to explode f - in the current result.
-
-                         (if-let [result (reduce-snailfish-num f (inc depth))]
-          ;; if the result has changed  we need to return the current result.
-                           (into [result] (subvec num 1))
-                           (if-let [result (reduce-snailfish-num (subvec num 1) depth)]
-                             (into [f] [result])
-                             nil)))))))
-
-  (reduce-snailfish-num [[[[[9 8] 1] 2] 3] 4])
