@@ -1,5 +1,6 @@
 (ns advent2021.day18
-    (:require [advent2021.utils :as utils]))
+    (:require [advent2021.utils :as utils]
+              [clojure.math.combinatorics :as combo]))
 
 ;; snailfish numbers are nested vectors
 ;; we want to find the action to do, and then do it.
@@ -244,6 +245,20 @@
 
 (answer-part1 (utils/read-input "day18-example.txt"))
 (answer-part1 (utils/read-input "day18.txt"))
+
+(combo/combinations (utils/read-input "day18.txt") 2)
+(defn answer-part2 [lines]
+  (->> lines
+       (map read-string)
+       (#(combo/combinations % 2))
+       (mapcat (fn [[x v]] (list [x v] [v x])))
+       (map (fn [[x v]] (magnitude (add-snailfish-num x v))))
+       (sort)
+       (reverse)
+       (first)))
+
+(answer-part2 (utils/read-input "day18-example.txt"))
+(answer-part2 (utils/read-input "day18.txt"))
 
 (reduce add-snailfish-num (map ))
 
