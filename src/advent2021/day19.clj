@@ -1,6 +1,8 @@
 (ns advent2021.day19
   (:require [clojure.math.combinatorics :as combo]
-            [advent2021.utils :as utils]))
+            [advent2021.utils :as utils]
+            [clojure.set :as set]
+            [clojure.math :as math]))
 
 ;; so we need a bunch of rotation matrices.
 ;;     (1 0 0)
@@ -70,6 +72,12 @@
        (map abs)
        (reduce +)))
 
+(defn euclidean-distance-squared [v1 v2]
+  (->> (map - v1 v2)
+       (map #(* % %))
+       (reduce +)
+       (math/sqrt)))
+
 (def pts-1
   [[-1,-1,1]
            [-2,-2,2]
@@ -118,9 +126,88 @@
        (map-indexed vector)
        (into {})))
 
-(parse-report (utils/read-input "day19-example.txt"))
+(def example-report (parse-report (utils/read-input "day19-example.txt")))
+
+;; 12 choose 2 is 66 - so more than 66 is our combo.
+;; inclusion-exclusion principle should carry us home without actually
+;; mapping the beacons.
+;; we can of course map the beacons too.
+
+(defn unchoose-2
+  "n = (k 2) -> find k."
+  [n]
+  (let [ans (* n 2)]
+    (loop [i 1]
+      (let [test (* i (dec i))]
+        (cond
+          (= test ans) i
+          (> test ans) (throw (Exception. (format "could not find answer: %d" n)))
+          :else (recur (inc i)))))))
+
+(let [s1 (->> (combo/combinations (get example-report 0) 2)
+              (map #(apply euclidean-distance-squared %))
+              (set))
+      s2 (->> (combo/combinations (get example-report 1) 2)
+              (map #(apply euclidean-distance-squared %))
+              (set))
+      s3 (->> (combo/combinations (get example-report 2) 2)
+              (map #(apply euclidean-distance-squared %))
+              (set))
+      s4 (->> (combo/combinations (get example-report 3) 2)
+              (map #(apply euclidean-distance-squared %))
+              (set))
+      s5 (->> (combo/combinations (get example-report 4) 2)
+              (map #(apply euclidean-distance-squared %))
+              (set))]
+  (count (set/intersection s2 s3)))
+
+(defn answer-part1 [filename]
+  ;; inclusion-exclusion, assuming distance is unique.
+  ;; of course this is an assumption and might not be borne out by
+  ;; the input.
+  (let [report (parse-report (utils/read-input filename))
+        num-beacons (count (keys report))
+        distances
+        (update-vals report
+                     (fn [beacons]
+                       (->> (combo/combinations beacons 2)
+                            (map #(apply euclidean-distance-squared %))
+                            (set))))]
+    (loop [i 1
+         total 0]
+    (if (> i num-beacons) total
+        ;; otherwise
+        (let [func (case (mod i 2) 1 + 0 -)
+              subtotal (->> (combo/combinations (vals distances) i)
+                            (map #(reduce set/intersection %))
+                            (map #(count %))
+                            (map #(unchoose-2 %))
+                            (reduce +))]
+          (recur (inc i) (func total subtotal)))))))
+
+(answer-part1 "day19-example.txt")
+(answer-part1 "day19.txt")
 
 
+
+(num-beacons example-report)
+
+;;
+
+;;  )
+
+
+(->> (range 5)
+     (map #(combo/combinations (example-report %) 2))
+     (map (fn [l] (map #(apply euclidean-distance-squared %) l))))
+
+( - (reduce + (map count (vals example-report)))
+ 12
+ 12)
+
+(quot (* 12 11) 2)
+
+;; even if we know that two scanners overlap, what's the next step?
 
 (for [m (mapcat #(vector % (minus %)) [rotation-x rotation-y rotation-z])]
   m)
