@@ -189,7 +189,7 @@
           ;; then we rotate one until we find the same normal vector,
           ;; then we figure out the translation from that.
           ;; not my comfort zone but it will be fun to see it work :-)
-            d (nth (seq common-distances) 4)
+            d (nth (seq common-distances) 1)
             _ (println d)
             [p1 p2] (inv-d1 d)
             [p1' p2'] (inv-d2 d)
@@ -203,12 +203,26 @@
                                   (and (= p1 q) (contains? inv-d2 (get-dist d1 p1 p))))))
                     (map (fn [[p q]] (if (= p1 p) q p)))
                     (first))
-          ;; we find p3, this is arbitrary.
+            ;; we find p3, this is arbitrary.
             [p1' p2' p3'] (-> (get-dist d1 p1 p3) (inv-d2)
                               (conj p1' p2')
                               (set)
                               (seq))
-            _ (println p1' p2' p3')
+            ;; these might not be the in the right order, however.
+            ;; we need dist(p1,p2) = dist(p1',p2') etc.
+            ;; so we will choose all permutations of these,
+            ;; and take the ones that behave like we want.
+            [p1' p2' p3'] (->>
+                           (for [[p1' p2' p3'] (combo/permutations [p1' p2' p3'])]
+                             (if
+                              (and (= (get-dist d2 p1' p2') (get-dist d1 p1 p2))
+                                   (= (get-dist d2 p1' p3') (get-dist d1 p1 p3))
+                                   (= (get-dist d2 p2' p3') (get-dist d1 p2 p3)))
+                               [p1' p2' p3']
+                               nil))
+                           (remove nil?)
+                           (first))
+            _ (println  "p1' p2' p3'" p1' p2' p3')
             n1 (normal-plane p1 p2 p3)
             n2 (normal-plane p1' p2' p3')
             rotation (->> all-rotations
@@ -216,14 +230,31 @@
                           (filter #(= (second %) n1))
                           (map first)
                           (first))
-          ;; now we have the rotation.  to get the translation we choose
-          ;; essentially any point, rotate it via the matrix, see the
-          ;; translation of its corresponding point.
-          ;; unfortunately, we still have the problem that we don't really
-          ;; know which point is p1 and which point is p2, etc.
-          ;; so without this we do not know.
-            ]
-        rotation))))
+            translation (vector-between p1 (transform rotation p1'))]
+            (println "rotation" rotation)
+            (println "translation" translation)
+            (println "p1 p2 p3" [p1 p2 p3])
+            (println p1 (apply-translation (transform rotation p1') translation))
+            (println p2 (apply-translation (transform rotation p2') translation))
+            (println p3 (apply-translation (transform rotation p3') translation))
+      ))))
+        ;;   ;; now we have the rotation.  to get the translation we choose
+        ;;   ;; essentially any point, rotate it via the matrix, see the
+        ;;   ;; translation of its corresponding point.
+        ;;   ;; unfortunately, we still have the problem that we don't really
+        ;;   ;; know which point is p1 and which point is p2, etc.
+        ;;   ;; so without this we do not know.
+        ;;     ]
+        ;; (for [[p1' p2' p3'] (combo/permutations [p1' p2' p3'])]
+        ;;   ;; our mapping is p1 -> p1' p2 -> p2' p3 -> p3'
+        ;;   ;; we want to know if, after we rotate these points,
+        ;;   ;; there is a consistent translation.
+        ;; ;;   (do (println p1' p2' p3')
+        ;;   (->> [p1' p2' p3']
+        ;;        (map #(transform rotation %))
+        ;;        (map vector-between points)))
+
+        ;;  ))))
 
         ;;   [p1' p2' p3'] (-> (get-dist d1 p1 p3)
         ;;                     (inv-d2)
