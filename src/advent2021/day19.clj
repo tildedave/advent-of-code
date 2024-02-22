@@ -30,15 +30,16 @@
 ;; so, then it is a matter of matching all the points.
 
 (def rotation-x [[1 0 0] [0 0 -1] [0 1 0]])
-(def rotation-y [[0 0 -1] [0 1 0] [1 0 0]])
+(def rotation-y [[0 0 1] [0 1 0] [-1 0 0]])
 (def rotation-z [[0 -1 0] [1 0 0] [0 0 1]])
+(def identity-matrix [[1 0 0] [0 1 0] [0 0 1]])
 
 (defn transform [rotation-matrix v]
   [(reduce + (map * (rotation-matrix 0) v))
    (reduce + (map * (rotation-matrix 1) v))
    (reduce + (map * (rotation-matrix 2) v))])
 
-(defn minus [rotation-matrix]
+(defn matrix-minus [rotation-matrix]
   (mapv #(mapv (partial -) %) rotation-matrix))
 
 (defn transpose [[row1 row2 row3]]
@@ -46,18 +47,40 @@
    (mapv #(% 1) [row1 row2 row3])
    (mapv #(% 2) [row1 row2 row3])])
 
-(defn mult [matrix1 matrix2]
+(defn matrix-mult [matrix1 matrix2]
   (let [[row1 row2 row3] (transpose matrix2)]
-    [(transform matrix1 row1)
-     (transform matrix1 row2)
-     (transform matrix1 row3)]))
+    (transpose
+     [(transform matrix1 row1)
+      (transform matrix1 row2)
+      (transform matrix1 row3)])))
 
-(mult rotation-x rotation-x)
+(matrix-mult [[12 8 4] [3 17 14] [9 8 10]] [[5 19 3] [6 15 9] [7 8 16]])
 
+(matrix-mult rotation-x rotation-x)
+
+
+(defn matrix-pow [matrix n]
+  (loop [acc identity-matrix
+         n n]
+    (if (= n 0) acc
+        (recur (matrix-mult matrix acc) (dec n)))))
+
+(matrix-pow rotation-x 3)
+
+;; https://stackoverflow.com/a/16453299/576087
 (def all-rotations
-  (->> [rotation-x rotation-y rotation-z]
-       (mapcat #(vector % (mult % %) (mult (mult % %) %) (mult (mult % %) (mult % %))))
-       (mapcat #(vector % (minus %)))))
+  (->> (for [p (range 4)
+             q (range 4)
+             r (range 4)
+             s (range 4)]
+         (reduce matrix-mult
+                 (list
+                  (matrix-pow rotation-y p)
+                  (matrix-pow rotation-x q)
+                  (matrix-pow rotation-y r)
+                  (matrix-pow rotation-x s))))
+       (set)
+       (seq)))
 
 ;; so we also have the challenge of translations.
 
@@ -134,7 +157,9 @@
 (defn distance-map [points]
   (->> points
        (#(combo/combinations % 2))
-       (map #(vector % (apply euclidean-distance-squared %)))
+       (mapcat (fn [[p q]]
+                 (let [dist (euclidean-distance-squared p q)]
+                   (list {[p q] dist} {[q p] dist}))))
        (into {})))
 
 (defn unchoose-2
@@ -161,17 +186,39 @@
 (assert
  (= [3 9 1] (normal-plane [-1 1 2] [-4 2 2] [-2 1 5])))
 
-(defn points-from-distance-map [common-distances inv-map]
-  (->> common-distances
-       (mapcat inv-map)
-       (map #(assoc {} % 1))
-       (apply merge-with +)
-           ;; TODO: perhaps some filtering here by count,
-           ;; as we saw some odd behavior on the input.
-       ))
-
-(defn get-dist [d p1 p2]
-  (if (contains? d [p1 p2]) (d [p1 p2]) (d [p2 p1])))
+(defn find-paired-points [d d1 d2 inv-d1 inv-d2]
+  (let [[p1 p2] (inv-d1 d)
+        [p1' p2'] (inv-d2 d)
+              ;; we now need to find a point so that p1 -> p3 is in the common
+              ;; distances.
+              ;; the ordering is annoying.
+        p3 (->> d1 (keys)
+                (filter (fn [[p q]]
+                          (or (and (= p1 p) (contains? inv-d2 (d1 [p1 q])))
+                              (and (= p1 q) (contains? inv-d2 (d1 [p1 p]))))))
+                (map (fn [[p q]] (if (= p1 p) q p)))
+                (first))
+              ;; we find p3, this is arbitrary.
+              ;; these might not be the in the right order, however.
+              ;; we need dist(p1,p2) = dist(p1',p2') etc.
+              ;; so we will choose all permutations of these,
+              ;; and take the ones that behave like we want.
+        scanner2-plane-points (-> (d1 [p1 p3])
+                                  (inv-d2)
+                                  (conj p1' p2')
+                                  (set)
+                                  (combo/permutations))
+        [p1' p2' p3'] (->>
+                       (for [[p1' p2' p3'] scanner2-plane-points]
+                         (if
+                          (and (= (d2 [p1' p2']) (d1 [p1 p2]))
+                               (= (d2 [p1' p3']) (d1 [p1 p3]))
+                               (= (d2 [p2' p3']) (d1 [p2 p3])))
+                           [p1' p2' p3']
+                           nil))
+                       (remove nil?)
+                       (first))]
+    (if p1' [[p1 p2 p3] [p1' p2' p3']] nil)))
 
 ;; we need 3 unique points from both to form a plane.
 ;; then we want to validate the other common points.
@@ -188,41 +235,10 @@
           ;; then we rotate one until we find the same normal vector,
           ;; then we figure out the translation from that.
           ;; not my comfort zone but it will be fun to see it work :-)
-            d (nth (seq common-distances) 1)
-            _ (println common-distances)
-            [p1 p2] (inv-d1 d)
-            [p1' p2'] (inv-d2 d)
-            _ (println p1 p2 p1' p2')
-            ;; we now need to find a point so that p1 -> p3 is in the common
-            ;; distances.
-            ;; the ordering is annoying.
-            p3 (->> d1 (keys)
-                    (filter (fn [[p q]]
-                              (or (and (= p1 p) (contains? inv-d2 (get-dist d1 p1 q)))
-                                  (and (= p1 q) (contains? inv-d2 (get-dist d1 p1 p))))))
-                    (map (fn [[p q]] (if (= p1 p) q p)))
-                    (first))
-            _ (println p1 p2 p3)
-            ;; we find p3, this is arbitrary.
-            ;; these might not be the in the right order, however.
-            ;; we need dist(p1,p2) = dist(p1',p2') etc.
-            ;; so we will choose all permutations of these,
-            ;; and take the ones that behave like we want.
-            [p1' p2' p3'] (->>
-                           (for [[p1' p2' p3'] (-> (get-dist d1 p1 p3)
-                                                   (inv-d2)
-                                                   (conj p1' p2')
-                                                   (set)
-                                                   (combo/permutations))]
-                             (if
-                              (and (= (get-dist d2 p1' p2') (get-dist d1 p1 p2))
-                                   (= (get-dist d2 p1' p3') (get-dist d1 p1 p3))
-                                   (= (get-dist d2 p2' p3') (get-dist d1 p2 p3)))
-                               [p1' p2' p3']
-                               nil))
-                           (remove nil?)
-                           (first))
-            _ (println  "p1' p2' p3'" p1' p2' p3')
+            [[p1 p2 p3] [p1' p2' p3']] (->> common-distances
+                                            (map #(find-paired-points % d1 d2 inv-d1 inv-d2))
+                                            (remove nil?)
+                                            (first))
             n1 (normal-plane p1 p2 p3)
             n2 (normal-plane p1' p2' p3')
             rotation (->> all-rotations
@@ -234,69 +250,47 @@
         {:rotation rotation
          :translation translation}))))
 
-(find-rotation-and-translation example-report 0 2)
+(find-rotation-and-translation example-report 0 5)
 
-    ;;   (let [[d1 d2] (take 2 common-distances)
-    ;;         [p1 p2] (inv-d1 d1)
-    ;;         [p1' p2'] (inv-d2 d1)
-    ;;         ;; so the issue is that the points are not really aligned, and so
-    ;;         ;; the vector between them really makes no sense.
-    ;;         [p3 p4] (inv-d1 d2)
-    ;;         [p3' p4'] (inv-d2 d2)
-    ;;         _ (println [p1 p2] [p1' p2'])
-    ;;         _ (println [p3 p4] [p3' p4'])
-    ;;         dest-vect (vector-between p1 p2)
-    ;;         dest-vect2 (vector-between p3 p4)
-    ;;         _ (println  "dest vect (p1 p2)" dest-vect)
-    ;;         _ (println  "dest vect (p1' p2')" (vector-between p1' p2'))
-    ;;         _ (println  "dest vect (p3 p4)" dest-vect2)
-    ;;         _ (println  "dest vect (p3' p4')" (vector-between p3' p4'))
-    ;;         rotations (->> all-rotations
-    ;;                        (map #(vector % (vector-between (transform % p1') (transform % p2'))))
-    ;;                        (filter #(= dest-vect (second %)))
-    ;;                        (map first))
-    ;;         _ (println (->> all-rotations
-    ;;                         (map #(vector % (vector-between (transform % p1') (transform % p2'))))
-    ;;                         (filter #(= dest-vect (second %)))
-    ;;                         (map first)))
-    ;;         _ (println (->> all-rotations
-    ;;                         (map #(vector % (vector-between (transform % p3') (transform % p4'))))
-    ;;                         (filter #(= dest-vect2 (second %)))
-    ;;                         (map first)))
-    ;;         rotation (first rotations)
-    ;;         translation (vector-between p1 (transform rotation p1'))]
-    ;;     (assert (= p1 (apply-translation translation (transform rotation p1'))))
-    ;;     (assert (= p2 (apply-translation translation (transform rotation p2'))))
-    ;;     (assert (= p3 (apply-translation translation (transform rotation p3'))))
-    ;;     (assert (= p4 (apply-translation translation (transform rotation p4'))))
-    ;;     [rotation translation]))))
+(defn align-next-scanner [[report aligned unaligned]]
+  (->> (for [aligned-scanner aligned
+             unaligned-scanner unaligned]
+         (let [result (find-rotation-and-translation report aligned-scanner unaligned-scanner)]
+           (if (nil? result)
+             nil
+      ;; laziness ftw here I think
+             (let [{:keys [rotation translation]} result
+                   unaligned-points (report unaligned-scanner)
+                   aligned-points (->> unaligned-points
+                                       (map #(transform rotation %))
+                                       (map #(apply-translation translation %)))]
+               [(assoc report unaligned-scanner aligned-points)
+                (conj aligned unaligned-scanner)
+                (disj unaligned unaligned-scanner)]))))
+       (remove nil?)
+       (first)))
 
-        ;; (println rotation translation)
-        ;; (println "some sanity checks now")
-        ;; (println
-        ;; (println (apply-translation translation (transform rotation  p2')) "vs" p2)
-        ;; [rotation translation]
-        ;; ;; so there should be only one valid rotation
-        ;; (println "valid rotations" rotations)))))
+;; OK, so, we go through everything and align it
+(defn align-scanners [parsed-report]
+  (let [scanners (set (keys parsed-report))]
+    (loop
+     ;; arbitrarily align at 0 first.
+     [[aligned-report aligned-scanners unaligned-scanners]
+       [parsed-report #{(first scanners)} (disj scanners (first scanners))]]
+      (if (empty? unaligned-scanners)
+        aligned-report
+        (recur (align-next-scanner [aligned-report aligned-scanners unaligned-scanners]))))))
 
+(align-scanners example-report)
 
+(defn answer-part1 [file]
+  (->> (utils/read-input file)
+       (parse-report)
+       (align-scanners)
+       (vals)
+       (apply concat)
+       (set)
+       (count)))
 
-    ;;         transf-seq (map #(vector-between (transform % p1) (transform % p2)) all-rotations)
-    ;;         ]
-    ;;     (println "find a rotation so that we can transform" d1 "for " p1 p2 p1' p2')
-    ;;     (println "looking for " dest-vect)
-    ;;     (println (contains? (set transf-seq) dest-vect))
-    ;;   ))))
-        ;; for each rotation, apply to p1' p2' / p3' p4', see if this creates a
-        ;; consistent translation to get back to p1 p2 p3 p4.
-        ;; we need two
-        ;; (map #(transform % p1) all-rotations)
-
-(find-rotation-and-translation example-report 0 1)
-(map #(count (find-rotation-and-translation input-report 0 %)) (range 38))
-
-
-;; 12 choose 2 is 66 - so more than 66 is our combo.
-;; inclusion-exclusion principle should carry us home without actually
-;; mapping the beacons.
-;; we can of course map the beacons too.
+(answer-part1 "day19-example.txt")
+(answer-part1 "day19.txt")
