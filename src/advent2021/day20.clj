@@ -21,11 +21,11 @@
        dx (range -1 2)]
    [dx dy])
 
- (defn algo-index [grid [x y]]
+ (defn algo-index [grid background [x y]]
    (->> (for [dy (range -1 2)
               dx (range -1 2)]
           [dx dy])
-        (map (fn [[dx dy]] (get-in grid [(+ y dy) (+ x dx)] \.)))
+        (map (fn [[dx dy]] (get-in grid [(+ y dy) (+ x dx)] background)))
         (map #(case % \. 0 \# 1))
         (string/join)
         (#(Long/parseLong % 2))))
@@ -44,7 +44,7 @@
 
 (defn step [enhancement-algo [grid background]]
   [(->> (coords grid)
-       (map #(vector % (algo-index grid %)))
+       (map #(vector % (algo-index grid background %)))
        ;; so this is the updates that have to run
        ;; we can just reduce them.
        (reduce (fn [grid [[x y] idx]]
@@ -65,6 +65,7 @@
 
 (defn answer-part1 [filename]
   (->> (nth (step-seq filename) 2)
+       (first)
        (vals)
        (mapcat vals)
        (filter (partial = \#))
@@ -73,8 +74,13 @@
 (answer-part1 "day20-example.txt")
 (answer-part1 "day20.txt")
 
-(apply step (parse-input "day20-example.txt"))
+(defn answer-part2 [filename]
+  (->> (nth (step-seq filename) 50)
+       (first)
+       (vals)
+       (mapcat vals)
+       (filter (partial = \#))
+       (count)))
 
-example-grid
-example-grid
-(algo-index example-grid [2 2])
+(answer-part2 "day20-example.txt")
+(println (answer-part2 "day20.txt"))
