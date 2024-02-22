@@ -228,6 +228,7 @@
         inv-d1 (set/map-invert d1)
         inv-d2 (set/map-invert d2)
         common-distances (set/intersection (set (keys inv-d1)) (set (keys inv-d2)))]
+    ;; we only get out of bed if there is a 12 scanner overlap
     (if (< (count common-distances) 66)
       nil
       (let [
@@ -252,7 +253,7 @@
 
 (find-rotation-and-translation example-report 0 5)
 
-(defn align-next-scanner [[report aligned unaligned]]
+(defn align-next-scanner [[report aligned unaligned scanner-locations]]
   (->> (for [aligned-scanner aligned
              unaligned-scanner unaligned]
          (let [result (find-rotation-and-translation report aligned-scanner unaligned-scanner)]
@@ -266,7 +267,9 @@
                                        (map #(apply-translation translation %)))]
                [(assoc report unaligned-scanner aligned-points)
                 (conj aligned unaligned-scanner)
-                (disj unaligned unaligned-scanner)]))))
+                (disj unaligned unaligned-scanner)
+                (assoc scanner-locations unaligned translation)
+                ]))))
        (remove nil?)
        (first)))
 
@@ -275,11 +278,13 @@
   (let [scanners (set (keys parsed-report))]
     (loop
      ;; arbitrarily align at 0 first.
-     [[aligned-report aligned-scanners unaligned-scanners]
-       [parsed-report #{(first scanners)} (disj scanners (first scanners))]]
+     [[aligned-report aligned-scanners unaligned-scanners scanner-locations]
+       [parsed-report #{(first scanners)} (disj scanners (first scanners)) {0 [0 0 0]}]]
       (if (empty? unaligned-scanners)
-        aligned-report
-        (recur (align-next-scanner [aligned-report aligned-scanners unaligned-scanners]))))))
+        [aligned-report scanner-locations]
+        (recur
+         (align-next-scanner
+          [aligned-report aligned-scanners unaligned-scanners scanner-locations]))))))
 
 (align-scanners example-report)
 
@@ -287,6 +292,7 @@
   (->> (utils/read-input file)
        (parse-report)
        (align-scanners)
+       (first)
        (vals)
        (apply concat)
        (set)
@@ -294,3 +300,17 @@
 
 (answer-part1 "day19-example.txt")
 (answer-part1 "day19.txt")
+
+(defn answer-part2 [file]
+  (->> (utils/read-input file)
+       (parse-report)
+       (align-scanners)
+       (second)
+       (vals)
+       (#(combo/combinations % 2))
+       (map #(apply manhattan-distance %))
+       (sort >)
+       (first)))
+
+(answer-part2 "day19-example.txt")
+(answer-part2 "day19.txt")
