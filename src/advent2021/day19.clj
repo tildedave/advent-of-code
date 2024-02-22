@@ -228,7 +228,7 @@
         inv-d1 (set/map-invert d1)
         inv-d2 (set/map-invert d2)
         common-distances (set/intersection (set (keys inv-d1)) (set (keys inv-d2)))]
-    (if (< (count common-distances) 2)
+    (if (< (count common-distances) 66)
       nil
       (let [
           ;; we need 3 points from n1 and 3 point that are the same from n2,
