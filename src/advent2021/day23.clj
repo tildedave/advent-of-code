@@ -96,8 +96,7 @@
   {:amber [\A \A]
    :bronze [\B \B]
    :copper [\C \C]
-   :desert [\D \D]
-   :hallway {}})
+   :desert [\D \D]})
 
 ;; so it seems like the hallway is the same between the example
 ;; and puzzle input; I can just hardcode the size.
@@ -158,7 +157,6 @@
           dest-hallway (dec (positions dest-room))
           hallway-spaces (->> (sort [source-hallway dest-hallway])
                               (apply range-inclusive))]
-      (println thing-moving source-hallway hallway-spaces)
       (if (needs-move? state dest-room)
         false
         (every? #(nil? (get-in state [:hallway %] nil)) hallway-spaces)))
@@ -204,11 +202,6 @@
           (update room #(subvec % 1))))
     nil))
 
-(room-to-room-moves
- (room-to-room-moves {:hallway {} :amber [\C \C] :copper []} :amber)
- :amber)
-
-
 (defn room-to-hallway-moves [state room]
   (if-let [amphipod (first (state room))]
     (for [hallway-num (hallway-nums state room)]
@@ -236,6 +229,8 @@
         ;; we also need to generate hallway moves.
                nil)))))
 
+(hallway-moves (first (hallway-moves {:hallway {10 \D, 5 \D}, :amber [\A \A], :bronze [\B \B], :copper [\C \C], :desert [], :cost 200})))
+
 (def test-state {:amber [\C] :bronze [\A] :copper []})
 (hallway-nums test-state :bronze)
 
@@ -254,14 +249,14 @@
        (flatten)
        (reduce +)))
 
+(defn answer-part1 [filename]
+  (grid/a*-search
+   (parse-input filename)
+   (fn [state] (= (dissoc state :cost) goal))
+   neighbors
+   heuristic
+   (fn [_ neighbor] (neighbor :cost))
+   (fn [state] (dissoc state :cost))))
 
-
-
-(println
-(grid/a*-search
- (parse-input "day23-example.txt")
- (fn [state] (println state) (= (dissoc state :cost) goal))
- neighbors
- heuristic
- (fn [_ neighbor] (neighbor :cost))
- (fn [state] (dissoc state :cost))))
+(time (answer-part1 "day23-example.txt"))
+(time (answer-part1 "day23.txt"))
