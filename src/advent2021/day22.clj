@@ -16,7 +16,7 @@
        (rest)
        (map-indexed (fn [n x] (if (= n 0) x (utils/parse-int x))))
        ((fn [[mode xstart xend ystart yend zstart zend]]
-          {:mode mode
+          {:mode (case mode "on" 1 -1)
            :coords [[xstart xend] [ystart yend] [zstart zend]]}))))
 
 
@@ -115,9 +115,78 @@
 
 (defn point-within? [{:keys [coords]} [x y z]]
   (let [[[xstart xend] [ystart yend] [zstart zend]] coords]
-    (and (<= xstart x xend)
-         (<= ystart y yend)
-         (<= zstart z zend))))
+    (and (< xstart x xend)
+         (< ystart y yend)
+         (< zstart z zend))))
+
+(defn is-consistent? [cuboid]
+  (let [[[xmin xmax] [ymin ymax] [zmin zmax]] (cuboid :coords)]
+    (and (<= xmin xmax)
+         (<= ymin ymax)
+         (<= zmin zmax))))
+
+(defn intersecting-cuboid [cuboid1 cuboid2]
+  (let [[[xmin1 xmax1] [ymin1 ymax1] [zmin1 zmax1]] (cuboid1 :coords)
+        [[xmin2 xmax2] [ymin2 ymax2] [zmin2 zmax2]] (cuboid2 :coords)
+        intersection {:mode (- (cuboid1 :mode))
+                      :coords [[(max xmin1 xmin2) (min xmax1 xmax2)]
+                               [(max ymin1 ymin2) (min ymax1 ymax2)]
+                               [(max zmin1 zmin2) (min zmax1 zmax2)]]}]
+    (if (is-consistent? intersection)
+      intersection
+      nil)))
+
+(defn volume [cuboid]
+  (let [[[xmin xmax] [ymin ymax] [zmin zmax]] (cuboid :coords)]
+    (->> [(- xmax xmin) (- ymax ymin) (- zmax zmin)]
+         (map inc)
+         (reduce *)
+         (* (cuboid :mode)))))
+
+(defn reduce-cubes [cuboids new-cuboid]
+  ;; for each existing cuboid, see intersection
+  ;; cuboids are signed.
+  ;; positive + positive = intersection is negative
+  ;; positive + negative = intersection is negative, don't add the cuboid
+  ;;     itself [just its intersections]
+  ;; negative + positive = intersection is positive.
+  ;; so basically, the cuboid we intersect with, the intersection is a new
+  ;; cuboid of negative sign.
+  (concat
+   cuboids
+   (remove nil? (for [cuboid cuboids]
+     (intersecting-cuboid cuboid new-cuboid)))
+   (if (= (new-cuboid :mode) 1) [new-cuboid] nil)))
+
+(concat [1 2 3] nil)
+
+(defn part1-cube? [cuboid]
+  (let [[[xmin xmax] [ymin ymax] [zmin zmax]] (cuboid :coords)]
+    (and (every? #(>= % -50) [xmin ymin zmin])
+         (every? #(<= % 50) [xmax ymax zmax]))))
+
+(defn answer-part1 [filename]
+  (->> (utils/read-input filename)
+       (map parse-line)
+       (filter part1-cube?)
+       (reduce reduce-cubes [])
+       (map volume)
+       (reduce +)))
+
+(answer-part1 "day22-example.txt")
+(answer-part1 "day22-example2.txt")
+(answer-part1 "day22.txt")
+
+(defn answer-part2 [filename]
+  (->> (utils/read-input filename)
+       (map parse-line)
+       (reduce reduce-cubes [])
+       (map volume)
+       (reduce +)))
+
+(answer-part2 "day22-example3.txt")
+(answer-part1 "day22-example3.txt")
+(answer-part2 "day22.txt")
 
 ;; okay, so, if an edge intersects a face it needs to break the cuboid into
 ;; parts
