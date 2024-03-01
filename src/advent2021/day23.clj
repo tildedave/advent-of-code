@@ -17,10 +17,20 @@
    :desert 9})
 
 (def all-rooms [:amber :bronze :copper :desert])
+(def ^:dynamic part2? false)
+
+(def bonus-part2-lines
+    (list "  #D#C#B#A#" "  #D#B#A#C#"))
+
+(defn read-input [filename]
+  (let [input (utils/read-input filename)]
+    (if part2?
+      (concat (take 3 input) bonus-part2-lines (drop 3 input))
+      input)))
 
 (defn parse-input [filename]
   (let [grid (-> filename
-                 (utils/read-input)
+                 read-input
                  (grid/parse identity))]
     (into {:hallway {}}
           (map (fn [color]
@@ -32,6 +42,8 @@
 
 (parse-input "day23-example.txt")
 
+(binding [part2? true] (parse-input "day23-example.txt"))
+
 (def move-cost
   {:amber 1
    :bronze 10
@@ -39,13 +51,11 @@
    :desert 1000})
 
 (utils/read-input "day23-example.txt")
-(def ^:dynamic part2? false)
 
 
 (defn steps-to-hallway [state room]
   (let [room-size (if part2? 4 2)]
     (inc (- room-size (count (state room))))))
-
 
 (steps-to-hallway {:bronze [\B \C]} :bronze)
 
@@ -96,7 +106,7 @@
    (steps-in-hallway state hallway-num (dec (positions room)))
    (steps-from-hallway state room)))
 
-(def goal
+(defn make-goal []
   (let [room-size (if part2? 4 2)]
     {:amber (vec (repeat room-size \A))
      :bronze (vec (repeat room-size \B))
@@ -270,13 +280,26 @@
                  state
                  (positions room) (positions dest-room))
                 cost))))
+       (concat
+        (for [[hallway-num amphipod] (state :hallway)]
+          (let [dest-room (room-for-amphipod amphipod)
+                cost (move-cost dest-room)]
+            (* (steps-in-hallway
+                state
+                hallway-num
+                (dec (positions dest-room)))))))
        (flatten)
        (reduce +)))
+
+
+(println (binding [part2? true]
+   (list
+    (room-to-hallway-moves (parse-input "day23-example.txt") :desert))))
 
 (defn answer-part1 [filename]
   (grid/a*-search
    (parse-input filename)
-   (fn [state] (= (dissoc state :cost) goal))
+   (fn [state] (= (dissoc state :cost) (make-goal)))
    neighbors
    heuristic
    (fn [_ neighbor] (neighbor :cost))
@@ -285,5 +308,17 @@
 (time (answer-part1 "day23-example.txt"))
 ;; 11 seconds, meh
 (time (answer-part1 "day23.txt"))
+
+(defn answer-part2 [filename]
+  (binding [part2? true]
+    (grid/a*-search
+     (parse-input filename)
+     (fn [state] (= (dissoc state :cost) (make-goal)))
+     neighbors
+     heuristic
+     (fn [_ neighbor] (neighbor :cost))
+     (fn [state] (dissoc state :cost)))))
+
+;; (println "part 2 answer" (answer-part2 "day23-example.txt"))
 
 ;; we'll probably be able to crush part2 without changing much.
