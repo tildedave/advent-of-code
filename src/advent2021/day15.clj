@@ -17,7 +17,7 @@
 (defn answer-part1 [lines]
   (let [grid (grid/parse lines (fn [ch] (Integer/valueOf (str ch))))
         goal (mapv dec (grid/bounds grid))]
-    (grid/a*-search [0 0] goal
+    (grid/a*-search [0 0] (partial = goal)
                (partial grid/neighbors grid)
                (partial heuristic grid)
                (partial distance grid))))
@@ -60,7 +60,7 @@
 (defn answer-part2 [lines]
   (let [grid (grid/parse lines (fn [ch] (Integer/valueOf (str ch))))
         goal (mapv (fn [n] (dec (* n 5))) (grid/bounds grid))]
-    (grid/a*-search [0 0] goal
+    (grid/a*-search [0 0] (partial = goal)
                (partial neighbors-part2 grid)
                (partial heuristic-part2 grid)
                (partial distance-part2 grid))))
