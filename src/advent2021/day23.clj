@@ -3,6 +3,8 @@
             [advent2021.grid :as grid]
             [clojure.core.match :refer [match]]))
 
+(set! *warn-on-reflection* true)
+
 (def amber-column 3)
 (def bronze-column 5)
 (def copper-column 7)
@@ -37,17 +39,19 @@
    :desert 1000})
 
 (utils/read-input "day23-example.txt")
+(def ^:dynamic part2? false)
 
 
 (defn steps-to-hallway [state room]
-  (if (= 1 (count (state room)))
-    2
-    1))
+  (let [room-size (if part2? 4 2)]
+    (inc (- room-size (count (state room))))))
+
+
+(steps-to-hallway {:bronze [\B \C]} :bronze)
 
 (defn steps-from-hallway [state room]
-  (if (= 1 (count (state room)))
-    1
-    2))
+  (let [room-size (if part2? 4 2)]
+    (- room-size (count (state room)))))
 
 (defn steps-in-hallway [state hallway-num1 hallway-num2]
   (abs (- hallway-num1 hallway-num2)))
@@ -93,10 +97,11 @@
    (steps-from-hallway state room)))
 
 (def goal
-  {:amber [\A \A]
-   :bronze [\B \B]
-   :copper [\C \C]
-   :desert [\D \D]})
+  (let [room-size (if part2? 4 2)]
+    {:amber (vec (repeat room-size \A))
+     :bronze (vec (repeat room-size \B))
+     :copper (vec (repeat room-size \C))
+     :desert (vec (repeat room-size \D))}))
 
 ;; so it seems like the hallway is the same between the example
 ;; and puzzle input; I can just hardcode the size.
@@ -105,26 +110,40 @@
 ;; we'll use an intermediate representation.
 
 (defn is-complete? [state room]
-  (match [room (state room)]
-    [:amber [\A \A]] true
-    [:bronze [\B \B]] true
-    [:copper [\C \C]] true
-    [:desert [\D \D]] true
-    :else false))
+  (let [room-size (if part2? 4 2)]
+    (case room
+      :amber (= (state room) (repeat room-size \A))
+      :bronze (= (state room) (repeat room-size \B))
+      :copper (= (state room) (repeat room-size \C))
+      :desert (= (state room) (repeat room-size \D)))))
+
+(defn amphipod-for-room [room]
+  (case room
+    :amber \A
+    :bronze \B
+    :copper \C
+    :desert \D))
 
 (defn needs-move? [state room]
   (if (is-complete? state room)
     false
-    (match [room (state room)]
-      [:amber [\A]] false
-      [:amber []] false
-      [:bronze [\B]] false
-      [:bronze []] false
-      [:copper [\C]] false
-      [:copper []] false
-      [:desert [\D]] false
-      [:desert []] false
-      :else true)))
+    (not (every? (partial = (amphipod-for-room room)) (state room)))))
+
+;; (match [room (state room)]
+;;           [:amber [\A]] false
+;;           [:amber []] false
+;;           [:bronze [\B]] false
+;;           [:bronze []] false
+;;           [:copper [\C]] false
+;;           [:copper []] false
+;;           [:desert [\D]] false
+;;           [:desert []] false
+;;           :else true)))
+    ;; (case room
+    ;;   :amber (every? (partial = \A) (state room))
+    ;;   :bronze (every? (partial = \B) (state room))
+    ;;   :copper (every? (partial = \C) (state room))
+    ;;   :desert (every? (partial = \D) (state room)))))
 
 (defn room-for-amphipod [amphipod]
   (case amphipod
@@ -241,11 +260,16 @@
   (concat (room-moves state) (hallway-moves state)))
 
 (defn heuristic [state]
-  ;; penalties
-  ;; we may want to penalize more based on cost of the room to move.
+  ;; let's penalize, for each amphipod, how many steps to get
+  ;; to the mouth of their dest room
   (->> (for [room all-rooms]
-         [(if (is-complete? state room) 0 (move-cost room))
-          (if (needs-move? state room) (move-cost room) 0)])
+         (for [amphipod (state room)]
+           (let [cost (move-cost room)
+                 dest-room (room-for-amphipod amphipod)]
+             (* (steps-in-hallway
+                 state
+                 (positions room) (positions dest-room))
+                cost))))
        (flatten)
        (reduce +)))
 
@@ -259,4 +283,7 @@
    (fn [state] (dissoc state :cost))))
 
 (time (answer-part1 "day23-example.txt"))
+;; 11 seconds, meh
 (time (answer-part1 "day23.txt"))
+
+;; we'll probably be able to crush part2 without changing much.
