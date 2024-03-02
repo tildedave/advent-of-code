@@ -78,16 +78,17 @@
 (defn hallway-nums [state room]
   (let [hallway (state :hallway)
         start (dec (positions room))
+        invalid-positions (set (map dec (vals positions)))
         walk-in-direction
         (fn [f]
           (loop [i start
-                 n 0
                  valid-nums (list)]
             (cond
               (< i 0) valid-nums
               (> i 10) valid-nums
               (not (nil? (get hallway i nil))) valid-nums
-              :else (recur (f i) (inc n) (if (not= n 0) (conj valid-nums i) valid-nums)))))]
+              :else (recur (f i)
+                           (if (contains? invalid-positions i) valid-nums (conj valid-nums i))))))]
     (sort (concat (walk-in-direction inc) (walk-in-direction dec)))))
 
 (hallway-nums (parse-input "day23-example.txt") :amber)
@@ -297,10 +298,12 @@
        (flatten)
        (reduce +)))
 
+(binding [part2? true]
+  (println (neighbors {:amber [\B] :bronze [\C] :copper [\B] :desert [\B]})))
 
-(println (binding [part2? true]
-   (list
-    (room-to-hallway-moves (parse-input "day23-example.txt") :desert))))
+(binding [part2? true]
+  (println (list
+   (neighbors (parse-input "day23-example.txt")))))
 
 (defn answer-part1 [filename]
   (grid/a*-search
@@ -325,6 +328,9 @@
      (fn [_ neighbor] (neighbor :cost))
      (fn [state] (dissoc state :cost)))))
 
-;; (println "part 2 answer" (answer-part2 "day23-example.txt"))
+(time (answer-part2 "day23-example.txt"))
+(time (answer-part2 "day23.txt"))
+
 
 ;; we'll probably be able to crush part2 without changing much.
+;; and in fact we did (after fixing the bugs)

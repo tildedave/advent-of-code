@@ -48,7 +48,7 @@
     (if-let [[current _] (peek open-set)]
       (cond
         (is-goal? current) (goal-score (state-hash current))
-        (> nodes 5000000) (throw (Exception. "too many nodes"))
+        (> nodes 1000000) (throw (Exception. "too many nodes"))
         :else (recur
         (reduce
          (fn [[goal-score open-set nodes] neighbor]
