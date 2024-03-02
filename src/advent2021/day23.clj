@@ -287,7 +287,8 @@
             (* (steps-in-hallway
                 state
                 hallway-num
-                (dec (positions dest-room)))))))
+                (dec (positions dest-room)))
+               cost))))
        (flatten)
        (reduce +)))
 
