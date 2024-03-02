@@ -200,7 +200,7 @@
   :hallway {2 \A}}
  2)
 
-(defn hallway-moves [state]
+(defn hallway-moves [state r2r-moves]
   ;; for every element of the hallway, find its destination room.
   ;; if it can move to its actual home, do it.
   ;; count number of steps, multiply by cost, then the next state is
@@ -210,15 +210,17 @@
    (for [[hallway-num amphipod] (state :hallway)]
      (let [room (room-for-amphipod amphipod)]
        ;; "should move" is also checked by can-move.
-       (if (can-move-to-room-from-hallway? state hallway-num)
+       (cond
+         (contains? r2r-moves room) nil
+         (can-move-to-room-from-hallway? state hallway-num)
          (let [steps (num-steps-to-room-from-hallway state room  hallway-num)]
            (-> state
                (assoc :cost (* steps (move-cost room)))
                (utils/dissoc-in [:hallway hallway-num])
                (update room #(into [amphipod] %))))
-         nil)))))
+         :else nil)))))
 
-(hallway-moves {:hallway {0 \A} :amber [:bronze]})
+;; (hallway-moves {:hallway {0 \A} :amber [:bronze]})
 
 (defn room-to-room-moves [state room]
   (if (can-move-to-room-from-room? state room)
@@ -228,7 +230,8 @@
       (-> state
           (assoc :cost (* steps (move-cost dest-room)))
           (update dest-room #(into [amphipod] %))
-          (update room #(subvec % 1))))
+          (update room #(subvec % 1))
+          (list)))
     nil))
 
 (defn room-to-hallway-moves [state room]
@@ -245,20 +248,20 @@
 ;; moves from room to hallway and room to room.
 (defn room-moves [state]
   ;; for each room that "needs a move", move either to the hallway or if they can, to the destination room.
-  (remove nil?
-          (flatten
-           (for [room all-rooms]
-             (if (needs-move? state room)
+  (->>
+   (for [room all-rooms]
+     (if (needs-move? state room)
        ;; this is us being greedy and moving directly into
        ;; a room if it's available (vs into the hallway)
        ;; this feels like it must be a safe "greedy choice".
-               (if-let [r2r-moves (room-to-room-moves state room)]
-                 r2r-moves
-                 (room-to-hallway-moves state room))
+       {room (if-let [r2r-moves (room-to-room-moves state room)]
+         r2r-moves
+         (room-to-hallway-moves state room))}
         ;; we also need to generate hallway moves.
-               nil)))))
+       nil))
+   (into {})))
 
-(hallway-moves (first (hallway-moves {:hallway {10 \D, 5 \D}, :amber [\A \A], :bronze [\B \B], :copper [\C \C], :desert [], :cost 200})))
+;; (hallway-moves (first (hallway-moves {:hallway {10 \D, 5 \D}, :amber [\A \A], :bronze [\B \B], :copper [\C \C], :desert [], :cost 200})))
 
 (def test-state {:amber [\C] :bronze [\A] :copper []})
 (hallway-nums test-state :bronze)
@@ -267,7 +270,9 @@
 (room-to-room-moves test-state :amber)
 (room-moves test-state)
 (defn neighbors [state]
-  (concat (room-moves state) (hallway-moves state)))
+  (let [move-map (room-moves state)]
+  (concat (apply concat (vals move-map))
+          (hallway-moves state (set (keys move-map))))))
 
 (defn heuristic [state]
   ;; let's penalize, for each amphipod, how many steps to get
