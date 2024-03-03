@@ -1,7 +1,6 @@
 (ns advent2021.day23
   (:require [advent2021.utils :as utils]
-            [advent2021.grid :as grid]
-            [clojure.core.match :refer [match]]))
+            [advent2021.grid :as grid]))
 
 (set! *warn-on-reflection* true)
 
