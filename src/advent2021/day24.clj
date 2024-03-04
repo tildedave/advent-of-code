@@ -20,11 +20,15 @@
        (remove nil?)
        (first)
        (rest)
-       (mapv utils/try-parse-int)))
+       (mapv (fn [x] (if (number? (utils/try-parse-int x))
+                       ['number (utils/parse-int x)]
+                       x)))))
 
 ;; good enough
 (defn instruction-eval [state prog]
-  (let [num (fn [var-or-num] (if (number? var-or-num) var-or-num (state var-or-num)))]
+  (let [num (fn [var-or-num] (match [var-or-num]
+                               [['number n]] n
+                               :else (state var-or-num)))]
     (match prog
       ["inp" v] (-> state
                     (assoc v (first (state :input)))
@@ -38,8 +42,7 @@
       ["mod" v var-or-num] (-> state
                                (update v #(mod % (num var-or-num))))
       ["eql" v var-or-num] (-> state
-                               (update v #(if (= % (num var-or-num)) 1 0)))
-      )))
+                               (update v #(if (= % (num var-or-num)) 1 0))))))
 
 (defn initial-state [input]
   {"w" 0 "x" 0 "y" 0 "z" 0 :input input})
@@ -58,7 +61,7 @@
       "mul z 3"
       "eql z x")
      (map parse-line)
-     (run-program (list  2 7)))
+     (run-program (list 2 7)))
 
 (->> (list
       "inp w"
@@ -75,7 +78,7 @@
      (map parse-line)
      (run-program (list 11)))
 
-(reduce instruction-eval (initial-state (list 1 2 3)) [["inp" "x"] ["inp" "w"]["add" "w" "x"]])
+(reduce instruction-eval (initial-state (list 1 2 3)) [["inp" "x"] ["inp" "w"] ["add" "w" "x"]])
 
 (def parsed-program
   (->> (map parse-line (utils/read-input "day24.txt"))
@@ -88,12 +91,6 @@
     (->> (.concat ^String (string/join (repeat padding "0")) num-str)
          (seq)
          (map #(Integer/valueOf (str %))))))
-
-(seq "123")
-
-(to-model-seq 12)
-
-(-> (list 1 2) (rest) (rest) (first))
 
 (defn to-flow-graph [program]
   (reduce (fn [[nodes adjacency registers] [n instr]]
@@ -121,16 +118,16 @@
                live-instructions #{}
                i 0]
           (if (> i 1000) live-instructions
-          (if (empty? queue)
-            live-instructions
-            (let [node (first queue)]
-              (recur
-               (reduce conj (subvec queue 1)
-                       (if (contains? live-instructions node)
-                         []
-                         (get adjacency node [])))
-               (conj live-instructions node)
-               (inc i))))))]
+              (if (empty? queue)
+                live-instructions
+                (let [node (first queue)]
+                  (recur
+                   (reduce conj (subvec queue 1)
+                           (if (contains? live-instructions node)
+                             []
+                             (get adjacency node [])))
+                   (conj live-instructions node)
+                   (inc i))))))]
     [(filter #(contains? live-instructions %) nodes)
      adjacency
      registers]))
@@ -163,78 +160,67 @@
 ;; then that map can be used for display, I guess, or we can transform the
 ;; adjacency graph.
 
+(defn symbolic-eval [expr]
+  (match expr
+    ["inp" _] expr
+    ["mul" ['number 0] _] ['number 0]
+    ["mul" _ ['number 0]] ['number 0]
+    ["mul" ['number 1] op] op
+    ["mul" op ['number 1]] op
+    ["mul" ['number n] ['number m]] ['number (* n m)]
+    ["mul" ["mul" op1 op2] op3] ["mul" op1 (symbolic-eval ["mul" op2 op3])]
+    ["add" ['number 0] op] op
+    ["add" op ['number 0]] op
+    ["add" ['number m] ['number n]] ['number (+ m n)]
+    ;; should I also symbolic-eval the result here?
+    ["add" ["add" op1 op2] op3] ["add" op1 (symbolic-eval ["add" op2 op3])]
+    ["div" op ['number 1]] op
+    ["div" ['number 0] _] ['number 0]
+    ["div" ['number m] ['number n]] ['number (quot m n)]
+    ["eql" ['number m] ['number n]] ['number (if (= m n) 1 0)]
+    ["eql" ["inp" _] ['number n]] (if (not (<= 1 n 9)) ['number 0] expr)
+    ;; not being tail recursive explodes the stack. this is kind of nice vs the
+    ;; behavior calva has with my infinite loops :/
+    ["eql" ['number _] ["inp" _]] (symbolic-eval ["eql" (nth expr 2) (second expr)])
+    ["eql" ["inp" _] ["add" ["inp" _] ['number n]]] (if (>= n 9) ['number 0] expr)
+    ["eql" ["add" ["inp" _] ['number n]] ["inp" _]] (if (>= n 9) ['number 0] expr)
+    ["eql" o1 o2] (if (= o1 o2) ['number 1] expr)
+    ["mod" ['number 0] _] ['number 0]
+    ["mod" ['number n] ['number m]] ['number (mod n m)]
+    ["mod" ["inp" o] ['number m]] (if (> m 9) ["inp" o] expr)
+    ["mod" ["add" ["inp" o] ['number m]] ['number n]] (if (< (+ m 9) n) ["inp" o] expr)
+    :else expr))
+
+(assert (= (symbolic-eval ["mul" ['number 4] ['number 4]]) ['number 16]))
+(assert (= (symbolic-eval ["eql" ["inp" 1] ['number 26]]) ['number 0]))
+(assert (= (symbolic-eval ["eql" ['number 26] ["inp" 1]]) ['number 0]))
+(assert (= (symbolic-eval ["eql" ["inp" 1] ['number 1]])
+           ["eql" ["inp" 1] ['number 1]]))
+
+
+(symbolic-eval ["add" "x" ['number 14]])
+
+(symbolic-eval ["mul" ['number 4] ['number 4]])
+
 (defn symbolic-execution [[nodes' adjacency' _]]
   (loop
    [nodes nodes'
-    register {"w" 0 "x" 0 "y" 0 "z" 0}
+    register {"w" ['number 0] "x" ['number 0] "y" ['number 0] "z" ['number 0]}
     node-map {}
     input-num 1
     i 0]
     (cond
       (empty? nodes) [nodes' adjacency' node-map]
+      ;; (> i 10) ['nodes adjacency' node-map]
       :else (let [[n instr] (first nodes)
                   [opcode op1 op2] instr
                   op1 (register op1)
-                  get-binding (fn [x] (cond
-                                        (nil? x) nil
-                                        (number? x) x
-                                        :else (register x)))
+                  get-binding (fn [x] (if (string? x) (register x) x))
+                  ;; _ (println "op2" op2)
                   op2 (get-binding op2)
-                  ;; _ (if (= opcode "eql") (println instr register))
-                  new-value (condp = opcode
-                              "inp" ["inp" input-num]
-                              "mul" (match [op1 op2 (number? op1) (number? op2)]
-                                      [0 _ _ _] 0
-                                      [_ 0 _ _] 0
-                                      [1 _ _ _] op2
-                                      [_ 1 _ _] op1
-                                      [_ _ true true] (+ op1 op2)
-                                      :else ["mul" op1 op2])
-                              "add" (match [op1 op2 (number? op1) (number? op2)]
-                                      [0 _ _ _] op2
-                                      [_ 0 _ _] op1
-                                      [_ _ true true] (+ op1 op2)
-                                      ;; obviously need to look up n here.
-                                      [["add" x y] m _ true]
-                                      (let [n (get-binding y)]
-                                        (if (number? n)
-                                          ["add" x (+ n m)]
-                                          ["add" op1 op2]))
-                                      [["add" x y] ["add" q r] _ _]
-
-                                      :else ["add" op1 op2])
-
-                              "div" (match [op1 op2 (number? op1) (number? op2)]
-                                      [0 _ _ _] 0
-                                      [_ 1 _ _] op1
-                                      [_ _ true true] (quot op1 op2)
-                                      :else ["div" op1 op2])
-                              "eql" (cond
-                                      (= op1 op2) 1
-                                      (match [op1 op2 (number? op1) (number? op2)]
-                                        [["inp" _] _ _ true] (or (= op2 0) (> op2 9))
-                                        [_ ["inp" _] true _] (or (= op1 0) (> op1 9))
-                                        ;; if you're adding over 10 and comparing, it's a 0.
-                                        [["add" ["inp" _] x] ["inp" _] _ _]
-                                        (let [n (get-binding x)]
-                                          (and (number? n) (> n 9)))
-                                        [["inp" _] ["add" ["inp" _] x] _ _]
-                                        (let [n (get-binding x)]
-                                          (and (number? n) (> n 9)))
-                                        :else false) 0
-                                      :else ["=" op1 op2])
-                              "mod" (cond
-                                      (= op1 0) 0
-                                      (and (number? op1) (number? op2)) (mod op1 op2)
-                                      (match [op1 (number? op2)]
-                                        [["inp" _] true] true
-                                        [["add" ["inp" _] x] true]
-                                        (let [n (get-binding x)]
-                                          (and (number? n) (< (+ n 9) op2)))
-                                        :else false) op1
-                                      :else ["mod" op1 op2])
-                              :else "!!!!INVALID!!!!"
-                              )]
+                  new-value (symbolic-eval (-> instr (assoc 1 op1) (assoc 2 op2)))
+                  ;; _ (println [n instr] new-value (register "x"))
+                  ]
               (recur
                (rest nodes)
                (assoc register (second instr) new-value)
@@ -242,33 +228,12 @@
                (case opcode "inp" (inc input-num) input-num)
                (inc i))))))
 
-(comment
-  ;; = number? - Example 1 =
-
-  user=> (number? 1)
-  true
-  user=> (number? 1.0)
-  true
-  user=> (number? :a)
-  false
-  user=> (number? nil)
-  false
-  user=> (number? "23")
-  false
-
-
-  ;; See also:
-  clojure.core/num
-  clojure.core/integer?
-  :rcf)
-
-
 (->> (-> parsed-program
          (to-flow-graph)
          (prune-graph)
          (symbolic-execution)
          (last))
-     (filter (fn [[[n _] _]] (= n 39))))
+     (filter (fn [[[n _] _]] (= n 5))))
 
 (-> parsed-program
     (to-flow-graph)
@@ -338,12 +303,12 @@
         (recur
          (rest positions)
          (apply conj mins-sofar
-               (->> (for [n (inc (int (rand 9)))
-                          m (range 1 10)]
-                      [[n m] (run-program (conj mins-sofar n) (take (inc (first positions)) full-program))])
-                    (sort-by #(second (second %)))
-                    (first)
-                    (first)))))))
+                (->> (for [n (inc (int (rand 9)))
+                           m (range 1 10)]
+                       [[n m] (run-program (conj mins-sofar n) (take (inc (first positions)) full-program))])
+                     (sort-by #(second (second %)))
+                     (first)
+                     (first)))))))
 
 (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
                         (vec))]
