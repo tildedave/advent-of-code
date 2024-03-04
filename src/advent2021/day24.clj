@@ -1,7 +1,8 @@
 (ns advent2021.day24
   (:require [advent2021.utils :as utils]
             [clojure.core.match :refer [match]]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clojure.math.combinatorics :as combo]))
 
 (def instruction-res
   '(#"^(inp) (w|x|y|z)$"
@@ -146,7 +147,7 @@
       (recur
        (rest nodes)
        (-> graphviz-string
-           (.concat (format "\tNode%d [label=\"%d %s (computed: %s)\"];" node-num node-num (.replaceAll (str (second (first nodes))) "\"" "")
+           (.concat (format "\tNode%d [label=\"%d %s (computed: %s)\"];\n" node-num node-num (.replaceAll (str (second (first nodes))) "\"" "")
                             (let [v (actual-value-map (first nodes))] (cond (number? v) v
                                                                             (and (vector? v) (= (first v) "inp")) (.replaceAll (str v) "\"" "")
                                                                             :else nil))))
@@ -161,7 +162,8 @@
 ;; we just want to create map the nodes to the "real" nodes.
 ;; then that map can be used for display, I guess, or we can transform the
 ;; adjacency graph.
-(defn static-analytics [[nodes' adjacency' _]]
+
+(defn symbolic-execution [[nodes' adjacency' _]]
   (loop
    [nodes nodes'
     register {"w" 0 "x" 0 "y" 0 "z" 0}
@@ -198,7 +200,10 @@
                                         (if (number? n)
                                           ["add" x (+ n m)]
                                           ["add" op1 op2]))
+                                      [["add" x y] ["add" q r] _ _]
+
                                       :else ["add" op1 op2])
+
                               "div" (match [op1 op2 (number? op1) (number? op2)]
                                       [0 _ _ _] 0
                                       [_ 1 _ _] op1
@@ -237,32 +242,122 @@
                (case opcode "inp" (inc input-num) input-num)
                (inc i))))))
 
+(comment
+  ;; = number? - Example 1 =
+
+  user=> (number? 1)
+  true
+  user=> (number? 1.0)
+  true
+  user=> (number? :a)
+  false
+  user=> (number? nil)
+  false
+  user=> (number? "23")
+  false
+
+
+  ;; See also:
+  clojure.core/num
+  clojure.core/integer?
+  :rcf)
+
 
 (->> (-> parsed-program
          (to-flow-graph)
          (prune-graph)
-         (static-analytics)
+         (symbolic-execution)
          (last))
-     (filter (fn [[[n _] _]] (< n 16))))
+     (filter (fn [[[n _] _]] (= n 39))))
 
 (-> parsed-program
     (to-flow-graph)
     (prune-graph)
-    (static-analytics)
+    (symbolic-execution)
     (to-graphviz)
     (println))
 
     ;; (to-graphviz)
     ;; (println))
 
-(->> (range 11111111111111 Long/MAX_VALUE)
-     (map #(vector % (to-model-seq %)))
-     (remove #(some zero? (second %)))
-     (map #(update % 1 (fn [input] (run-program input parsed-program)))))
+;; (->> (range 11111111111111 Long/MAX_VALUE)
+;;      (map #(vector % (to-model-seq %)))
+;;      (remove #(some zero? (second %)))
+;;      (map #(update % 1 (fn [input] (run-program input parsed-program)))))
 
-     (filter #(= (get-in % [1 "z"]) 0)))
+;;      (filter #(= (get-in % [1 "z"]) 0)))
 
-     (first)
-     )
+;;      (first)
+;;      )
 
-(run-program (list 0 0 0 0 0 0 0 0 0 0 0 0 0 9) parsed-program)
+
+
+(def z-mul-positions
+  (->> parsed-program
+       (filter #(match [(second %)] [["mul" "z" _]] true :else false))
+       (map first)))
+
+(conj '(2 3) 1)
+
+(repeatedly 10 #(inc (int (rand 9))))
+
+(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                        (vec))
+      initial-mins []]
+  (loop
+   [positions (drop (count initial-mins) z-mul-positions)
+    mins-sofar initial-mins]
+    (println positions mins-sofar)
+    (if (empty? positions) mins-sofar
+        (recur
+         (rest positions)
+         (apply conj mins-sofar
+                (->> (for [n (repeatedly 100 #(inc (int (rand 9))))]
+                       [[n] (get "z" (run-program (conj mins-sofar n) (take (inc (first positions)) full-program)))])
+                     (sort-by #(second (second %)))
+                     (first)
+                     (first)))))))
+
+;; [7 5 1 5 7 5 2 5 2 3 8 7 5 9]
+
+(defn run-full-program [input]
+  (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                          (vec))]
+    (run-program input full-program)))
+
+(run-full-program [2 4 1 2 9 9 9 4 6 1 8 9 9 4])
+
+(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                        (vec))
+      initial-mins [9 3 5 4 3 2 1 0 4]]
+  (loop
+   [positions (drop (count initial-mins) z-mul-positions)
+    mins-sofar initial-mins]
+    (println positions mins-sofar)
+    (if (empty? positions) mins-sofar
+        (recur
+         (rest positions)
+         (apply conj mins-sofar
+               (->> (for [n (inc (int (rand 9)))
+                          m (range 1 10)]
+                      [[n m] (run-program (conj mins-sofar n) (take (inc (first positions)) full-program))])
+                    (sort-by #(second (second %)))
+                    (first)
+                    (first)))))))
+
+(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                        (vec))]
+  (run-program (list 1 1 1 5 1 1 1 4 6 1 1 1 1 5) full-program))
+
+;;   (->>
+;;    (for [n (range 1 10)
+;;          m (range 1 10)
+;;          o (range 1 10)
+;;          p (range 1 10)
+;;          q (range 1 10)]
+;;      (-> (run-program (list n m o p q) (take 67 full-program))
+;;          (get "z")
+;;          (vector [n m o p q])))
+;;   ;;  (map (fn [[n & args]] (concat [(mod n 26)] args)))
+;;    (sort-by first)
+;;    (take 5)))
