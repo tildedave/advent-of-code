@@ -211,10 +211,11 @@
    [nodes nodes'
     register {"w" ['number 0] "x" ['number 0] "y" ['number 0] "z" ['number 0]}
     node-map {}
+    register-map {}
     input-num 1
     i 0]
     (cond
-      (empty? nodes) [nodes' adjacency' node-map]
+      (empty? nodes) [nodes' adjacency' node-map register-map]
       ;; (> i 50) ['nodes adjacency' node-map]
       :else (let [[n instr] (first nodes)
                   [opcode op1 op2] instr
@@ -233,6 +234,7 @@
                (rest nodes)
                (assoc register (second instr) new-value)
                (assoc node-map [n instr] new-value)
+               (assoc register-map [n instr] register)
                (case opcode "inp" (inc input-num) input-num)
                (inc i))))))
 
@@ -241,7 +243,7 @@
          (prune-graph)
          (symbolic-execution)
          (last))
-     (filter (fn [[[n _] _]] (= n 50))))
+     (filter (fn [[[n _] _]] (= n 43))))
 
 (-> parsed-program
     (to-flow-graph)
@@ -324,8 +326,9 @@
 
 ;; OK, fiddling with this gives me
 ;; 27375125691319 is an accepted number.
+;; of course this is not the solution.
 ;; still don't really understand what's going on :-) -> yet
-(->>  '([3 2] [2 8] [3 1] [4 7] [5 5] [6 1] [7 2] [8 5] [9 6] [10 9] [11 1] [12 3] [13 1] [14 9])
+(->>  '([1 9] [2 9] [3 5] [4 9] [5 1] [6 1] [7 2] [8 5] [9 6] [10 9] [11 1] [12 3] [13 1] [14 1])
       (map second)
       (program-seq)
       (take (inc (count parsed-program)))
@@ -333,24 +336,61 @@
       (map #(dissoc % :input))
       (map-indexed vector)
       (filter #(or (contains? eq-x-0-positions (dec (first %)))
-                   (= (first %) (count parsed-program))))
-      (map second))
+                   (<= 37 (first %) 67)
+                   (= (first %) (count parsed-program)))))
+      ;; (map second))
+      ;; (map #(vector (nth parsed-program (dec (first %))) (second %))))
 
-;; (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
-;;                         (vec))
-;;       initial-mins []]
-;;   (loop
-;;    [positions (drop (count initial-mins) z-mul-positions)
-;;     mins-sofar initial-mins]
-;;     (if (empty? positions) mins-sofar
-;;         (recur
-;;          (rest positions)
-;;          (apply conj mins-sofar
-;;                 (->> (for [n (repeatedly 100 #(inc (int (rand 9))))]
-;;                        [[n] (get "z" (run-program (conj mins-sofar n) (take (inc (first positions)) full-program)))])
-;;                      (sort-by #(second (second %)))
-;;                      (first)
-;;                      (first)))))))
+;; this is where the "z" value ends up after the first two inputs.
+;; third input does not contribute to "z", except through "y".
+(defn first-two [i0 i1]
+  (+ (* (+ 7 i0) 26)
+     (+ 4 i1)))
+
+;; x needs to be 0 (line 65)
+;; fourth input is how we avoid a multiplication by 26 (line 67)
+;; must be equal to first 2 mod 26 - 4
+(- (mod (first-two 9 7) 26) 4)
+
+(defn num-four [i0 i1 i2]
+  (- (mod (+ (+ (* 26 (first-two i0 i1)) 8) i2) 26) 4))
+
+(num-four 9 9 5)
+;; PATH TO BEING DONE: write a function that searches suffixes.
+;; figure out how the first N numbers relate enough that I can brute force the
+;; rest.
+
+;; all suffixes
+(apply combo/cartesian-product (repeat 14 (range 1 10)))
+
+(defn brute-force-suffixes [prefix]
+  (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                          (vec))]
+    (->>
+     (for [suffix (apply combo/cartesian-product (repeat (- 14 (count prefix)) (range 1 10)))]
+      (-> (run-program (concat prefix suffix) full-program)
+          (get "z")
+          (vector suffix)))
+     (reduce (fn [sofar x] (if (< (first x) (first sofar)) x sofar)))
+     ((fn [[n suffix]] (vector n (concat prefix suffix)))))))
+
+(brute-force-suffixes '(2 7 3 7 5 1 2 5 9))
+
+(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                        (vec))
+      initial-mins []]
+  (loop
+   [positions (drop (count initial-mins) z-mul-positions)
+    mins-sofar initial-mins]
+    (if (empty? positions) mins-sofar
+        (recur
+         (rest positions)
+         (apply conj mins-sofar
+                (->> (for [n (repeatedly 100 #(inc (int (rand 9))))]
+                       [[n] (get "z" (run-program (conj mins-sofar n) (take (inc (first positions)) full-program)))])
+                     (sort-by #(second (second %)))
+                     (first)
+                     (first)))))))
 
 ;; [7 5 1 5 7 5 2 5 2 3 8 7 5 9]
 
@@ -360,6 +400,7 @@
     (run-program input full-program)))
 
 (run-full-program '(2 7 3 7 5 1 2 5 6 9 1 3 1 9))
+(run-full-program '(4 9 5 9 7 3 4 7 8 9 3 5 3 1))
 
 ;; 27375125691319 is an accepted number.
 
