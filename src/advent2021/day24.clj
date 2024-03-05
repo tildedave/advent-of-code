@@ -189,6 +189,10 @@
     ["mod" ['number n] ['number m]] ['number (mod n m)]
     ["mod" ["inp" o] ['number m]] (if (> m 9) ["inp" o] expr)
     ["mod" ["add" ["inp" o] ['number m]] ['number n]] (if (< (+ m 9) n) ["inp" o] expr)
+    ["mod" ["add" ["mul" _ ['number m]] ["add" ["inp" _] ['number n]] :as op] ['number o]]
+    (if (and (= m o) (< (+ n 9) o))
+      op
+      expr)
     :else expr))
 
 (assert (= (symbolic-eval ["mul" ['number 4] ['number 4]]) ['number 16]))
@@ -211,15 +215,19 @@
     i 0]
     (cond
       (empty? nodes) [nodes' adjacency' node-map]
-      ;; (> i 10) ['nodes adjacency' node-map]
+      ;; (> i 50) ['nodes adjacency' node-map]
       :else (let [[n instr] (first nodes)
                   [opcode op1 op2] instr
                   op1 (register op1)
                   get-binding (fn [x] (if (string? x) (register x) x))
                   ;; _ (println "op2" op2)
                   op2 (get-binding op2)
-                  new-value (symbolic-eval (-> instr (assoc 1 op1) (assoc 2 op2)))
-                  ;; _ (println [n instr] new-value (register "x"))
+                  new-value (if (= opcode "inp")
+                              instr
+                              (symbolic-eval (if (nil? op2)
+                                             (assoc instr 1 op1)
+                                             (-> instr (assoc 1 op1) (assoc 2 op2)))))
+                  ;; _ (println [n instr] ">>>" new-value "<<<")
                   ]
               (recur
                (rest nodes)
@@ -233,7 +241,7 @@
          (prune-graph)
          (symbolic-execution)
          (last))
-     (filter (fn [[[n _] _]] (= n 5))))
+     (filter (fn [[[n _] _]] (= n 50))))
 
 (-> parsed-program
     (to-flow-graph)
@@ -262,26 +270,87 @@
        (filter #(match [(second %)] [["mul" "z" _]] true :else false))
        (map first)))
 
-(conj '(2 3) 1)
+(def eq-x-0-positions
+  (->> parsed-program
+       (filter #(match [(second %)] [["eql" "x" ['number 0]]] true :else false))
+       (map first)
+       (set)))
 
-(repeatedly 10 #(inc (int (rand 9))))
+(def input-positions
+  (->> parsed-program
+       (filter #(= (second %) ["inp" "w"]))
+       (map first)
+       (set)))
 
-(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
-                        (vec))
-      initial-mins []]
-  (loop
-   [positions (drop (count initial-mins) z-mul-positions)
-    mins-sofar initial-mins]
-    (println positions mins-sofar)
-    (if (empty? positions) mins-sofar
-        (recur
-         (rest positions)
-         (apply conj mins-sofar
-                (->> (for [n (repeatedly 100 #(inc (int (rand 9))))]
-                       [[n] (get "z" (run-program (conj mins-sofar n) (take (inc (first positions)) full-program)))])
-                     (sort-by #(second (second %)))
-                     (first)
-                     (first)))))))
+(defn program-seq [input]
+  (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                          (vec))]
+    (iterate
+     (fn [[state program]]
+       (if (empty? program)
+         [state program]
+         [(instruction-eval state (first program))
+          (rest program)]))
+     [(initial-state input) full-program])))
+
+;; difference in 1 308915776  (26^6)
+;; difference in 2 11881376 (26^5)
+;; third has no effect, is immediately modded to 0
+;; difference in 4 456976 (26^4)
+;; difference in 5 17576 (26^3)
+;; difference in 6 676 (26^2)
+;; seven has no effect
+;; [I don't know what these are doing, they aren't independent of each other like the base ones]
+
+;; ;; OK, so 8 - 13 is key to the puzzle.
+;; ;; need to understand how these contribute to z
+
+;; difference in 8 -2780246456 WHEN 2 or 8
+;; difference in 9 -2780246612 WHEN 2 or 8
+;;      2 ^2 * 11 * 13 * 1093 * 4447
+;; tenth has no effect, immediately compared to something it can't be.
+;; 11th has a similar odd distance - also % 0 mod 26
+;;      2 ^2 * 3 * 11 * 13 * 54563
+;;      when -3 ???
+;; these high primes can't be part of the ALU since we don't have constants that size.
+;; 12th has a difference of -93630290
+;;      2 * 5 * 13 * 19 * 37907
+;; 13th also difference of -2 * 5 * 13 * 19 * 37907
+;; 14th does not effect z, but needs to make it so z equals y.
+
+(count '(1 1 1 1 1 1 1 1 3 7 6 1 6 9))
+
+;; (run-full-program (repeat 14 0))
+
+;; OK, fiddling with this gives me
+;; 27375125691319 is an accepted number.
+;; still don't really understand what's going on :-) -> yet
+(->>  '([3 2] [2 8] [3 1] [4 7] [5 5] [6 1] [7 2] [8 5] [9 6] [10 9] [11 1] [12 3] [13 1] [14 9])
+      (map second)
+      (program-seq)
+      (take (inc (count parsed-program)))
+      (map first)
+      (map #(dissoc % :input))
+      (map-indexed vector)
+      (filter #(or (contains? eq-x-0-positions (dec (first %)))
+                   (= (first %) (count parsed-program))))
+      (map second))
+
+;; (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+;;                         (vec))
+;;       initial-mins []]
+;;   (loop
+;;    [positions (drop (count initial-mins) z-mul-positions)
+;;     mins-sofar initial-mins]
+;;     (if (empty? positions) mins-sofar
+;;         (recur
+;;          (rest positions)
+;;          (apply conj mins-sofar
+;;                 (->> (for [n (repeatedly 100 #(inc (int (rand 9))))]
+;;                        [[n] (get "z" (run-program (conj mins-sofar n) (take (inc (first positions)) full-program)))])
+;;                      (sort-by #(second (second %)))
+;;                      (first)
+;;                      (first)))))))
 
 ;; [7 5 1 5 7 5 2 5 2 3 8 7 5 9]
 
@@ -290,8 +359,17 @@
                           (vec))]
     (run-program input full-program)))
 
-(run-full-program [2 4 1 2 9 9 9 4 6 1 8 9 9 4])
+(run-full-program '(2 7 3 7 5 1 2 5 6 9 1 3 1 9))
 
+;; 27375125691319 is an accepted number.
+
+((->> (program-seq (list 2 7 3 7 5 1 2 5 6 9 1 3 2 6))
+     (partition-by #(empty? (second %)))) false)
+
+
+(run-full-program [2 4 1 2 9 9 9 4 6 1 8
+                   9 9 4])
+(run-full-program [1 3 5 7 9 2 4 6 8 9 9 9 9 9])
 (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
                         (vec))
       initial-mins [9 3 5 4 3 2 1 0 4]]
