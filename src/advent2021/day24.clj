@@ -277,6 +277,14 @@
        (map first)
        (set)))
 
+(defn program-indices [pattern]
+  (->> parsed-program
+        (filter #(= (second %) pattern))
+        (map first)
+        (set)))
+
+(program-indices ["mul" "z" "y"])
+
 (def input-positions
   (->> parsed-program
        (filter #(= (second %) ["inp" "w"]))
@@ -333,18 +341,19 @@
         (map first)
         (map #(dissoc % :input))
         (map-indexed vector)
-        (filter #(or (contains? eq-x-0-positions (dec (first %)))
-                    ;;  (<= 37 (first %) 80)
+        (filter #(or (contains? (program-indices ["eql" "x" "w"]) (first %))
+                    ;;  (<= 50 (first %) 100)
                      (= (first %) (count parsed-program)))))))
 
 (explained-computation
- (->> '([1 9] [2 7] [3 3] [4 7] [5 5] [6 1] [7 2] [8 5] [9 6] [10 9] [11 1] [12 3] [13 1] [14 9])
+ (->> '([1 2] [2 7] [3 3] [4 7] [5 5] [6 1] [7 2] [8 5] [9 6] [10 9] [11 1] [12 3] [13 1] [14 9])
       (map second)))
 
 ;; 27375125691319 is an accepted number.
 ;; 29375125691339 is also accepted.
 
 
+(explained-computation (to-model-seq 00000000000000))
 (explained-computation (to-model-seq 27375125691319))
 (explained-computation (to-model-seq 29375125691339))
 
@@ -356,6 +365,8 @@
 (defn first-two [i0 i1]
   (+ (* (+ 7 i0) 26)
      (+ 4 i1)))
+
+(* (first-two 2 7) 26)
 
 ;; x needs to be 0 (line 65)
 ;; fourth input is how we avoid a multiplication by 26 (line 67)
@@ -390,7 +401,7 @@
      (filter (fn [[n]] (= n 0)))
      (map (fn [[n suffix]] (vector n (concat prefix suffix)))))))
 
-(defn brute-force-extensions [prefix num-extensions]
+(defn brute-force-extensions [prefix positions num-extensions]
   (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
                           (vec))
         full-length (min (+ (count prefix) num-extensions) 14)
@@ -400,7 +411,7 @@
                                  vec)
                             full-program)
         last-position (if (not= full-length 14)
-                             (->> eq-x-0-positions
+                             (->> positions
                                   (filter #(< % (count truncated-program)))
                                   (sort >)
                                   (first))
@@ -411,16 +422,15 @@
    (for [suffix (apply combo/cartesian-product (repeat num-extensions (range 1 10)))]
      (-> (program-seq truncated-program (concat prefix suffix))
          (nth last-position)
-         (first)
-         (get "z")
-         (vector (concat prefix suffix))))
+         (group-by #())))
    (sort-by first)
-   (partition-by #(if (= (first %) 0) 0 (int (math/log10 (first %)))))  ;; (int (/ (math/log10 (first %)) (math/log10 26)))))
+   (partition-by first)
+  ;;  (partition-by #(if (= (first %) 0) 0 (int (math/log10 (first %)))))  ;; (int (/ (math/log10 (first %)) (math/log10 26)))))
    )))
 
-(->> (brute-force-extensions (take 9 (to-model-seq 29375125691339)) 5)
-     (first)
-     (sort-by first))
+;; (->> (brute-force-extensions (take 9 (to-model-seq 29375125691339)) 5)
+;;      (first)
+;;      (sort-by first))
 
 (defn from-model-seq [model-seq]
   (loop [s model-seq
@@ -430,9 +440,17 @@
          (rest s)
          (+ (* 10 n) (first s))))))
 
+(defn run-full-program [input]
+  (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                          (vec))]
+    (run-program input full-program)))
+
 (println
  "answer time"
  (->>
+  (let [positions (program-indices ["mul" "z" "y"])
+        filter-func (fn [state] ())
+        ])
   (loop
    [prefixes [[0 '()]]
     l 0]
@@ -446,10 +464,11 @@
                        (first))))]
          (cond
            (>= (+ l 5) 14) next-prefixes
-           (= l 0) (->> next-prefixes (filter #(= (first %) 247)))
+          ;;  (= l 0) (->> next-prefixes (filter #(= (first %) 247)))
            ;;(->> next-prefixes (filter #(<= 234 (first %) 259)))
-           :else (->> next-prefixes (shuffle) (take 20))))
+           :else next-prefixes))
        (+ l 5))))
+  (map #(vector ((run-full-program (second %)) "z") (second %)))
   (sort-by first)
   (take 10)
   (time)))
@@ -477,11 +496,6 @@
 (time (brute-force-suffixes '(2 7 3 7 5 1 2 5)))
 
 ;; [7 5 1 5 7 5 2 5 2 3 8 7 5 9]
-
-(defn run-full-program [input]
-  (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
-                          (vec))]
-    (run-program input full-program)))
 
 (run-full-program '(2 7 3 7 5 1 2 5 6 9 1 3 1 9))
 (run-full-program '(4 9 5 9 7 3 4 7 8 9 3 5 3 1))
