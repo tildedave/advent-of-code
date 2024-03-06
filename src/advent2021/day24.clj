@@ -341,7 +341,7 @@
         (map first)
         (map #(dissoc % :input))
         (map-indexed vector)
-        (filter #(or (contains? (program-indices ["eql" "x" "w"]) (first %))
+        (filter #(or (contains? (program-indices ["mul" "z" "y"]) (first %))
                     ;;  (<= 50 (first %) 100)
                      (= (first %) (count parsed-program)))))))
 
@@ -351,41 +351,20 @@
 
 ;; 27375125691319 is an accepted number.
 ;; 29375125691339 is also accepted.
+;; 29595125691339 is also accepted.
+;; 29599125691739 is also accepted.
 
 
-(explained-computation (to-model-seq 00000000000000))
+(explained-computation (to-model-seq 29599125691739))
+
+(explained-computation (to-model-seq 31375125691323))
 (explained-computation (to-model-seq 27375125691319))
-(explained-computation (to-model-seq 29375125691339))
+(explained-computation (to-model-seq 29595125691339))
+(explained-computation (to-model-seq 29599125691739))
 
-      ;; (map second))
-      ;; (map #(vector (nth parsed-program (dec (first %))) (second %))))
-
-;; this is where the "z" value ends up after the first two inputs.
-;; third input does not contribute to "z", except through "y".
-(defn first-two [i0 i1]
-  (+ (* (+ 7 i0) 26)
-     (+ 4 i1)))
-
-(* (first-two 2 7) 26)
-
-;; x needs to be 0 (line 65)
-;; fourth input is how we avoid a multiplication by 26 (line 67)
-;; must be equal to first 2 mod 26 - 4
-
-(defn num-four [i0 i1 i2]
-  (- (mod (+ (+ (* 26 (first-two i0 i1)) 8) i2) 26) 4))
-
-(num-four 9 9 5)
 ;; PATH TO BEING DONE: write a function that searches suffixes, and
 ;; figure out how the first N numbers relate enough that I can brute force the
 ;; rest.
-
-;; seems like even at this point, we are making choices that make it impossible
-;; for the z to get to 0.  seems hard to imagine this as
-;; w is always the input
-;; x is always the temp computation of w
-;; y is a multiplicative factor for z
-;; z is the accumulator
 
 ;; all suffixes
 (apply combo/cartesian-product (repeat 14 (range 1 10)))
@@ -400,6 +379,30 @@
           (vector suffix)))
      (filter (fn [[n]] (= n 0)))
      (map (fn [[n suffix]] (vector n (concat prefix suffix)))))))
+
+(brute-force-suffixes (remove zero? (to-model-seq 2959912569)))
+
+(defn brute-force-middle [prefix suffix]
+  (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
+                          (vec))
+        num-to-include (- 14 (count prefix) (count suffix))]
+    (println "num to include" num-to-include)
+    (->>
+     (for [middle (apply combo/cartesian-product (repeat num-to-include (range 1 10)))]
+      (-> (concat prefix middle suffix)
+          (run-program full-program)
+          (get "z")
+          (vector (concat prefix middle suffix))))
+     (sort-by first)
+     (partition-by first)
+     (first)
+    )))
+
+
+(explained-computation (to-model-seq 17153114691118))
+;; 17153114691118
+
+(println "answer u" (brute-force-middle '(1 7 1 5 3) '(1 1 8)))
 
 (defn brute-force-extensions [prefix positions num-extensions]
   (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
@@ -422,11 +425,16 @@
    (for [suffix (apply combo/cartesian-product (repeat num-extensions (range 1 10)))]
      (-> (program-seq truncated-program (concat prefix suffix))
          (nth last-position)
-         (group-by #())))
+         (first)
+         (get "z")
+         (vector (concat prefix suffix))))
    (sort-by first)
    (partition-by first)
+   (first)
   ;;  (partition-by #(if (= (first %) 0) 0 (int (math/log10 (first %)))))  ;; (int (/ (math/log10 (first %)) (math/log10 26)))))
    )))
+
+
 
 ;; (->> (brute-force-extensions (take 9 (to-model-seq 29375125691339)) 5)
 ;;      (first)
@@ -444,63 +452,3 @@
   (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
                           (vec))]
     (run-program input full-program)))
-
-(println
- "answer time"
- (->>
-  (let [positions (program-indices ["mul" "z" "y"])
-        filter-func (fn [state] ())
-        ])
-  (loop
-   [prefixes [[0 '()]]
-    l 0]
-    (println l)
-    (if (>= l 14)
-      prefixes
-      (recur
-       (let [next-prefixes (apply concat
-                (for [[score prefix] prefixes]
-                  (->> (brute-force-extensions prefix 5)
-                       (first))))]
-         (cond
-           (>= (+ l 5) 14) next-prefixes
-          ;;  (= l 0) (->> next-prefixes (filter #(= (first %) 247)))
-           ;;(->> next-prefixes (filter #(<= 234 (first %) 259)))
-           :else next-prefixes))
-       (+ l 5))))
-  (map #(vector ((run-full-program (second %)) "z") (second %)))
-  (sort-by first)
-  (take 10)
-  (time)))
-
-    ;; otherwise, let's get some prefixes.
-    ;; 5 at a time, I guess?  max of 14.
-(* 5 (* 9 9 9 9 9))
-;; we only really get "distance" between the options at length 5
-;; # 4 is determined by the first 3 [num-four function]
-
-;; (->> (brute-force-prefixes '() 4)
-;;      (first)
-;;      (count))
-
-    ;;  (reduce (fn [sofar x] (if (< (first x) (first sofar)) x sofar)))
-    ;;  ((fn [[n suffix]]
-
-;; (brute-force-suffixes '(9 9 5 9 1 1 2 5 6 9 1 3 1 1))
-
-(num-four 2 9 3)
-(let [first-three [4 9 3]]
-  (explained-computation (concat first-three [(num-four 3 9 3)] '(5 1 2 5 6 9 1 3 3 1))))
-
-(brute-force-suffixes '(9 9 5 9 9 9 9 9 9 9))
-(time (brute-force-suffixes '(2 7 3 7 5 1 2 5)))
-
-;; [7 5 1 5 7 5 2 5 2 3 8 7 5 9]
-
-(run-full-program '(2 7 3 7 5 1 2 5 6 9 1 3 1 9))
-(run-full-program '(4 9 5 9 7 3 4 7 8 9 3 5 3 1))
-(run-full-program '(1 1 1 5 1 1 1 1 1 1 1 1 1 1))
-;; 27375125691319 is an accepted number.
-;; 29375125691339 is also accepted.
-
-(run-full-program '(9 9 5 9 9 9 9 9 9 9 1 7 5 9))
