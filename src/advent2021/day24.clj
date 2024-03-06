@@ -390,12 +390,6 @@
      (filter (fn [[n]] (= n 0)))
      (map (fn [[n suffix]] (vector n (concat prefix suffix)))))))
 
-input-positions
-
-(nth input-positions 1)
-
-(concat '(1 2 3) '(4))
-
 (defn brute-force-extensions [prefix num-extensions]
   (let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
                           (vec))
@@ -405,18 +399,18 @@ input-positions
                                  (take (nth input-positions num-extensions))
                                  vec)
                             full-program)
-        last-eq-x-position (if (not= full-length 14)
-                             (->>  eq-x-0-positions
-                                   (filter #(< % (count truncated-program)))
-                                   (sort >)
-                                   (first))
+        last-position (if (not= full-length 14)
+                             (->> eq-x-0-positions
+                                  (filter #(< % (count truncated-program)))
+                                  (sort >)
+                                  (first))
                              (count full-program))
         ;; prefix (if (= (count prefix) 3) (concat prefix [(apply num-four prefix)]) prefix)
         num-extensions (min num-extensions (- 14 (count prefix)))]
   (->>
    (for [suffix (apply combo/cartesian-product (repeat num-extensions (range 1 10)))]
      (-> (program-seq truncated-program (concat prefix suffix))
-         (nth last-eq-x-position)
+         (nth last-position)
          (first)
          (get "z")
          (vector (concat prefix suffix))))
@@ -442,19 +436,23 @@ input-positions
   (loop
    [prefixes [[0 '()]]
     l 0]
-    (println l prefixes)
+    (println l)
     (if (>= l 14)
       prefixes
       (recur
-       (->>
-        (apply concat
-              (for [[score prefix] prefixes]
-                (->> (brute-force-extensions prefix 5)
-                     (first))))
-        (sort-by #(from-model-seq (second %)) >)
-        (take 5))
-       (+ l 5))))))
-  ;; (filter (fn [[score prefix]] (= score 0)))))
+       (let [next-prefixes (apply concat
+                (for [[score prefix] prefixes]
+                  (->> (brute-force-extensions prefix 5)
+                       (first))))]
+         (cond
+           (>= (+ l 5) 14) next-prefixes
+           (= l 0) (->> next-prefixes (filter #(= (first %) 247)))
+           ;;(->> next-prefixes (filter #(<= 234 (first %) 259)))
+           :else (->> next-prefixes (shuffle) (take 20))))
+       (+ l 5))))
+  (sort-by first)
+  (take 10)
+  (time)))
 
     ;; otherwise, let's get some prefixes.
     ;; 5 at a time, I guess?  max of 14.
@@ -491,44 +489,4 @@ input-positions
 ;; 27375125691319 is an accepted number.
 ;; 29375125691339 is also accepted.
 
-((->> (program-seq (list 2 7 3 7 5 1 2 5 6 9 1 3 2 6))
-     (partition-by #(empty? (second %)))) false)
-
-
-(run-full-program [2 4 1 2 9 9 9 4 6 1 8
-                   9 9 4])
-(run-full-program [1 3 5 7 9 2 4 6 8 9 9 9 9 9])
-(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
-                        (vec))
-      initial-mins [9 3 5 4 3 2 1 0 4]]
-  (loop
-   [positions (drop (count initial-mins) z-mul-positions)
-    mins-sofar initial-mins]
-    (println positions mins-sofar)
-    (if (empty? positions) mins-sofar
-        (recur
-         (rest positions)
-         (apply conj mins-sofar
-                (->> (for [n (inc (int (rand 9)))
-                           m (range 1 10)]
-                       [[n m] (run-program (conj mins-sofar n) (take (inc (first positions)) full-program))])
-                     (sort-by #(second (second %)))
-                     (first)
-                     (first)))))))
-
-(let [full-program (->> (map parse-line (utils/read-input "day24.txt"))
-                        (vec))]
-  (run-program (list 1 1 1 5 1 1 1 4 6 1 1 1 1 5) full-program))
-
-;;   (->>
-;;    (for [n (range 1 10)
-;;          m (range 1 10)
-;;          o (range 1 10)
-;;          p (range 1 10)
-;;          q (range 1 10)]
-;;      (-> (run-program (list n m o p q) (take 67 full-program))
-;;          (get "z")
-;;          (vector [n m o p q])))
-;;   ;;  (map (fn [[n & args]] (concat [(mod n 26)] args)))
-;;    (sort-by first)
-;;    (take 5)))
+(run-full-program '(9 9 5 9 9 9 9 9 9 9 1 7 5 9))
