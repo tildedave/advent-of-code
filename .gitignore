@@ -4,3 +4,6 @@ resources/
 .cpcache/
 .lsp/
 .nrepl-port
+
+inputs/
+advent-of-code-2019
