@@ -2,11 +2,24 @@
   (:require [advent2020.utils :as utils]))
 
 
+(defn answer [filename n])
+
 (defn answer-part1 [filename]
   (let [l (->> (utils/read-input filename)
                (map #(Integer/valueOf %)))]
     (->> (for [x l y l] [x y])
-         (filter #(not= (first %) (second %)))
-         (filter #(= 2020 (* (first %) (second %)))))))
+         (filter #(< (first %) (second %)))
+         (filter #(= 2020 (+ (first %) (second %))))
+         (first)
+         (reduce *))))
 
-(answer-part1 "day1-example.txt")
+(defn answer-part2 [filename]
+(let [l (->> (utils/read-input filename)
+              (map #(Integer/valueOf %)))]
+   (->> (for [x l y l z l] [x y z])
+        (filter #(apply < %))
+        (filter #(= 2020 (apply + %)))
+        (first)
+        (reduce *))))
+
+(answer-part2 "day1.txt")
