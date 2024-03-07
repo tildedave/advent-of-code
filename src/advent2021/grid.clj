@@ -1,11 +1,13 @@
 (ns advent2021.grid
   (:require [clojure.data.priority-map :refer [priority-map]]))
 
-(defn parse [lines sq-f]
+(defn parse
+  ([lines] (parse lines identity))
+  ([lines sq-f]
   (->> lines
        (map seq)
        (map #(mapv sq-f %))
-       (vec)))
+       (vec))))
 
 (defn bounds [grid]
   [(count (first grid))
