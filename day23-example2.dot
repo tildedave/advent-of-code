@@ -1,0 +1,25 @@
+digraph G {
+	 Node0 -> Node2 [label="15"];
+	 Node2 -> Node3 [label="22"];
+	 Node2 -> Node4 [label="22"];
+	 Node3 -> Node6 [label="38"];
+	 Node3 -> Node5 [label="12"];
+	 Node4 -> Node5 [label="24"];
+	 Node4 -> Node8 [label="30"];
+	 Node6 -> Node5 [label="10"];
+	 Node6 -> Node7 [label="10"];
+	 Node5 -> Node6 [label="10"];
+	 Node5 -> Node4 [label="24"];
+	 Node5 -> Node8 [label="18"];
+	 Node5 -> Node3 [label="12"];
+	 Node8 -> Node7 [label="10"];
+	 Node8 -> Node5 [label="18"];
+	 Node7 -> Node1 [label="5"];
+	 Node7 -> Node8 [label="10"];
+	 Node6 -> Node3 [label="38"];
+	 Node4 -> Node2 [label="22"];
+	 Node8 -> Node4 [label="30"];
+	 Node3 -> Node2 [label="22"];
+	 Node7 -> Node6 [label="10"];
+	 Node2 -> Node0 [label="15"];
+}
