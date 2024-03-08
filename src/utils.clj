@@ -3,7 +3,7 @@
 
 (defn read-resource-lines [resource]
   (line-seq (io/reader (io/resource resource))))
-ß
+
 (def read-input read-resource-lines)
 
 (defn parse-int [str] (Integer/valueOf str))
@@ -17,6 +17,12 @@
   (try
     (Integer/valueOf str)
     (catch IllegalArgumentException _ str)))
+
+(defn xor [b1 b2]
+  (case [b1 b2]
+    [true false] true
+    [false true] true
+    false))
 
 (defn sml-partition
   "SML's List.partition, which I find myself reaching for."

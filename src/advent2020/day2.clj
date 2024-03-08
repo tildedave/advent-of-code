@@ -23,11 +23,9 @@
               (->> password (seq) (filter (partial = letter)) (count))
               high)
     true
-    (=
-     (+
-      (if (= ^Character (.charAt ^String password (dec low)) letter) 0 1)
-      (if (= ^Character (.charAt ^String password (dec high)) letter) 0 1))
-     1)))
+    (utils/xor
+     (= ^Character (.charAt ^String password (dec low)) letter)
+     (= ^Character (.charAt ^String password (dec high)) letter))))
 
 (defn is-valid? [{:keys [password policy]}]
   (is-password-valid? policy password))
