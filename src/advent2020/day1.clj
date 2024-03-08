@@ -10,8 +10,8 @@
                (map #(Integer/valueOf %)))]
     (reduce * (subset-sum l 2020))))
 
-(answer-part1 "day1-example.txt")
-(answer-part1 "day1.txt")
+(answer-part1 "2020/day1-example.txt")
+(answer-part1 "2020/day1.txt")
 
 (defn answer-part2 [filename]
   (let [l (->> (utils/read-input filename)
