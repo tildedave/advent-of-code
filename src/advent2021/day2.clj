@@ -1,5 +1,5 @@
 (ns advent2021.day2
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 (re-matches #"^Forward (\d)+" "babnana")
 

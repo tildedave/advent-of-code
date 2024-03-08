@@ -1,6 +1,6 @@
 (ns advent2021.day19
   (:require [clojure.math.combinatorics :as combo]
-            [advent2021.utils :as utils]
+            [utils :as utils]
             [clojure.set :as set]
             [clojure.math :as math]))
 

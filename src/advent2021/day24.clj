@@ -1,5 +1,5 @@
 (ns advent2021.day24
-  (:require [advent2021.utils :as utils]
+  (:require [utils :as utils]
             [clojure.core.match :refer [match]]
             [clojure.string :as string]
             [clojure.math.combinatorics :as combo]

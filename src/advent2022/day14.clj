@@ -1,5 +1,5 @@
 (ns advent2022.day14
-  (:require [advent2022.utils :as utils]))
+  (:require [utils :as utils]))
 
 (def lines (utils/read-resource-lines "input/day14.txt"))
 

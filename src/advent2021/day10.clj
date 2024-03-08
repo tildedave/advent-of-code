@@ -1,5 +1,5 @@
 (ns advent2021.day10
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 (def score-map {\) 3
                 \] 57

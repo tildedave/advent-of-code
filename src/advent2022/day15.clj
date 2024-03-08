@@ -1,5 +1,5 @@
 (ns advent2022.day15
-  (:require [advent2022.utils :as utils]))
+  (:require [utils :as utils]))
 
 (def lines (utils/read-resource-lines "input/day15.txt"))
 (def sensor-re #"Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)")

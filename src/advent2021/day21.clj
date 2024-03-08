@@ -1,5 +1,5 @@
 (ns advent2021.day21
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 
 (def ^:dynamic part2? false)

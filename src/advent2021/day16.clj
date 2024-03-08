@@ -1,5 +1,5 @@
 (ns advent2021.day16
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 (def hex-map
   {\0 '(0 0 0 0)

@@ -1,6 +1,6 @@
 (ns advent2021.day23
-  (:require [advent2021.utils :as utils]
-            [advent2021.grid :as grid]))
+  (:require [utils :as utils]
+            [grid :as grid]))
 
 (set! *warn-on-reflection* true)
 

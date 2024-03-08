@@ -1,5 +1,5 @@
 (ns advent2021.day6
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 (defn parse-fish [num-list]
   (reduce

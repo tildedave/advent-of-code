@@ -1,5 +1,5 @@
 (ns advent2021.day18
-    (:require [advent2021.utils :as utils]
+    (:require [utils :as utils]
               [clojure.math.combinatorics :as combo]))
 
 ;; snailfish numbers are nested vectors

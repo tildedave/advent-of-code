@@ -1,5 +1,5 @@
 (ns advent2022.day25
-  (:require [advent2022.utils :as utils]
+  (:require [utils :as utils]
             [clojure.string :as string]))
 
 ;; leading zero logic

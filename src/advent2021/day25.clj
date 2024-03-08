@@ -1,6 +1,6 @@
 (ns advent2021.day25
-  (:require [advent2021.grid :as grid]
-            [advent2021.utils :as utils]
+  (:require [grid :as grid]
+            [utils :as utils]
             [clojure.set :as set]))
 
 (defn cucumber-positions [grid ch]

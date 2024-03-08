@@ -1,6 +1,6 @@
 (ns advent2021.day15
-  (:require [advent2021.utils :as utils])
-  (:require [advent2021.grid :as grid]))
+  (:require [utils :as utils])
+  (:require [grid :as grid]))
 
 ;; we will try A*, again.
 (grid/parse

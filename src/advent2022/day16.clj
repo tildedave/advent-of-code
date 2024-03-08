@@ -1,5 +1,5 @@
 (ns advent2022.day16
-  (:require [advent2022.utils :as utils]
+  (:require [utils :as utils]
             [clojure.set :as set]
             [clojure.data.priority-map :refer [priority-map]]))
 

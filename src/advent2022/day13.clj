@@ -1,5 +1,5 @@
 (ns advent2022.day13
-  (:require [advent2022.utils :as utils]
+  (:require [utils :as utils]
             [clojure.string :as string]))
 
 (def lines (utils/read-resource-lines "input/day13.txt"))

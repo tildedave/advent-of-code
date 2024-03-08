@@ -1,5 +1,5 @@
 (ns advent2022.day20
-  (:require [advent2022.utils :as utils]))
+  (:require [utils :as utils]))
 
 ;; grove positioning system
 

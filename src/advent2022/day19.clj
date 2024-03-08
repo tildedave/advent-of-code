@@ -1,5 +1,5 @@
 (ns advent2022.day19
-  (:require [advent2022.utils :as utils]
+  (:require [utils :as utils]
             [clojure.data.priority-map :refer [priority-map]]))
 
 (def blueprint-re #"Blueprint (\d+):\s+Each ore robot costs (\d+) ore.\s+Each clay robot costs (\d)+ ore.\s+Each obsidian robot costs (\d+) ore and (\d+) clay.\s+Each geode robot costs (\d+) ore and (\d+) obsidian.")

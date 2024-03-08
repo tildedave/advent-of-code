@@ -1,5 +1,5 @@
 (ns advent2021.day7
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 ;; we will just brute force it. >:-)
 

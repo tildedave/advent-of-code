@@ -1,5 +1,5 @@
 (ns advent2021.day1
-  (:require [advent2021.utils :as utils]))
+  (:require [utils :as utils]))
 
 (def example-lines (utils/read-resource-lines "input/day1-example.txt"))
 (def input-lines (utils/read-resource-lines "input/day1.txt"))

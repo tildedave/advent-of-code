@@ -1,9 +1,6 @@
 (ns advent2020.day1
-  (:require [advent2020.utils :as utils]
+  (:require [utils :as utils]
             [clojure.set :as set]))
-
-
-(defn answer [filename n])
 
 (defn subset-sum [l val]
   (set/intersection (set l) (->> l (map #(- val %)) (set))))

@@ -1,5 +1,5 @@
 (ns advent2021.day11
-  (:require [advent2021.utils :as utils]
+  (:require [utils :as utils]
             [clojure.set :as set]))
 
 

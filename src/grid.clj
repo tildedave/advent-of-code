@@ -1,4 +1,4 @@
-(ns advent2021.grid
+(ns grid
   (:require [clojure.data.priority-map :refer [priority-map]]))
 
 (defn parse

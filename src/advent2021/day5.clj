@@ -1,5 +1,5 @@
 (ns advent2021.day5
-    (:require [advent2021.utils :as utils]))
+    (:require [utils :as utils]))
 
 (def line-re #"(\d+),(\d+) -> (\d+),(\d+)")
 

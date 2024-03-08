@@ -1,5 +1,5 @@
 (ns advent2021.day8
-  (:require [advent2021.utils :as utils]
+  (:require [utils :as utils]
             [clojure.string :as string]
             [clojure.set :as set]
             [clojure.math.combinatorics :as combo]))

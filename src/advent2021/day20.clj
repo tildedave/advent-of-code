@@ -1,7 +1,7 @@
 (ns advent2021.day20
-   (:require [advent2021.utils :as utils]
+   (:require [utils :as utils]
              [clojure.string :as string]
-             [advent2021.grid :as grid]))
+             [grid :as grid]))
 
  (into {} (map-indexed vector [1 2 3]))
 

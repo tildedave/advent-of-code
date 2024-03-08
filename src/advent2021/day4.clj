@@ -1,5 +1,5 @@
 (ns advent2021.day4
-  (:require [advent2021.utils :as utils]
+  (:require [utils :as utils]
             [clojure.string :as string]))
 
 (defn lines-to-bingo [lines]
