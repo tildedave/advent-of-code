@@ -2,6 +2,7 @@
   (:require [utils :as utils]))
 
 (set! *warn-on-reflection* true)
+(def ^:dynamic part2? false)
 
 (defn parse-policy [policy]
   (let [[num-range letter] (.split ^String policy " ")
@@ -17,9 +18,16 @@
 (seq "abcde")
 
 (defn is-password-valid? [{:keys [letter low high]} password]
-  (<= low
-     (->> password (seq) (filter (partial = letter)) (count))
-     high))
+  (case part2?
+    false (<= low
+              (->> password (seq) (filter (partial = letter)) (count))
+              high)
+    true
+    (=
+     (+
+      (if (= ^Character (.charAt ^String password (dec low)) letter) 0 1)
+      (if (= ^Character (.charAt ^String password (dec high)) letter) 0 1))
+     1)))
 
 (defn is-valid? [{:keys [password policy]}]
   (is-password-valid? policy password))
@@ -36,3 +44,14 @@
 
 (answer-part1 "day2-example.txt")
 (answer-part1 "day2.txt")
+
+(defn answer-part2 [filename]
+  (binding [part2? true]
+  (->> (utils/read-input (format "2020/%s" filename))
+       (map parse-line)
+       (map is-valid?)
+       (remove false?)
+       (count))))
+
+(answer-part2 "day2-example.txt")
+(answer-part2 "day2.txt")
