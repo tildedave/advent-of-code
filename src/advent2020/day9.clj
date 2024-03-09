@@ -1,0 +1,24 @@
+(ns advent2020.day9
+  (:require [utils :as utils]
+            [clojure.set :as set]))
+
+;; OK this is more complex.
+;; still, not too hard.
+
+(defn answer-part1 [filename prefix-length]
+  (let [[preamble rest] (->> (utils/read-input (format "2020/%s" filename))
+                             (map utils/parse-long)
+                             (split-at prefix-length)
+                             (map vec))]
+    (loop [preamble preamble rest rest]
+      (if (empty? rest) nil
+          (let [x (first rest)
+                residues (map (fn [n] (- x n)) preamble)]
+            (if (empty? (set/intersection (set residues) (set preamble)))
+              x
+              (recur
+               (conj (subvec preamble 1) (first rest))
+               (subvec rest 1))))))))
+
+(answer-part1 "day9-example.txt" 5)
+(answer-part1 "day9.txt" 25)
