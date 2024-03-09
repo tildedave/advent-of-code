@@ -24,6 +24,11 @@
     [false true] true
     false))
 
+(defn split-by [s ^String lines]
+  (->> lines
+       (partition-by (partial = s))
+       (remove (partial = (list s)))))
+
 (defn sml-partition
   "SML's List.partition, which I find myself reaching for."
   ([f s] (sml-partition f s (list) (list)))
