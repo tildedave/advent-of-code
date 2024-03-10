@@ -44,7 +44,6 @@
   (let [lv (last-value sorted-vec)
         f (memoize (fn [f idx]
             (if (= idx (count sorted-vec)) 1
-                            ;; look ahead to the next ones
               (->> (next-idxs sorted-vec idx lv)
                    (map (partial f f))
                    (reduce +)))))

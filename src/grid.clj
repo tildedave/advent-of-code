@@ -27,6 +27,18 @@
          nil
          [nx ny])))))
 
+(defn neighbors-with-diagonals [grid [x y]]
+  (remove
+    nil?
+    (for [[dx dy] [[-1 0] [1 0] [0 -1] [0 1] [-1 -1] [1 1] [-1 1] [1 -1]]]
+      (let [[nx ny] [(+ x dx) (+ y dy)]]
+        (if (out-of-bounds? grid [nx ny])
+          nil
+          [nx ny])))))
+
+(defn at [grid [x y]]
+  (get-in grid [y x]))
+
 (defn coords [grid]
   (let [xmax (count (first grid))
         ymax (count grid)]
