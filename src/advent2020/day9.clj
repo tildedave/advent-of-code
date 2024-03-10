@@ -29,7 +29,7 @@
                    (vec))
         target (answer-part1 filename prefix-length)
         [start end] (loop [start 0
-                           end 0
+                           end 1
                            total-sum (get lines 0)]
                       (cond
                         (= total-sum target) [start end]
@@ -41,11 +41,11 @@
                         (recur (inc start)
                                end
                                (- total-sum (get lines start)))))]
-    (->> (range start (inc end))
+    (->> (range start end)
          (map #(get lines %))
          ((fn [s] [(reduce min s) (reduce max s)]))
          (reduce +)
          )))
 
 (answer-part2 "day9-example.txt" 5)
-(answer-part2 "day9.txt" 5)
+(answer-part2 "day9.txt" 25)
