@@ -7,40 +7,44 @@
        (filter #(= (grid/at grid %) \L))
        (set)))
 
+(defn get-neighbors [grid]
+  (memoize (fn [seat]
+             (grid/neighbors grid seat grid/all-directions))))
+
 (defn step [grid seat-coords]
+  (let [get-neighbors (get-neighbors grid)]
   (fn [[occupied _]]
     (let [changes
           (remove
            nil?
            (for [seat seat-coords]
              (let [is-occupied (contains? occupied seat)
-                   occupied-neighbors (->> (grid/neighbors-with-diagonals grid seat)
+                   occupied-neighbors (->> (get-neighbors seat)
                                            (filter (partial contains? occupied)))]
                (cond
                  (and (not is-occupied) (empty? occupied-neighbors)) [:occupy seat]
                  (and is-occupied (>= (count occupied-neighbors) 4)) [:empty seat]
                  :else nil))))]
-    [(reduce
-     (fn [occupied [action coord]]
-       (case action
-         :occupy (conj occupied coord)
-         :empty (disj occupied coord)))
-     occupied
-     changes)
+    [(loop
+      [occupied occupied
+       [[action coord] & changes] changes]
+       (if (empty? changes) occupied
+           (recur
+            (case action
+             :occupy (conj occupied coord)
+             :empty (disj occupied coord))
+            changes)))
      changes]
-    )))
+    ))))
 
 (defn answer-part1 [filename]
   (let [grid (grid/parse (utils/read-input (format "2020/%s" filename)))
-        seat-seq (iterate (step grid (seats grid)) [#{} nil])]
-    (reduce
-     (fn [acc [occupied changes]]
-       (cond
-         (nil? changes) acc
-         (empty? changes) (reduced (count occupied))
-         :else acc))
-     -1
-     seat-seq)))
+        step-fn (step grid (seats grid))]
+    (loop [n 0 state [#{} '(:first)]]
+      (if
+       (empty? (second state))
+        (count (first state))
+        (recur (inc n) (step-fn state))))))
 
 (answer-part1 "day11-example.txt")
 (answer-part1 "day11.txt")

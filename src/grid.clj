@@ -18,23 +18,20 @@
       (>= y (count grid))
       (< x 0) (>= x (count (first grid)))))
 
-(defn neighbors [grid [x y]]
-  (remove
-   nil?
-   (for [[dx dy] [[-1 0] [1 0] [0 -1] [0 1]]]
-     (let [[nx ny] [(+ x dx) (+ y dy)]]
-       (if (out-of-bounds? grid [nx ny])
-         nil
-         [nx ny])))))
+(def cardinal-directions [[-1 0] [1 0] [0 -1] [0 1]])
+(def ordinal-directions [[-1 -1] [-1 1] [1 -1] [1 1]])
+(def all-directions (concat cardinal-directions ordinal-directions))
 
-(defn neighbors-with-diagonals [grid [x y]]
-  (remove
+(defn neighbors
+  ([grid [x y]] (neighbors grid [x y] cardinal-directions))
+  ([grid [x y] directions]
+   (remove
     nil?
-    (for [[dx dy] [[-1 0] [1 0] [0 -1] [0 1] [-1 -1] [1 1] [-1 1] [1 -1]]]
+    (for [[dx dy] directions]
       (let [[nx ny] [(+ x dx) (+ y dy)]]
         (if (out-of-bounds? grid [nx ny])
           nil
-          [nx ny])))))
+          [nx ny]))))))
 
 (defn at [grid [x y]]
   (get-in grid [y x]))
