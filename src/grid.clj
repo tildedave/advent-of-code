@@ -22,6 +22,9 @@
 (def ordinal-directions [[-1 -1] [-1 1] [1 -1] [1 1]])
 (def all-directions (concat cardinal-directions ordinal-directions))
 
+(defn add [[x y] [dx dy]]
+  [(+ x dx) (+ y dy)])
+
 (defn neighbors
   ([grid [x y]] (neighbors grid [x y] cardinal-directions))
   ([grid [x y] directions]
