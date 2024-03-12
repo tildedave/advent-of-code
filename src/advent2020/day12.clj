@@ -57,3 +57,26 @@
 
 (answer-part1 "day12-example.txt")
 (answer-part1 "day12.txt")
+
+(defn step-p2 [[x y wx wy] [command n]]
+  (case command
+    :north [x y wx (+ wy n)]
+    :south [x y wx (- wy n)]
+    :east [x y (+ wx n) wy]
+    :west [x y (- wx n) wy]
+    :forward [(+ x (* wx n)) (+ y (* wy n)) wx wy]
+    :left (into [x y] (rotate [wx wy] :left n))
+    :right (into [x y] (rotate [wx wy] :right n))
+    )
+  )
+
+(defn answer-part2 [filename]
+  (->> (utils/read-input (format "2020/%s" filename))
+       (map parse-directive)
+       (reduce step-p2 [0 0 10 1])
+       (take 2)
+       (map abs)
+       (reduce +)))
+
+(answer-part2 "day12-example.txt")
+(answer-part2 "day12.txt")
