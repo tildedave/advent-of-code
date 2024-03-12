@@ -21,16 +21,20 @@
 ;; (0 1
 ;;  -1 0) -> rotate left
 
-(defn rotate [[xv yv] rotate-direction]
-  (map
-   (fn [[a b]] (+ (* xv a) (* yv b)))
-   (case rotate-direction
-     :left
-     [[0 -1] [1 0]]
-     case :right
-     [[0 1] [-1 0]])))
-
-(rotate [0 1] :right)
+(defn rotate [[xv yv] rotate-direction degrees]
+  (loop
+   [[xv yv] [xv yv]
+    degrees degrees]
+    (if (zero? degrees) [xv yv]
+        (recur
+         (map
+          (fn [[a b]] (+ (* xv a) (* yv b)))
+          (case rotate-direction
+            :left
+            [[0 -1] [1 0]]
+            case :right
+            [[0 1] [-1 0]]))
+         (- degrees 90)))))
 
 (defn step [[x y dir] [command n]]
   (case command
@@ -38,8 +42,8 @@
     :south [x (- y n) dir]
     :east [(+ x n) y dir]
     :west [(- x n) y dir]
-    :left [x y (rotate dir :left)]
-    :right [x y (rotate dir :right)]
+    :left [x y (rotate dir :left n)]
+    :right [x y (rotate dir :right n)]
     :forward (let [[xv yv] dir]
                [(+ x (* xv n)) (+ y (* yv n)) dir])))
 
@@ -53,12 +57,3 @@
 
 (answer-part1 "day12-example.txt")
 (answer-part1 "day12.txt")
-
-
-;; (let [l (->> (utils/read-input "2020/day12-example.txt")
-;;              (map parse-directive))]
-;;   (iterate (fn [[state l]]
-;;              (if (empty? l)
-;;                [state l]
-;;                [(step state (first l)) (rest l)]))
-;;            [[0 0 [1 0]] l]))
