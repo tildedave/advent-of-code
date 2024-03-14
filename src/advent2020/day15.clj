@@ -29,14 +29,27 @@
 (defn parse-input [filename]
   (map utils/parse-int
        (-> (format "2020/%s" filename)
-      (utils/read-input)
-      (first
-       (.split ",")))))
+           (utils/read-input)
+           (first)
+           (.split ","))))
+
+(defn number-sequence [game-sequence]
+  (map-indexed
+   (fn [idx [_ _ turn-history]] (turn-history idx))
+   game-sequence))
 
 
+;; let's just brute force it.  I've got all day.
+(println (time (nth (number-sequence (game-sequence (parse-input "day15.txt"))) 30000000)))
+
+(->> (number-sequence (game-sequence [0 3 6]))
+     (map-indexed vector)
+     (filter #(= (second %) 0)))
+
+(- 3719 3286)
+(- 3719 3286)
 
 (answer-part1 [0 3 6])
 (answer-part1 (parse-input "day15.txt"))
-
 
 ;; (speak-number {1 0 2 3 3 6} {0 [1] 3 [2] 6 [3]} 4)
