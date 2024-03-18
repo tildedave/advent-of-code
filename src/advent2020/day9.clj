@@ -7,7 +7,7 @@
 
 (defn answer-part1 [filename prefix-length]
   (let [[preamble rest] (->> (utils/read-input (format "2020/%s" filename))
-                             (map utils/parse-long)
+                             (map parse-long)
                              (split-at prefix-length)
                              (map vec))]
     (loop [preamble preamble rest rest]
@@ -25,7 +25,7 @@
 
 (defn answer-part2 [filename prefix-length]
   (let [lines (->> (utils/read-input (format "2020/%s" filename))
-                   (map utils/parse-long)
+                   (map parse-long)
                    (vec))
         target (answer-part1 filename prefix-length)
         [start end] (loop [start 0

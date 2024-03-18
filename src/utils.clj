@@ -7,7 +7,6 @@
 (def read-input read-resource-lines)
 
 (defn parse-int [str] (Integer/valueOf str))
-(defn parse-long [str] (Long/valueOf str))
 
 (defn quot-round-up [n m]
   (case (mod n m)
