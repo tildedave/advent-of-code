@@ -63,8 +63,8 @@
 
 (deftype RedBlackTree [tree lt gt merge]
   clojure.lang.IPersistentSet
-  (cons [self v] (RedBlackTree. (insert-val tree v lt gt merge) lt gt))
-  (empty [self] (RedBlackTree. nil lt gt))
+  (cons [self v] (RedBlackTree. (insert-val tree v lt gt merge) lt gt merge))
+  (empty [self] (RedBlackTree. nil lt gt merge))
   (equiv [self o] (if (instance? RedBlackTree o)
                     (= tree (.tree o))
                     false))

@@ -34,7 +34,9 @@
   (< hi2 lo1))
 
 (defn interval-merge [[lo1 hi1] [lo2 hi2]]
-  [(min lo1 lo2) (max hi1 hi2)])
+  (if (overlap? [lo1 hi1] [lo2 hi2])
+    [(min lo1 lo2) (max hi1 hi2)]
+    (throw (Exception. "asked to merge two non-overlapping intervals"))))
 
 ;; OK RBT time seems to have worked.
 
@@ -44,7 +46,7 @@
                   interval-<
                   interval->
                   interval-merge)]
-    (->> (flatten (example-input :nearby-tickets))
+    (->> (flatten (parsed-input :nearby-tickets))
          (map #(if (not (nil? (get tree [% %])))
                  nil
                  %))
@@ -53,20 +55,3 @@
 
 (answer-part1 "day16-example.txt")
 (answer-part1 "day16.txt")
-
-(answer-part1 "day16-example.txt")
-        tree (rbt '([1 3] [5 7] [6 11] [33 44] [13 40] [45 50])
-               )]
-
-(get
-         interval-<
-         interval->)
-     [40 40])
-
-;; so this problem is essentially an interval tree.
-;; I suppose we'll use a library and see if that's the correct way to deal
-;; with the problem.
-;; [interval trees are just RB trees.]
-;; I guess let's use an RB tree to build our character a bit.
-
-
