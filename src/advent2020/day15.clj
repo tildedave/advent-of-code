@@ -1,30 +1,36 @@
 (ns advent2020.day15
   (:require [utils :as utils]))
 
-(defn next-number [turn-num starting-numbers turn-history number-history]
+;; what do we have to store?
+;; for each number, the last turn that it came at.
+;; and we have to remember the number that was last
+
+(defn next-number [turn-num spoken-last starting-numbers number-history]
   (if-let [x (first starting-numbers)]
     x
-    (let [spoken-last (get turn-history (dec turn-num))
-          last-spoken (number-history spoken-last)]
-      (case (count last-spoken)
-                   ;; I believe this is impossible as we should have set it
-                   ;; in the turn history
-        0 (throw (Exception. "should be impossible"))
-        1 0
-        (- (first last-spoken) (second last-spoken))))))
+    (let [last-spoken (number-history spoken-last)]
+      (cond
+        (nil? last-spoken) 0
+        (= (count last-spoken) 1) 0
+        :else (- (dec turn-num) (second last-spoken))))))
 
-(defn step [[turn-num starting-numbers turn-history number-history]]
-  (let [next-num (next-number turn-num starting-numbers turn-history number-history)]
+(defn step [[turn-num spoken-last starting-numbers number-history]]
+  (let [next-num (next-number turn-num spoken-last starting-numbers number-history)]
     [(inc turn-num)
+     next-num
      (rest starting-numbers)
-     (assoc turn-history turn-num next-num)
      (update number-history next-num (fnil #(->> % (cons turn-num) (take 2)) '()))]))
 
 (defn game-sequence [starting-numbers]
-  (iterate step [1 starting-numbers {} {}]))
+  (iterate step [1 -1 starting-numbers {}]))
+
+(second (nth (game-sequence [0 3 6]) 2020))
 
 (defn answer-part1 [starting-numbers]
-  ((-> (nth (game-sequence starting-numbers) 2020) (nth 2)) 2020))
+  (-> starting-numbers
+      (game-sequence)
+      (nth 2020)
+      (second)))
 
 (defn parse-input [filename]
   (map utils/parse-int
@@ -33,11 +39,13 @@
            (first)
            (.split ","))))
 
-(defn number-sequence [game-sequence]
-  (map-indexed
-   (fn [idx [_ _ turn-history]] (turn-history idx))
-   game-sequence))
+(parse-input "day15.txt")
 
+(answer-part1 [0 3 6])
+(answer-part1 (parse-input "day15.txt"))
+
+(defn number-sequence [game-sequence]
+  (map second game-sequence))
 
 ;; let's just brute force it.  I've got all day.
 (println (time (nth (number-sequence (game-sequence (parse-input "day15.txt"))) 30000000)))
