@@ -120,7 +120,11 @@
                            (dissoc x)
                            (update-vals #(disj % (first s))))
                        (assoc mapping x (first s))))))]
-    mapping))
+    (->> mapping
+         (filter #(.startsWith (first %) "departure"))
+         (vals)
+         (map (partial get (parsed-input :your-ticket)))
+         (reduce *))))
 
 (answer-part2 "day16-example.txt")
 (answer-part2 "day16-example2.txt")
