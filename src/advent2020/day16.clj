@@ -3,23 +3,27 @@
 
 (defn parse-number-list [str-list]
   (->> (.split str-list ",")
-       (map utils/parse-int)))
+       (mapv utils/parse-int)))
 
 (defn parse-field [^String str]
-  (->> str
-       (re-matches #"\w+: (\d+)\-(\d+) or (\d+)\-(\d+)")
-       (rest)
+  (let [[_ type & num-strs] (re-matches #"([^:]+): (\d+)\-(\d+) or (\d+)\-(\d+)" str)]
+    {type (->> num-strs
        (map utils/parse-int)
        (partition 2)
-       (map #(apply vector %))))
+       (map #(apply vector %)))}))
 
 (defn parse-input [filename]
   (->> (utils/read-input (format "2020/%s" filename))
        (utils/split-by "")
        ((fn [[field-info [_ your-ticket-nums] [_ & nearby-tickets]]]
-          {:field-info (map parse-field field-info)
+          {:field-info (->> field-info
+                            (map parse-field)
+                            (into {}))
            :your-ticket (parse-number-list your-ticket-nums)
-           :nearby-tickets (map parse-number-list nearby-tickets)}))))
+           :nearby-tickets (mapv parse-number-list nearby-tickets)}))))
+
+(parse-input "day16-example.txt")
+(parse-input "day16.txt")
 
 (defn overlap? [[lo1 hi1] [lo2 hi2]]
   (and (< lo1 hi2)
@@ -72,7 +76,7 @@
 
 (defn answer-part1 [filename]
   (let [parsed-input (parse-input filename)
-        intervals (merge-intervals (apply concat (parsed-input :field-info)))]
+        intervals (merge-intervals (apply concat (vals (parsed-input :field-info))))]
     (->> (flatten (parsed-input :nearby-tickets))
        (map #(if (contains-point? intervals %)
                nil
@@ -82,3 +86,42 @@
 
 (answer-part1 "day16-example.txt")
 (answer-part1 "day16.txt")
+
+;; find all valid tickets (e.g. filter out the invalid ones)
+
+(defn valid-ticket? [intervals ticket]
+  (every? (partial contains-point? intervals) ticket))
+
+(defn answer-part2 [filename]
+  (let [parsed-input (parse-input filename)
+        intervals (merge-intervals (apply concat (vals (parsed-input :field-info))))
+        valid-tickets (filterv (partial valid-ticket? intervals)
+                               (parsed-input :nearby-tickets))
+        candidates (into {}
+                         (for [[field-name [i1 i2]] (parsed-input :field-info)]
+                           {field-name
+                            (->>
+                             (for [i (range (count (first valid-tickets)))]
+                               (if (every? (partial contains-point? [i1 i2])
+                                           (map #(get % i) valid-tickets))
+                                 i
+                                 nil))
+                             (remove nil?)
+                             (set))}))
+        mapping (loop [candidates candidates
+                       mapping {}]
+                  (if (empty? candidates)
+                    mapping
+                    (let [[x s] (->> candidates
+                                     (filter #(= (count (second %)) 1))
+                                     (first))]
+                      (recur
+                       (-> candidates
+                           (dissoc x)
+                           (update-vals #(disj % (first s))))
+                       (assoc mapping x (first s))))))]
+    mapping))
+
+(answer-part2 "day16-example.txt")
+(answer-part2 "day16-example2.txt")
+(answer-part2 "day16.txt")
