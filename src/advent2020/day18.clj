@@ -93,10 +93,15 @@
            (+ plus-idx 2)
            ))))))
 
-        ;;   (println (.substring expr lhs (inc rhs))))))))
-
 (eval-expr-p1 (parenthify "1 + (2 * 3) + (4 * (5 + 6))"))
 (defn eval-expr-p2 [expr] (eval-expr-p1 (parenthify expr)))
 (eval-expr-p2 "((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2")
 (eval-expr-p2 "5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))")
 (eval-expr-p2 "5 + (8 * 3 + 9 + 3 * 4 * 3)")
+
+(defn answer-part2 [filename]
+  (->> (utils/read-input (format "2020/%s" filename))
+       (map eval-expr-p2)
+       (reduce +)))
+
+(answer-part2 "day18.txt")
