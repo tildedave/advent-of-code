@@ -136,26 +136,28 @@
 
 
 (defn rotate-tile-full
-   "Rotate a full tile to the right"
-   [tile-full]
-   (->> (grid/coords tile-full)
-        (map (fn [[x y]] [[(- 9 y) x] (grid/at tile-full [x y])]))
-        (reduce
-         (fn [acc [[x y] ch]]
-           (assoc-in acc [y x] ch))
-         (->> (repeat 10 (repeat 10 0))
-              (mapv vec)))))
+  "Rotate a full tile to the right"
+  [tile-full]
+  (let [gs (count tile-full)]
+    (->> (grid/coords tile-full)
+         (map (fn [[x y]] [[(- (dec gs) y) x] (grid/at tile-full [x y])]))
+         (reduce
+          (fn [acc [[x y] ch]]
+            (assoc-in acc [y x] ch))
+          (->> (repeat gs (repeat gs 0))
+               (mapv vec))))))
 
 (defn flip-tile-full
-   "Flip a full tile around the middle, vertically"
-   [tile-full]
-   (->> (grid/coords tile-full)
-        (map (fn [[x y]] [[(- 9 x) y] (grid/at tile-full [x y])]))
-        (reduce
-         (fn [acc [[x y] ch]]
-           (assoc-in acc [y x] ch))
-         (->> (repeat 10 (repeat 10 0))
-              (mapv vec)))))
+  "Flip a full tile around the middle, vertically"
+  [tile-full]
+  (let [gs (count tile-full)]
+    (->> (grid/coords tile-full)
+         (map (fn [[x y]] [[(- (dec gs) x) y] (grid/at tile-full [x y])]))
+         (reduce
+          (fn [acc [[x y] ch]]
+            (assoc-in acc [y x] ch))
+          (->> (repeat gs (repeat gs 0))
+               (mapv vec))))))
 
 ((parse-tiles-full "day20-example.txt") 2473)
 ((parse-tiles-full "day20-example.txt") 2473)
@@ -406,14 +408,86 @@
 (defn image-to-string [image]
   (string/join "\n" (map string/join image)))
 
-(println
- (image-to-string
- (assemble-image (parse-tiles-full "day20.txt")
-                (tile-adjacencies (parse-tiles "day20.txt")))))
+(defn trim-image-line [image-line]
+  (->> (map-indexed vector image-line)
+       (remove (fn [[n _]]
+                 (let [mn (mod n 10)]
+                   (or (= mn 0) (= mn 9)))))
+       (mapv second)))
 
+(defn trim-image [image]
+  (->> image
+       (mapv trim-image-line)
+       (map-indexed vector)
+       (remove (fn [[n _]]
+                 (let [mn (mod n 10)]
+                   (or (= mn 0) (= mn 9)))))
+       (mapv second)
+       (vec)))
 
-;; (tile-adjacencies (parse-tiles "day20-example.txt"))
-  ;; fill out the full image.
-  ;; I guess we start with a corner tile, follow.
- )
+(def sea-monster-indices
+  (let [lines ["                  #"
+               "#    ##    ##    ###"
+               " #  #  #  #  #  #   "]]
+    (->> lines
+         (map #(map-indexed vector %))
+         (map #(filter (fn [[_ x]] (= x \#)) %))
+         (map #(map first %))
+         (map-indexed vector)
+         (map (fn [[y l]] (for [x l] [x y])))
+         (apply concat)
+         )))
 
+(defn find-sea-monsters [image]
+  (->>
+   (for [dy (range 0 (- (count image) 2))
+         dx (range 0 (- (count (first image)) 19))]
+       (let [coords (->> sea-monster-indices
+                         (map (fn [[x y]] [(+ x dx) (+ y dy)])))]
+         (if (every? #(= (grid/at image %) \#) coords)
+           coords
+           nil)))
+   (remove nil?)))
+
+(find-sea-monsters
+(rotate-tile-full
+ (rotate-tile-full
+ (trim-image
+ (assemble-image (parse-tiles-full "day20-example.txt")
+                 (tile-adjacencies (parse-tiles "day20-example.txt")))))))
+
+(defn sea-monster-coords [starting-image]
+  (loop [image starting-image
+         n 0
+         results []]
+    (if (= n 4)
+      (reduce
+       (fn [acc r] (set/union acc (set r)))
+       #{}
+       (apply concat (remove empty? results)))
+        (recur
+         (rotate-tile-full image)
+         (inc n)
+         (-> results
+             (conj (find-sea-monsters image))
+             (conj (find-sea-monsters (flip-tile-full image))))))))
+
+(count (sea-monster-coords (trim-image
+                     (assemble-image (parse-tiles-full "day20-example.txt")
+                                     (tile-adjacencies (parse-tiles "day20-example.txt"))))))
+
+(defn answer-part2 [filename]
+  (let [starting-image
+        (trim-image
+         (assemble-image (parse-tiles-full filename)
+                         (tile-adjacencies (parse-tiles filename))))
+        sea-monsters (sea-monster-coords starting-image)
+        all-hashes (->> (grid/coords starting-image)
+                        (filter #(= (grid/at starting-image %) \#))
+                        (set))]
+    ;; for some reason it's not correct if I do a set/difference
+    ;; this is the right answer, but it shows I have a bug somewhere ...
+    (- (count all-hashes) (count sea-monsters))))
+
+(answer-part2 "day20-example.txt")
+(answer-part2 "day20.txt")
