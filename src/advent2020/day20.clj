@@ -360,14 +360,13 @@
                            (first))
         full-image (->> (repeat (* grid-size 10) (repeat (* grid-size 10) 0))
                         (mapv vec))]
-    (loop [queue [[(first starting-tile) 0 0 (starting-orientation starting-tile)]]
+    (loop [[queue placed-tiles] [[[(first starting-tile) 0 0 (starting-orientation starting-tile)]]
+                                 #{(first starting-tile)}]
            image full-image
-           placed-tiles #{}
            taken-spots #{}
            n 0]
       (cond
         (empty? queue) image
-        ;; (= n 3) image
         :else
         (let [[i x y transforms] (get queue 0)
               next-queue (subvec queue 1)
@@ -380,7 +379,6 @@
                                (fn [acc [x y ch]]
                                  (assoc-in acc [y x] ch))
                                image))
-              next-placed-tiles (conj placed-tiles i)
               next-taken-spots (conj taken-spots [x y])
               neighbor-coords (neighbors x y taken-spots grid-size)]
           ;; we are going to brute force the rotation.  the transforms involved
@@ -389,26 +387,29 @@
           ;; adjacencies into the unoccupied neighbors, we are done.
           (recur
            (reduce
-            conj
-            next-queue
-             (for [n (-> (tile-adjacencies i) (vals) (set) (set/difference next-taken-spots))]
+            (fn [[queue placed-tiles] queue-item]
+              [(conj queue queue-item)
+               (conj placed-tiles (first queue-item))])
+            [next-queue placed-tiles]
+             (for [n (-> (tile-adjacencies i) (vals) (set) (set/difference placed-tiles))]
               (->> neighbor-coords
                    (map (fn [[x y]]
                           [n x y (transforms-to-place-tile (tiles-full n) x y next-image)]))
                    (remove (fn [[_ _ _ l]] (nil? l)))
+                  ;;  (remove (fn [[n]] (seq (filter (fn [[m]] (= m n)) next-queue))))
                    (first))))
            next-image
-           next-placed-tiles
            next-taken-spots
            (inc n))
           )))))
 
-
 (defn image-to-string [image]
   (string/join "\n" (map string/join image)))
 
-(assemble-image (parse-tiles-full "day20-example.txt")
-                (tile-adjacencies (parse-tiles "day20-example.txt")))
+(println
+ (image-to-string
+ (assemble-image (parse-tiles-full "day20.txt")
+                (tile-adjacencies (parse-tiles "day20.txt")))))
 
 
 ;; (tile-adjacencies (parse-tiles "day20-example.txt"))
