@@ -34,7 +34,7 @@
 ;; for each allergen, take intersection of all ingredients.
 ;; any ingredient that is no intersection is the one we care about.
 
-(def ingredient-intersection-set [parsed-lines]
+(defn ingredient-intersection-set [parsed-lines]
   (update-vals
    (reduce
     (fn [acc parsed-line]
@@ -51,69 +51,50 @@
   (let [parsed-lines (->> filename
                           (format "2020/%s")
                           (utils/read-input)
-                          (map parse-allergen-line))]
-    ))
+                          (map parse-allergen-line))
+        non-allergens (->> parsed-lines
+                           (ingredient-intersection-set)
+                           (vals)
+                           (apply set/union)
+                           (set/difference (all-items :ingredients parsed-lines)))]
+    ;; number of times the non-allergens appear.
+    (reduce
+     (fn [acc parsed-line]
+       (+ acc (count (set/intersection non-allergens (parsed-line :ingredients))))
+       )
+     0
+     parsed-lines)))
 
 (answer-part1 "day21-example.txt")
+(answer-part1 "day21.txt")
 
-allergens (all-items :allergens parsed-lines)]
-    (group-by )
-    parsed-lines))
+(defn allergen-search [parsed-lines]
+  (loop
+   [intersections (ingredient-intersection-set parsed-lines)
+    allergen-mapping {}]
+    (if (empty? intersections)
+      allergen-mapping
+      (let [[allergen vs] (->> intersections
+                               (filter (fn [[x s]] (= (count s) 1)))
+                               (first))
+            ingredient (first vs)]
+        (recur
+         (-> intersections
+             (update-vals #(disj % ingredient))
+             (dissoc allergen))
+         (merge allergen-mapping {allergen ingredient})))))
+  )
 
+(defn answer-part2 [filename]
+  (->> filename
+       (format "2020/%s")
+       (utils/read-input)
+       (map parse-allergen-line)
+       (allergen-search)
+       (sort-by first)
+       (map second)
+       (string/join ",")))
 
-;; OK, we could potentially go back to core.logic after this initial pruning.
-;; let's keep the code for it.
-
-(defn every-allergen-has-a-single-ingredient [allergen ingredient-set]
-      ;; this returns a single constraint.
-  (str
-   "(conde"
-   "\n\t"
-   (str
-    (string/join
-     "\n\t"
-     (for [ingredient ingredient-set]
-       (str "["
-            (let [other-ingredients (disj ingredient-set ingredient)]
-              (string/join " "
-                           (conj
-                            (for [other-ingredient other-ingredients]
-                              (format "(!= %s \"%s\")" other-ingredient allergen))
-                            (format "(== %s \"%s\")" ingredient allergen))))
-            "]"))))
-   ")"))
-
-(defn individual-allergen-ingredients-constraints [parsed-line]
-      ;; for each allergen, it must be one of the ingredients.
-      ;; so this returns a list of constraints.
-  (for [allergen (:allergens parsed-line)]
-    (str
-     "(conde"
-     (string/join
-      " "
-      (for [ingredient (:ingredients parsed-line)]
-        (format "[(== %s \"%s\")]" ingredient allergen)))
-     ")")))
-
-
-(defn create-logic-statement [filename]
-      ;; we'll just create the core.logic statement and call eval() on it
-      ;; there's probably a cooler way.
-  (let [parsed-lines (->> (utils/read-input (format "2020/%s" filename))
-                          (map parse-allergen-line))
-        ingredients (all-items :ingredients parsed-lines)
-        allergens (all-items :allergens parsed-lines)]
-             ;; each allergen has one and only one ingredient for it.
-             ;; then, for each line, a cond statement for it.
-    (str (format "(run* [%s]\n" (string/join " " (seq ingredients)))
-         (string/join
-          "\n"
-          (for [allergen allergens]
-            (every-allergen-has-a-single-ingredient allergen ingredients)))
-         "\n"
-         (string/join
-          "\n"
-          (apply concat
-                 (for [parsed-line parsed-lines]
-                   (individual-allergen-ingredients-constraints parsed-line))))
-         ")")))
+(answer-part2 "day21-example.txt")
+(answer-part2 "day21.txt")
+;; this is basically trivial .... I can almost do it by hand.
