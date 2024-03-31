@@ -61,49 +61,44 @@
 
 (declare winner)
 
-(defn step-p2 [[seen-states deck]]
+(defn step-p2 [deck]
   (let [[deck1 deck2] [(get deck 0) (get deck 1)]
         [c1] deck1
         [c2] deck2
         rest-deck1 (subvec deck1 1)
         rest-deck2 (subvec deck2 1)
-        next-seen-state (conj seen-states deck)]
-    [next-seen-state
-     (cond
-      ;; we've seen the state, p1 wins
-      (contains? seen-states deck) {0 (-> rest-deck1
-                                           (conj c1)
-                                           (conj c2))
-                                     1 rest-deck2}
-      (and (<= c1 (count rest-deck1))
-           (<= c2 (count rest-deck2)))
-      (case (first (winner {0 rest-deck1 1 rest-deck2}))
-        0 {0 (-> rest-deck1
-                 (conj c1)
-                 (conj c2))
-           1 rest-deck2}
-        1 {0 rest-deck1
-           1 (-> rest-deck2
-                 (conj c2)
-                 (conj c1))})
-      (> c1 c2) {0 (-> rest-deck1
-                       (conj c1)
-                       (conj c2))
-                 1 rest-deck2}
-      (> c2 c1) {0 rest-deck1
+        p1-wins  {0 (-> rest-deck1
+                        (conj c1)
+                        (conj c2))
+                  1 rest-deck2}
+        p2-wins {0 rest-deck1
                  1 (-> rest-deck2
                        (conj c2)
-                       (conj c1))})]))
+                       (conj c1))}]
+     (cond
+      ;; we've seen the state, p1 wins
+       (and (<= c1 (count rest-deck1))
+            (<= c2 (count rest-deck2)))
+       (case (first (winner {0 (subvec rest-deck1 0 c1)
+                             1 (subvec rest-deck2 0 c2)}))
+         0 p1-wins
+         1 p2-wins)
+       (> c1 c2) p1-wins
+       (> c2 c1) p2-wins)))
 
 (defn winner [deck-state]
   (reduce
-    (fn [_ [_ state]]
-      (cond
-        (empty? (get state 0)) (reduced [1 (state 1)])
-        (empty? (get state 1)) (reduced [0 (state 0)])
-        :else nil))
-    (iterate step-p2 [#{} deck-state])))
+   (fn [seen-states deck]
+     (cond
+       (contains? seen-states deck) (reduced [0 (deck 1)])
+       (empty? (get deck 0)) (reduced [1 (deck 1)])
+       (empty? (get deck 1)) (reduced [0 (deck 0)])
+       :else (conj seen-states deck)))
+   #{}
+   (iterate step-p2 deck-state)))
 
-;; (take  (iterate step-p2 [#{} (parse-input "day22-example.txt")]))
+(defn answer-part2 [filename]
+  (final-score (second (winner (parse-input filename)))))
 
-(winner (parse-input "day22-example.txt"))
+(answer-part2 "day22-example.txt")
+(answer-part2 "day22.txt")
