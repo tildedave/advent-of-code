@@ -1,10 +1,9 @@
 (ns advent2020.day22
   (:require [utils :as utils]))
 
-(utils/read-input "2020/day22.txt")
 (defn parse-input [filename]
   (->> filename
-       (format "2020/%s" filename)
+       (format "2020/%s")
        (utils/read-input)
        (utils/split-by "")
        (map rest)
@@ -76,7 +75,6 @@
                        (conj c2)
                        (conj c1))}]
      (cond
-      ;; we've seen the state, p1 wins
        (and (<= c1 (count rest-deck1))
             (<= c2 (count rest-deck2)))
        (case (first (winner {0 (subvec rest-deck1 0 c1)
