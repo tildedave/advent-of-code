@@ -10,12 +10,13 @@
        (seq)
        (map #(utils/parse-int (str %)))
        (vec)
-       (#(hash-map :min-cup (reduce min %)
+       (#(transient
+          (hash-map :min-cup (reduce min %)
                    :max-cup (reduce max %)
                    :current (first %)
                    :end (last %)
                    :next
-                   (transient (into {} (map vector % (into (subvec % 1) [(get % 0)]))))))))
+                   (transient (into {} (map vector % (into (subvec % 1) [(get % 0)])))))))))
 
 (parse-input "day23-example.txt")
 
@@ -40,7 +41,7 @@
         destination-next (next destination-cup)
         next (assoc! next destination-cup (first picked-up-cups))
         next (assoc! next (last picked-up-cups) destination-next)]
-    (assoc state :next next :current (next current))))
+    (assoc! state :next next :current (next current))))
 
 (defn answer [{:keys [next]}]
   (->> (iterate next 1)
@@ -63,7 +64,7 @@
   (let [parsed-input (parse-input filename)
         {:keys [max-cup next end current]} parsed-input
         rest-numbers (vec (range (inc max-cup) 1000001))]
-    (assoc parsed-input
+    (assoc! parsed-input
            :max-cup 1000000
            :next (reduce (fn [state [k v]]
                            (assoc! state k v))
