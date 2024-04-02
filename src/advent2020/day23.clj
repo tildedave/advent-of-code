@@ -12,54 +12,68 @@
        (vec)
        (#(hash-map :min-cup (reduce min %)
                    :max-cup (reduce max %)
-                   :cups %))))
+                   :current (first %)
+                   :end (last %)
+                   :next
+                   (transient (into {} (map vector % (into (subvec % 1) [(get % 0)]))))))))
 
 (parse-input "day23-example.txt")
 
-;; presumably part 2 will require us to be smarter about this
-;; (somehow), but we'll just do part 1 naively.
-;; we'll always assume the first one is at 0 since that makes my job a little
-;; easier.
-
-(subvec [1 2 3] 3 3)
+;; (def next {7 3, 1 2, 4 6, 6 7, 3 8, 2 5, 9 1, 5 4, 8 9})
+;; (nth (iterate next 3) 4)
 
 (defn step [state]
-  (let [{:keys [min-cup max-cup cups]} state
-        first-cup  (get cups 0)
-        picked-up-cups (subvec cups 1 4)
+  (let [{:keys [min-cup max-cup current next]} state
+        next-seq (iterate next current)
+         ;; pick up the next 3 cups
+        next (assoc! next current (nth next-seq 4))
+        picked-up-cups (->> next-seq (rest) (take 3))
         cup-set (set picked-up-cups)
-        next-label (loop [n (dec first-cup)]
-                     (cond
-                       (contains? cup-set n) (recur (dec n))
-                       (< n min-cup) (recur max-cup)
-                       :else n))
-        next-idx (.indexOf cups next-label)
-        new-ordering (-> [next-label]
-                         (into picked-up-cups)
-                         (into (subvec cups (inc next-idx)))
-                         (into [first-cup])
-                         (into (subvec cups 4 next-idx)))
-        current-cup-idx (.indexOf new-ordering first-cup)
-        next-cup-idx (mod (inc current-cup-idx) (count cups))]
-    (assoc state :cups
-           (-> (subvec new-ordering next-cup-idx)
-               (into (subvec new-ordering 0 next-cup-idx))))))
+        destination-cup (loop [n (dec current)]
+                          (cond
+                            (contains? cup-set n) (recur (dec n))
+                            (< n min-cup) (recur max-cup)
+                            :else n))
+         ;; destination points to the first in the picked-up sequence
+         ;; last in the picked up sequence points to the old destination
+         ;; pointer.
+        destination-next (next destination-cup)
+        next (assoc! next destination-cup (first picked-up-cups))
+        next (assoc! next (last picked-up-cups) destination-next)]
+    (assoc state :next next :current (next current))))
 
-(defn answer [{:keys [min-cup max-cup cups]}]
-  (let [idx (.indexOf cups 1)
-        inc-idx (mod (inc idx) (count cups))]
-    (-> (subvec cups inc-idx)
-        (into (subvec cups 0 idx))
-        (#(string/join "" %)
-        ))))
+(defn answer [{:keys [next]}]
+  (->> (iterate next 1)
+       (rest)
+       (partition-by (partial = 1))
+       (first)
+       (#(string/join "" %))))
 
 (defn answer-part1 [filename]
   (-> (iterate step (parse-input filename))
-       (nth 101)
-       (answer)
-       ))
+      (nth 100)
+      (answer)))
 
 (answer-part1 "day23-example.txt")
+(answer-part1 "day23.txt")
 
-(answer
-(last (take 101 (iterate step (parse-input "day23-example.txt")))))
+(conj '(2 3 4 5) 1)
+;; so we need to
+(defn parse-input-p2 [filename]
+  (let [parsed-input (parse-input filename)
+        {:keys [max-cup next end current]} parsed-input
+        rest-numbers (vec (range (inc max-cup) 1000001))]
+    (assoc parsed-input
+           :max-cup 1000000
+           :next (reduce (fn [state [k v]]
+                           (assoc! state k v))
+
+                        (assoc! next end (inc max-cup))
+                        (map vector rest-numbers (into (subvec rest-numbers 1) [current]))))))
+
+(defn answer-part2 [filename]
+  (let [{:keys [next]} (nth (iterate step (parse-input-p2 filename)) 10000000)]
+    (* (next 1) (next (next 1)))))
+
+(time (answer-part2 "day23-example.txt"))
+(time (answer-part2 "day23.txt"))
