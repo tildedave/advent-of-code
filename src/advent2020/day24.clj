@@ -60,35 +60,43 @@
         [(- tx 2) ty]
         [(inc tx) (inc ty)]
         [(inc tx) (dec ty)]
-        [(dec tx) (inc tx)]
-        [(dec tx) (dec tx)]})
+        [(dec tx) (inc ty)]
+        [(dec tx) (dec ty)]})
 
 (starting-tiles "day24-example.txt")
 
 (defn step-tiles [black-tile-set]
   (let [new-white-tiles (->>
-                         (for [t black-tile-set]
-                          (let [black-neighbors (-> (neighbor-tiles t)
-                                                    (set/intersection black-tile-set))
-                                n (count black-neighbors)]
-                            (if (or (= n 0) (> n 2)) t nil)))
-                         (remove nil?)
+                         black-tile-set
+                         (filter #(let [c (-> %
+                                              (neighbor-tiles)
+                                              (set/intersection black-tile-set)
+                                              (count))]
+                                    (or (= c 0) (> c 2))))
                          (set))
         new-black-tiles (->> black-tile-set
                              (map #(map (fn [t] {t 1})
-                                        (-> (neighbor-tiles %)
+                                        (-> %
+                                            (neighbor-tiles)
                                             (set/difference black-tile-set))))
                              (flatten)
                              (reduce (partial merge-with +) {})
                              (filter #(= (second %) 2))
                              (map first)
                              (set))]
-    (reduce conj
-            (reduce disj black-tile-set new-white-tiles)
-            new-black-tiles)))
+    (-> black-tile-set
+        (set/difference new-white-tiles)
+        (set/union new-black-tiles))))
 
-(take 4 (map count (iterate step-tiles (starting-tiles "day24-example.txt"))))
+(defn answer-part2 [filename]
+  (->> filename
+       (starting-tiles)
+       (iterate step-tiles)
+       (map count)
+       (take 101)
+       (last)))
 
-(step-tiles #{[0 0] [2 2]})
+(answer-part2 "day24-example.txt")
+(answer-part2 "day24.txt")
 
-    (neighbor-tiles x)
+(step-tiles (step-tiles #{[0 0] [-1 -1] [-1 1]}))
