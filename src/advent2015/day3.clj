@@ -27,18 +27,25 @@
 
 (defn visit-p2 [instructions]
   (reduce
-   (fn [[houses-so-far [sx sy] [rx ry] n] ch]
-     (if (= (mod n 2) 0)
-       (let [[houses-so-far [sx sy]] (step [houses-so-far [sx sy]] ch)]
-         [houses-so-far [sx sy] [rx ry] (inc n)])
-       (let [[houses-so-far [rx ry]] (step [houses-so-far [rx ry]] ch)]
-         [houses-so-far [sx sy] [rx ry] (inc n)])))
-   [{[0 0] 2} [0 0] [0 0] 0]
-   (seq instructions)))
+   (fn [state ch]
+     (let [{:keys [houses santa robo-santa turn]} state
+           pos-key (if (= (mod turn 2) 0) :santa :robo-santa)
+           [houses pos] (step [houses (state pos-key)] ch)]
+         (assoc state
+                :houses houses
+                pos-key pos
+                :turn (inc turn)))))
+   {:houses {[0 0] 2}
+    :santa [0 0]
+    :robo-santa [0 0]
+    :turn 0}
+   (seq instructions))
 
 
 (defn answer-part2 [instructions]
   (->> (visit-p2 instructions)
-       (first)
+       (:houses)
        (keys)
        (count)))
+
+(answer-part2 (first (utils/read-input "2015/day3.txt")))
