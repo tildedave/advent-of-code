@@ -2,15 +2,20 @@
   (:require [utils :as utils]
             [clojure.string :as string]))
 
+(def ^:dynamic part2? false)
+
 (defn parse-rule [rule-line]
-  (let [[rule-num-str rest-line] (.split rule-line ": ")
-        rule-num (utils/parse-int rule-num-str)]
-    {rule-num
-     (if-let [[_ ch] (re-matches #"^\"(a|b)\"$" rest-line)]
-      (.charAt ch 0)
-      (->> (string/split rest-line #" \| ")
-           (map #(.split % " "))
-           (map #(mapv utils/parse-int %))))}))
+  (cond
+    (and part2? (= rule-line "8: 42")) (parse-rule "8: 42 | 42 8")
+    (and part2? (= rule-line "11: 42 31")) (parse-rule "11: 42 31 | 42 11 31")
+    :else (let [[rule-num-str rest-line] (.split rule-line ": ")
+                rule-num (utils/parse-int rule-num-str)]
+            {rule-num
+             (if-let [[_ ch] (re-matches #"^\"(a|b)\"$" rest-line)]
+               (.charAt ch 0)
+               (->> (string/split rest-line #" \| ")
+                    (map #(.split % " "))
+                    (map #(mapv utils/parse-int %))))})))
 
 
 (.split "1 2" " | ")
@@ -52,6 +57,11 @@
 
 (parse-input "day19-full-example.txt")
 
+(defn matches? [rules str]
+  (let [results (match-prefix rules 0 (seq str))]
+    (and results
+         (seq (filter empty? results)))))
+
 (defn answer-part1 [filename]
   (let [{:keys [lines rules]} (parse-input filename)]
     (->> lines
@@ -59,25 +69,15 @@
          (count))))
 
 (answer-part1 "day19-full-example.txt")
+(answer-part1 "day19.txt")
 
-(defn matches? [rules str]
-  (let [results (match-prefix rules 0 (seq str))]
-    (and (not (empty? results))
-         (every? empty? results))))
+(binding [part2? true]
+  (answer-part1 "day19-full-example2.txt"))
 
-(match-prefix (answer-part1 "day19-example2.txt") 0 (seq "aaaabbb"))
+(defn answer-part2 [filename]
+  (binding [part2? true]
+    (answer-part1 filename)))
 
-(assert (matches? (answer-part1 "day19-example.txt") "aba"))
-(assert (not (matches? (answer-part1 "day19-example2.txt") "aaaabbb")))
-
-
-(match-prefix
- (answer-part1 "day19-example.txt")
- 0
- (seq "aba"))
-
-(->> (string/split (parse-rule "0: 1 2") #" \| ")
-     (map string/split )
-
-
-
+;; \o/ 😎
+(answer-part2 "day19-full-example2.txt")
+(answer-part2 "day19.txt")
