@@ -34,12 +34,12 @@
          (assoc state
                 :houses houses
                 pos-key pos
-                :turn (inc turn)))))
+                :turn (inc turn))))
    {:houses {[0 0] 2}
     :santa [0 0]
     :robo-santa [0 0]
     :turn 0}
-   (seq instructions))
+   (seq instructions)))
 
 
 (defn answer-part2 [instructions]
