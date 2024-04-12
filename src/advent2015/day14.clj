@@ -60,19 +60,25 @@
 (sort-by first > [[4 5] [1 2] [2 3]])
 
 (defn answer-part2 [filename seconds]
-  (reduce
+  (->>
+   (reduce
    (fn [scores state]
      (let [reindeer-by-score (->> state
-                                  (map (fn [[reindeer status]] [reindeer (status :distance)]))
+                                  (map (fn [[reindeer status]] [reindeer (get status :distance 0)]))
                                   (sort-by second >))
            max-score (second (first reindeer-by-score))
            winning-reindeer (filter #(= (second %) max-score) reindeer-by-score)]
        (reduce
         (fn [scores winner]
-          (update scores winner (fnil inc 0)))
+          (update scores (first winner) (fnil inc 0)))
         scores
         winning-reindeer)))
    {}
-   (take seconds (flying-seq filename))))
+   ;; don't count second 0 as contributing to the score
+   (take seconds (rest (flying-seq filename))))
+   (vals)
+   (sort-by >)
+   (first)))
 
 (answer-part2 "day14-example.txt" 1000)
+(answer-part2 "day14.txt" 2503)
