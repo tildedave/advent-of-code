@@ -22,8 +22,7 @@
       (strip-hex-codes)
       (string/replace #"\\\"" "q")
       (string/replace #"\\\\" "q")
-      (.length)
-      ))
+      (.length)))
 
 (->> (utils/read-input "2015/day8-example.txt")
      (map in-memory-length))
@@ -39,3 +38,14 @@
 
 (answer-part1 "2015/day8-example.txt")
 (answer-part1 "2015/day8.txt")
+
+(defn answer-part2 [filename]
+  (->> filename
+       (utils/read-input)
+       (map #(vector (string/escape % {\\ "\\\\" \" "\\\""}) %))
+       (map #(- (.length (first %)) (.length (second %))))
+       (map (partial + 2))
+       (reduce +)))
+
+(answer-part2 "2015/day8-example.txt")
+(answer-part2 "2015/day8.txt")
