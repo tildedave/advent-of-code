@@ -18,7 +18,7 @@
                           (update-in [reindeer :move-left] dec)
                           (update-in [reindeer :distance] (fnil (partial + speed) 0)))
       (= move-left 0) (-> status
-                          (assoc-in [reindeer :rest-left] rest-time)
+                          (assoc-in [reindeer :rest-left] (dec rest-time))
                           (assoc-in [reindeer :move-left] -1))
       (= rest-left 0) (-> status
                           (update-in [reindeer :distance] (fnil (partial + speed) 0))
@@ -52,7 +52,27 @@
      (sort)
      (last)))
 
-(flying-seq "day14-example.txt")
+(nth (flying-seq "day14-example.txt") 138)
 
 (answer "day14-example.txt" 1000)
 (answer "day14.txt" 2503)
+
+(sort-by first > [[4 5] [1 2] [2 3]])
+
+(defn answer-part2 [filename seconds]
+  (reduce
+   (fn [scores state]
+     (let [reindeer-by-score (->> state
+                                  (map (fn [[reindeer status]] [reindeer (status :distance)]))
+                                  (sort-by second >))
+           max-score (second (first reindeer-by-score))
+           winning-reindeer (filter #(= (second %) max-score) reindeer-by-score)]
+       (reduce
+        (fn [scores winner]
+          (update scores winner (fnil inc 0)))
+        scores
+        winning-reindeer)))
+   {}
+   (take seconds (flying-seq filename))))
+
+(answer-part2 "day14-example.txt" 1000)
