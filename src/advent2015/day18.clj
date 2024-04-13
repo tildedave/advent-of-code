@@ -80,6 +80,7 @@
 
 (assert (= (answer "day18-example.txt" 4) 4))
 (answer "day18.txt" 100)
+(binding [part2? true] (answer "day18.txt" 100))
 
 ;; (print-grid [6 6] (nth (light-seq "day18-example.txt") 4))
 
