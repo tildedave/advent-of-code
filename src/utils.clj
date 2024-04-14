@@ -60,3 +60,15 @@ will not be present in the new structure. "
           (dissoc m k)))
       m)
     (dissoc m k)))
+
+;; https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Longest_common_substring#Clojure
+(defn longest-common-substring
+  [str1 str2]
+  (loop [s1 (seq str1), s2 (seq str2), len 0, maxlen 0]
+    (cond
+      (>= maxlen (count s1)) maxlen
+      (>= maxlen (+ (count s2) len)) (recur (rest s1) (seq str2) 0 maxlen)
+      :else (let [a (nth s1 len ""), [b & s2] s2, len (inc len)]
+              (if (= a b)
+                (recur s1 s2 len (if (> len maxlen) len maxlen))
+                (recur s1 s2 0 maxlen))))))

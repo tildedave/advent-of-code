@@ -1,71 +1,78 @@
 (ns advent2015.day19
   (:require [utils :as utils]
+            [grid :as grid]
             [clojure.string :as string]))
+
+(defn tokenize [^String chem-string]
+  (loop [i 0
+         tokens []]
+    (if (= i (.length chem-string))
+      tokens
+      (let [char (.charAt chem-string i)]
+        (if (= (inc i) (.length chem-string))
+          (conj tokens (str (.charAt chem-string i)))
+          (let [next-char (.charAt chem-string (inc i))]
+            (if (Character/isLowerCase next-char)
+              (recur
+               (+ i 2)
+               (conj tokens (str char next-char)))
+              (recur
+               (inc i)
+               (conj tokens (str char))))))))))
 
 (defn parse-transforms [lines]
   (->> lines
        (map #(let [[source dest] (.split % " => ")]
-                {source [dest]}))
+                {source [(tokenize dest)]}))
         (reduce (partial merge-with concat) {})))
 
-(defn all-transforms [transforms ^String source-string]
+(defn all-transforms [transforms tokenized-vec]
   ;; looks like we can be stupid as there's no second letter that is also
   ;; the start of a sequence.
   ;; also no first letter that also is a second letter sequence. (whew)
   (->>
-   (loop [^String suffix source-string
-         prefix (StringBuilder.)
-         results []]
-    (if
-      (.isEmpty suffix) results
-      (let [first-str (.substring suffix 0 1)
-            rest-str (.substring suffix 1 (.length suffix))]
-        (if (contains? transforms first-str)
-          (let [prefix-str (.toString prefix)]
-            (recur
-             rest-str
-           ;; recursing assumes NO further transforms
-             (.append prefix first-str)
-             (reduce conj results
-                     (for [sub (transforms first-str)]
-                       (string/join [prefix-str sub rest-str])))))
-          (if (>= (.length suffix) 2)
-            (let [next-two-str (.substring suffix 0 2)
-                  rest-two-str (.substring suffix 2 (.length suffix))]
-              (if (contains? transforms next-two-str)
-                (let [prefix-str (.toString prefix)]
-                  (recur
-                   rest-two-str
-                   (.append prefix next-two-str)
-                   (reduce conj results
-                           (for [sub (transforms next-two-str)]
-                             (string/join [prefix-str sub rest-two-str])))))
-                (recur
-                 rest-str
-                 (.append prefix first-str)
-                 results))))))
-                  ])
-
+   (loop [idx 0
+          results []]
+     (if-let [x (get tokenized-vec idx)]
+       (recur
+        (inc idx)
+        (reduce conj results
+                (for [sub (transforms x)]
+                  (-> (subvec tokenized-vec 0 idx)
+                      (into sub)
+                      (into (subvec tokenized-vec (inc idx)))))))
+       results
+       ))
    (set)))
 
 (all-transforms
- (->> (utils/read-input "2015/day19-example.txt")
-     (parse-transforms))
- "HOHOHO")
+ (parse-transforms (utils/read-input "2015/day19-example.txt"))
+ (tokenize "HOHOHO"))
 
-;;                    )
-;;       (contains? transforms seq-1)
-;;       (recur
-;;        (drop 1 str-seq)
-;;        (.append prefix (string/join seq-1))
-;;        (reduce conj results
-;;                (.app)
-;;                (transforms seq-1)
-;;        ;; add all the transforms here.
-;;        )
-;;       (and (= (count seq-2 2) (contains? transforms seq-2)))
+(defn answer-part1 [filename]
+  (let [[transform-lines [source-str]] (utils/split-by "" (utils/read-input filename))]
+    (->> (all-transforms (parse-transforms transform-lines) (tokenize source-str))
+         (count))))
 
-;;         (let [x (first str-seq)])
-;;         )
-;;     )
-;;   )
+(answer-part1 "2015/day19.txt")
+
+
+(defn answer-part2 [transforms dest-string]
+  (grid/a*-search
+   "e"
+   #(= % dest-string)
+   (partial all-transforms transforms)
+   (fn [str] (* 100 (- (utils/longest-common-substring dest-string str))))
+   (fn [curr neighbor] (if (> (count neighbor) (count dest-string)) Integer/MAX_VALUE 1))))
+
+(answer-part2  (->> (utils/read-input "2015/day19-example2.txt")
+                    (parse-transforms)) "HOHOHO")
+
+(println "I answer"
+         (let [[transform-lines [dest-str]] (utils/split-by "" (utils/read-input "2015/day19.txt"))
+               transforms (parse-transforms transform-lines)]
+           (answer-part2 transforms dest-str)))
+
+(answer-part2  (->> (utils/read-input "2015/day19-example2.txt")
+                    (parse-transforms)) "HOHOHO")
+
