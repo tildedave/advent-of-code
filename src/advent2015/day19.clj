@@ -1,7 +1,8 @@
 (ns advent2015.day19
   (:require [utils :as utils]
             [grid :as grid]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clojure.set :as set]))
 
 (defn tokenize [^String chem-string]
   (loop [i 0
@@ -23,7 +24,7 @@
 (defn parse-transforms [lines]
   (->> lines
        (map #(let [[source dest] (.split % " => ")]
-                {source [(tokenize dest)]}))
+                {(tokenize source) [(tokenize dest)]}))
         (reduce (partial merge-with concat) {})))
 
 (defn all-transforms [transforms tokenized-vec]
@@ -33,7 +34,7 @@
   (->>
    (loop [idx 0
           results []]
-     (if-let [x (get tokenized-vec idx)]
+     (if-let [x [(get tokenized-vec idx)]]
        (recur
         (inc idx)
         (reduce conj results
@@ -45,34 +46,62 @@
        ))
    (set)))
 
-(all-transforms
- (parse-transforms (utils/read-input "2015/day19-example.txt"))
- (tokenize "HOHOHO"))
+;; (all-transforms
+;;  (parse-transforms (utils/read-input "2015/day19-example.txt"))
+;;  (tokenize "HOHOHO"))
 
 (defn answer-part1 [filename]
   (let [[transform-lines [source-str]] (utils/split-by "" (utils/read-input filename))]
     (->> (all-transforms (parse-transforms transform-lines) (tokenize source-str))
          (count))))
 
-(answer-part1 "2015/day19.txt")
+;; (answer-part1 "2015/day19.txt")
 
+(defn parse-transforms-p2 [lines]
+  (->> lines
+       (map #(let [[source dest] (.split % " => ")]
+               [dest source]))))
 
-(defn answer-part2 [transforms dest-string]
-  (grid/a*-search
-   "e"
-   #(= % dest-string)
-   (partial all-transforms transforms)
-   (fn [str] (* 100 (- (utils/longest-common-substring dest-string str))))
-   (fn [curr neighbor] (if (> (count neighbor) (count dest-string)) Integer/MAX_VALUE 1))))
+(shuffle (parse-transforms-p2 (utils/read-input "2015/day19-example.txt")))
 
-(answer-part2  (->> (utils/read-input "2015/day19-example2.txt")
-                    (parse-transforms)) "HOHOHO")
+;; A* search has failed me so we'll do something pretty dumb based on Reddit.
+;; https://old.reddit.com/r/adventofcode/comments/3xflz8/comment/cy4cu5b/
+;; this is sort of what I was playing around with via reverse map but simpler.
+(defn reduce-steps [transforms-p2 molecule-str]
+  (loop [curr molecule-str
+         n 0]
+    (if (= curr "e") n
+        (let [[next n]
+              (reduce
+               (fn [[curr n] [src dest]]
+                 (println curr n src dest)
+                 (if (.contains curr src)
+                   [(.replaceFirst curr src dest) (inc n)]
+                   [curr n]))
+               [curr n]
+               (shuffle transforms-p2))]
+          (if (= curr next)
+            (recur molecule-str 0)
+            (recur next n))))))
 
-(println "I answer"
-         (let [[transform-lines [dest-str]] (utils/split-by "" (utils/read-input "2015/day19.txt"))
-               transforms (parse-transforms transform-lines)]
-           (answer-part2 transforms dest-str)))
+;; (defn answer-part2 [transforms dest-string]
+;;   (grid/a*-search
+;;    "e"
+;;    #(= % dest-string)
+;;    (partial all-transforms transforms)
+;;    (fn [str] (* 100 (- (utils/longest-common-substring dest-string str))))
+;;    (fn [curr neighbor] (if (> (count neighbor) (count dest-string)) Integer/MAX_VALUE 1))))
 
-(answer-part2  (->> (utils/read-input "2015/day19-example2.txt")
-                    (parse-transforms)) "HOHOHO")
+;; (answer-part2  (->> (utils/read-input "2015/day19-example2.txt")
+;;                     (parse-transforms)) "HOHOHO")
+
+(println
+ (let [[transform-lines [dest-str]] (->> "2015/day19.txt"
+                                        (utils/read-input)
+                                        (utils/split-by ""))
+      transforms (parse-transforms-p2 transform-lines)]
+  (reduce-steps transforms dest-str)))
+
+;; (answer-part2  (->> (utils/read-input "2015/day19-example2.txt")
+;;                     (parse-transforms)) "HOHOHO")
 
