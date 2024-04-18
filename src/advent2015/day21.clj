@@ -67,30 +67,48 @@
                (sort)
                (first))))
 
-(defn max-gold-for [kw target]
-  (cond
-    (and (= kw :armor) (= target 0)) 0
-    :else (->> (for [[_ thing] (case kw :damage weapons :armor armor)]
-                 (->> (range 3)
-                      (map (fn [n]
-                             (map #(conj % thing)
-                                  (combo/selections (remove #(zero? (kw %)) (vals rings)) n))))
-                      (apply concat)))
-               (apply concat)
-               (concat (case kw
-                         :damage []
-                         :armor (->>
-                                 (range 3)
-                                 (map (fn [n] (combo/selections (remove #(zero? (kw %)) (vals rings)) n)))
-                                 (apply concat))))
-               (filter #(= (reduce + (map kw %)) target))
-            ;;    (sort-by #(reduce + (map :cost %)) >))))
-               (map #(reduce + (map :cost %)))
-               (sort >)
-               (first))))
+(defn combinations-up-to [coll n]
+  (apply concat
+         (for [i (range (inc n))] (combo/combinations coll i))))
 
-(max-gold-for :damage 4)
-(min-gold-for :damage 14)
+(combinations-up-to [1 2 3 4 5 6] 2)
+(combinations-up-to [(vals armor)] 1)
+(combo/combinations  (vals armor) 1)
+
+(defn max-gold-for [armor-target damage-target]
+  ;; must buy 1 weapon
+  ;; must buy 0-1 armor
+  ;; must buy 0-2 rings
+  (->>
+   (combo/cartesian-product
+    (combo/combinations (vals weapons) 1)
+    (combinations-up-to (vals armor) 1)
+    (combinations-up-to (vals rings) 2))
+   (map #(apply concat %))
+   (filter (fn [l]
+             (let [armor-result (reduce + (map :armor l))
+                   damage-result (reduce + (map :damage l))]
+               (and (= armor-result armor-target)
+                    (= damage-result damage-target)))))
+   (map #(reduce + (map :cost %)))
+   (sort >)
+   (first)))
+
+(->>  '(({:cost 8, :damage 4, :armor 0}) () ())
+      (apply concat)
+      (map :armor)
+      )
+
+(max-gold-for 0 4)
+
+(combo/cartesian-product
+ (vals weapons)
+ (combinations-up-to (vals armor) 1)
+ (combinations-up-to (vals rings) 2))
+
+(combinations-up-to (vals rings) 2)
+
+(max-gold-for 1 1)
 
 ;; so we just probe which values beat the boss and of the "critical points"
 ;; we find the minimum gold for it.
@@ -168,12 +186,11 @@
                                (assoc :armor a))
                            boss
                            true))))
-         (filter (fn [[d a]] (and (number? (max-gold-for :damage d)) (number? (max-gold-for :armor a)))))
-         (map (fn [[d a]] (+ (max-gold-for :damage d)
-                             (max-gold-for :armor a))))
+         (filter (fn [[d a]] (number? (max-gold-for a d))))
+         (map (fn [[d a]] (max-gold-for a d)))
          (sort >)
          (first))))
 
-(max-gold-for :damage 4)
+(max-gold-for :armor 0)
 
 (answer-p2 "2015/day21.txt")
