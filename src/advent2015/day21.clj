@@ -39,10 +39,10 @@
 
 (def armor
   {:leather {:cost 13 :damage 0 :armor 1}
-  :chainmail {:cost 31 :damage 0 :armor 2}
-  :splintmail {:cost 53 :damage 0 :armor 3}
-  :bandedmail {:cost 75 :damage 0 :armor 4}
-  :platemail {:cost 102 :damage 0 :armor 5}})
+   :chainmail {:cost 31 :damage 0 :armor 2}
+   :splintmail {:cost 53 :damage 0 :armor 3}
+   :bandedmail {:cost 75 :damage 0 :armor 4}
+   :platemail {:cost 102 :damage 0 :armor 5}})
 
 (def rings
   {:damage-plus-1 {:cost 25 :damage 1 :armor 0}
@@ -57,7 +57,9 @@
     (and (= kw :armor) (= target 0)) 0
     :else (->> (for [[_ thing] (case kw :damage weapons :armor armor)]
                  (->> (range 3)
-                      (map (fn [n] (map #(conj % thing) (combo/selections (vals rings) n))))
+                      (map (fn [n]
+                             (map #(conj % thing)
+                                  (combo/selections (vals rings) n))))
                       (apply concat)))
                (apply concat)
                (filter #(>= (reduce + (map kw %)) target))
@@ -70,21 +72,24 @@
     (and (= kw :armor) (= target 0)) 0
     :else (->> (for [[_ thing] (case kw :damage weapons :armor armor)]
                  (->> (range 3)
-                      (map (fn [n] (map #(conj % thing) (combo/selections (vals rings) n))))
+                      (map (fn [n]
+                             (map #(conj % thing)
+                                  (combo/selections (remove #(zero? (kw %)) (vals rings)) n))))
                       (apply concat)))
                (apply concat)
                (concat (case kw
                          :damage []
                          :armor (->>
                                  (range 3)
-                                 (map (fn [n] (combo/selections (vals rings) n)))
+                                 (map (fn [n] (combo/selections (remove #(zero? (kw %)) (vals rings)) n)))
                                  (apply concat))))
-               (filter #(<= (reduce + (map kw %)) target))
-               (sort-by #(reduce + (map :cost %)) >)
+               (filter #(= (reduce + (map kw %)) target))
+            ;;    (sort-by #(reduce + (map :cost %)) >))))
                (map #(reduce + (map :cost %)))
                (sort >)
                (first))))
 
+(max-gold-for :damage 4)
 (min-gold-for :damage 14)
 
 ;; so we just probe which values beat the boss and of the "critical points"
@@ -146,8 +151,8 @@
      (map (fn [[d a]] (+ (min-gold-for :damage d)
                          (min-gold-for :armor a))))
      (sort)
-     (first)
-     )))
+     (first))))
+
 
 (answer-p1 "2015/day21.txt")
 
