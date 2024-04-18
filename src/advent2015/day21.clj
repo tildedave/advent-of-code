@@ -65,6 +65,26 @@
                (sort)
                (first))))
 
+(defn max-gold-for [kw target]
+  (cond
+    (and (= kw :armor) (= target 0)) 0
+    :else (->> (for [[_ thing] (case kw :damage weapons :armor armor)]
+                 (->> (range 3)
+                      (map (fn [n] (map #(conj % thing) (combo/selections (vals rings) n))))
+                      (apply concat)))
+               (apply concat)
+               (concat (case kw
+                         :damage []
+                         :armor (->>
+                                 (range 3)
+                                 (map (fn [n] (combo/selections (vals rings) n)))
+                                 (apply concat))))
+               (filter #(<= (reduce + (map kw %)) target))
+               (sort-by #(reduce + (map :cost %)) >)
+               (map #(reduce + (map :cost %)))
+               (sort >)
+               (first))))
+
 (min-gold-for :damage 14)
 
 ;; so we just probe which values beat the boss and of the "critical points"
@@ -97,21 +117,24 @@
 
 (last (first (partition-by #(nil? (min-gold-for :damage %)) (range))))
 
-(defn answer-p1 [filename]
-  (let [player {:hit-points 100 :damage 0 :armor 0}
-        boss (parse-boss filename)
-        max-damage (->> (range)
+(defn all-damage-armor-pairs []
+  (let [max-damage (->> (range)
                         (partition-by #(nil? (min-gold-for :damage %)))
                         (first)
                         (last))
         max-armor (->> (range)
-                        (partition-by #(nil? (min-gold-for :armor %)))
-                        (first)
-                        (last))]
+                       (partition-by #(nil? (min-gold-for :armor %)))
+                       (first)
+                       (last))]
     (->>
      (for [d (range (inc max-damage))
-          a (range (inc max-armor))]
-      [d a])
+           a (range (inc max-armor))]
+       [d a]))))
+
+(defn answer-p1 [filename]
+  (let [player {:hit-points 100 :damage 0 :armor 0}
+        boss (parse-boss filename)]
+    (->> (all-damage-armor-pairs)
      (filter (fn [[d a]]
                (=
                 :p1-wins
@@ -119,11 +142,33 @@
                            (assoc :damage d)
                            (assoc :armor a))
                        boss
-                       true)))))))
+                       true))))
+     (map (fn [[d a]] (+ (min-gold-for :damage d)
+                         (min-gold-for :armor a))))
+     (sort)
+     (first)
+     )))
 
 (answer-p1 "2015/day21.txt")
 
-    (loop
-     [damage 0 armor 0 results []]
+(defn answer-p2 [filename]
+  (let [player {:hit-points 100 :damage 0 :armor 0}
+        boss (parse-boss filename)]
+    (->> (all-damage-armor-pairs)
+         (filter (fn [[d a]]
+                   (=
+                    :p2-wins
+                    (fight (-> player
+                               (assoc :damage d)
+                               (assoc :armor a))
+                           boss
+                           true))))
+         (filter (fn [[d a]] (and (number? (max-gold-for :damage d)) (number? (max-gold-for :armor a)))))
+         (map (fn [[d a]] (+ (max-gold-for :damage d)
+                             (max-gold-for :armor a))))
+         (sort >)
+         (first))))
 
-  (loop ))
+(max-gold-for :damage 4)
+
+(answer-p2 "2015/day21.txt")
