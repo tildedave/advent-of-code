@@ -2,7 +2,6 @@
   (:require [utils :as utils]
             [grid :as grid]))
 
-
 (def ^:dynamic part2? false)
 
 ;; so I guess this is an a* search
