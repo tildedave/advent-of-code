@@ -59,6 +59,7 @@
          [{start 0}
          (priority-map start 0)
           0]]
+    ;; (println (peek open-set))
     (if-let [[current _] (peek open-set)]
       (cond
         (is-goal? current) (goal-score (state-hash current))
