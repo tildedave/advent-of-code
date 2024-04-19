@@ -64,6 +64,7 @@
      (map #(assoc % :about-to-execute (get-in % [:program (:idx %)])))
      (map #(dissoc % :program))
      (take 24))
+
 (process-instruction (initial-state "2015/day23-example.txt"))
 
 (take 4 (program-seq "2015/day23-example.txt"))
