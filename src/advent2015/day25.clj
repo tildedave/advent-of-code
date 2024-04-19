@@ -30,7 +30,7 @@
          (bit-shift-right n 1)))))
 
 (defn nth-code [n]
-  (mod (* 20151125 (mod-exp 252533 n 33554393)) 33554393))
+  (mod (* 20151125 (mod-exp 252533 (dec n) 33554393)) 33554393))
 
 ;; so now we need to get a formula to go from 3,4 to n, the value we can
 ;; plug into n-th code.
@@ -47,6 +47,6 @@
   (let [[_ row col] (re-matches
                      #".*row (\d+), column (\d+)\.$"
                      (first (utils/read-input (format "2015/%s" filename))))]
-    (nth-code (dec (code-num (utils/parse-int row) (utils/parse-int col))))))
+    (nth-code (code-num (utils/parse-int row) (utils/parse-int col)))))
 
 (answer "day25.txt")
