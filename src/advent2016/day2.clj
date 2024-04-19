@@ -24,7 +24,7 @@
       [nx ny]
       [x y])))
 
-(defn process-instructions [keypad instr-lists]
+(defn process-instructions [keypad [x y] instr-lists]
   (loop [[x y] [x y]
          current-instr (first instr-lists)
          rest-instrs (rest instr-lists)
@@ -57,3 +57,11 @@
        (utils/parse-int)))
 
 (answer-part1)
+
+(defn answer-part2 []
+  (->> (utils/read-input "2016/day2.txt")
+       (map seq)
+       (process-instructions keypad-p2 [0 2])
+       (string/join)))
+
+(answer-part2)
