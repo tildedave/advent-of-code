@@ -56,7 +56,7 @@
          steps-left 0
          seen-locations #{}]
     (cond
-      (contains? seen-locations [x y]) [x y]
+      (contains? seen-locations [x y]) (+ (abs x) (abs y))
       (> steps-left 0)
       (recur
        instrs
@@ -81,6 +81,8 @@
         (throw (Exception. "reached end of instructions without visiting twice"))))))
 
 (parse-direction "L5")
+
+(process-direction-string "R8, R4, R4, R8" stepper-p2)
 
 (defn answer-part2 []
   (process-direction-string
