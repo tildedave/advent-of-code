@@ -18,6 +18,11 @@
 (defn answer-part2 []
   (->> (utils/read-input "2016/day3.txt")
        (map #(map utils/parse-int
-                   (-> % (string/trim) (string/split #"\s+"))))))
+                   (-> % (string/trim) (string/split #"\s+"))))
+       (apply interleave)
+       (partition 3)
+       (filter is-triangle-valid?)
+       (count)
+       ))
 
 (answer-part2)
