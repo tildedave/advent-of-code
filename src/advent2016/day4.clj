@@ -83,3 +83,5 @@
 
 (-> "qzmt-zixmtkozy-ivhz-343"
     decrypt)
+
+(answer-part2)
