@@ -56,3 +56,30 @@
                "totally-real-room-200[decoy]"])
 
 (answer-part1 (utils/read-input "2016/day4.txt"))
+
+
+(char 97)
+(int \a)
+(int \z)
+(- 122 97)
+
+(defn decrypt [room-name]
+  (let [sid (sector-id room-name)
+        room-wo-sid (string/join " " (-> room-name (.split "-") (drop-last)))]
+  (->> room-wo-sid
+       (seq)
+       (map (fn [ch] (if (= ch \space) \space (char (+ (mod (+ (- (int ch) 97) sid) 26) 97)))))
+       (string/join)
+  )))
+
+(defn answer-part2 []
+  (->> (utils/read-input "2016/day4.txt")
+       (map parse-room-with-checksum)
+       (filter is-real-room?)
+       (map first)
+       (filter #(string/includes? (decrypt %) "north"))
+       (first)
+       (sector-id)))
+
+(-> "qzmt-zixmtkozy-ivhz-343"
+    decrypt)
