@@ -1,7 +1,6 @@
 (ns advent2016.day11
   (:require [utils :as utils]
             [clojure.set :as set]
-            [clojure.math.combinatorics :as combo]
             [grid :as grid]))
 
 ;; so this is a good problem for A* search
