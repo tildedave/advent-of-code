@@ -78,3 +78,24 @@
                  [goal-score (pop open-set) (inc nodes)]
                  (neighbors current))))
        (throw (Exception. "could not reach goal"))))))
+
+(defn dijkstra-search [start neighbors should-cutoff?]
+  (loop [[visited distance queue] [#{} {start 0} (priority-map start 0)]]
+    (if (empty? queue)
+      visited
+      (let [[current dist] (peek queue)
+            queue (pop queue)
+            visited (conj visited current)]
+        (if (should-cutoff? current dist)
+          (recur [visited distance queue])
+          (recur
+           (reduce
+            (fn [[visited distance queue] neighbor]
+              (if
+               (contains? visited neighbor) [visited distance queue]
+               (let [alt (inc (distance current))]
+                 (if (< alt (get distance neighbor Integer/MAX_VALUE))
+                   [visited (assoc distance neighbor alt) (assoc queue neighbor alt)]
+                   [visited distance queue]))))
+            [visited distance queue]
+            (neighbors current))))))))

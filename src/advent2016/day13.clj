@@ -1,7 +1,6 @@
 (ns advent2016.day13
   (:require [grid :as grid]
-            [utils :as utils]
-            [clojure.data.priority-map :refer [priority-map]]))
+            [utils :as utils]))
 
 (defn is-wall? [puzzle-input]
   (memoize
@@ -53,28 +52,10 @@
 
 ;; unfortunately I have to actually code dijsktra's algo here.
 
-(defn num-locations [neighbors]
-  (let [start [1 1]]
-    (loop [[visited distance queue] [#{} {start 0} (priority-map start 0)]]
-      (if (empty? queue)
-        visited
-        (let [[current dist] (peek queue)
-              queue (pop queue)
-              visited (conj visited current)]
-          (if (= dist 50)
-            (recur [visited distance queue])
-            (recur
-             (reduce
-              (fn [[visited distance queue] neighbor]
-                (if
-                 (contains? visited neighbor) [visited distance queue]
-                 (let [alt (inc (distance current))]
-                   (if (< alt (get distance neighbor Integer/MAX_VALUE))
-                     [visited (assoc distance neighbor alt) (assoc queue neighbor alt)]
-                     [visited distance queue]))))
-              [visited distance queue]
-              (neighbors current)))))))))
-
 ;; unfortunately I coded it 99% correctly the first try.
 
-(count (num-locations (neighbors (is-wall? (puzzle-input)))))
+(count
+ (grid/dijkstra-search
+  [1 1]
+  (neighbors (is-wall? (puzzle-input)))
+  (fn [_ dist] (= dist 50))))
