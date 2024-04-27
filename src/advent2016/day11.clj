@@ -81,23 +81,21 @@
    (assoc state :elevator next-level)
    stuff-to-move))
 
+
 (defn neighbors [state]
   (let [level (state :elevator)
         current-floor-contents (state level)
-        things-to-move (concat
-                        (for [microchip (:microchips current-floor-contents)]
-                          [:microchips microchip])
-                        (for [generator (:generators current-floor-contents)]
-                          [:generators generator]))
-        move-possibilities (remove empty? (utils/combinations-up-to things-to-move 2))]
+        move-possibilities (->> (utils/combinations-up-to
+                                 (concat
+                                  (for [microchip (:microchips current-floor-contents)]
+                                    [:microchips microchip])
+                                  (for [generator (:generators current-floor-contents)]
+                                    [:generators generator])) 2)
+                                (remove empty?))]
     (->>
      (concat
-      (if (= level 1) '() (->> move-possibilities
-                               (map (partial next-state state level
-                                             (dec level)))))
-      (if (= level 4) '() (->> move-possibilities
-                               map (partial next-state state level
-                                            (inc level)))))
+      (if (= level 1) '() (map (partial next-state state level (dec level)) move-possibilities))
+      (if (= level 4) '() (map (partial next-state state level (inc level)) move-possibilities)))
      (filter is-legal?))))
 
 (->> (initial-state (utils/read-input "2016/day11-example.txt"))
@@ -122,12 +120,31 @@
           (for [n (range 1 4)]
     (* (- n) (count (reduce set/union (vals (state n))))))))
 
+(defn state-hash [state]
+  (assoc
+   (reduce merge
+   (for [n (range 1 5)]
+     (let [{:keys [generators microchips]} (state n)
+           pairs (set/intersection generators microchips)
+           unpaired-microchips (set/difference microchips pairs)
+           unpaired-generators (set/difference generators pairs)]
+       {n (concat
+           (repeat (count unpaired-generators) :generator)
+           (repeat (count unpaired-microchips) :microchip)
+           (repeat (count pairs) :pair))}))
+   )
+   :elevator (state :elevator)))
+
+(state-hash (initial-state (utils/read-input "2016/day11-example.txt")))
+
+
 (grid/a*-search
  (initial-state (utils/read-input "2016/day11-example.txt"))
  is-goal?
  neighbors
  heuristic
- (fn [_ _] 1))
+ (fn [_ _] 1)
+ state-hash)
 
 (defn answer-part1 []
   (grid/a*-search
@@ -135,21 +152,25 @@
    is-goal?
    neighbors
    heuristic
-   (fn [_ _] 1)))
+   (fn [_ _] 1)
+   state-hash))
 
-(heuristic (initial-state (utils/read-input "2016/day11-example.txt")))
-;; (answer-part1)
+
+;; (heuristic (initial-state (utils/read-input "2016/day11-example.txt")))
+(answer-part1)
+
 
 (defn answer-part2 []
-(grid/a*-search
- (-> (initial-state (utils/read-input "2016/day11.txt"))
-     (update-in [1 :generators] #(conj % "elerium"))
-     (update-in [1 :microchips] #(conj % "elerium"))
-     (update-in [1 :generators] #(conj % "dilithium"))
-     (update-in [1 :microchips] #(conj % "dilithium")))
- is-goal?
- neighbors
- heuristic
- (fn [_ _] 1)))
+  (grid/a*-search
+   (-> (initial-state (utils/read-input "2016/day11.txt"))
+       (update-in [1 :generators] #(conj % "elerium"))
+       (update-in [1 :microchips] #(conj % "elerium"))
+       (update-in [1 :generators] #(conj % "dilithium"))
+       (update-in [1 :microchips] #(conj % "dilithium")))
+   is-goal?
+   neighbors
+   heuristic
+   (fn [_ _] 1)
+   state-hash))
 
 (println (answer-part2))

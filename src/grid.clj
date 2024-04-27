@@ -56,7 +56,7 @@
    (a*-search start is-goal? neighbors heuristic distance identity))
   ([start is-goal? neighbors heuristic distance state-hash]
   (loop [[goal-score open-set nodes]
-         [{start 0}
+         [{(state-hash start) 0}
          (priority-map start 0)
           0]]
     ;; (println (peek open-set))
