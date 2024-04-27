@@ -55,26 +55,26 @@
   ([start is-goal? neighbors heuristic distance]
    (a*-search start is-goal? neighbors heuristic distance identity))
   ([start is-goal? neighbors heuristic distance state-hash]
-  (loop [[goal-score open-set nodes]
-         [{(state-hash start) 0}
-         (priority-map start 0)
-          0]]
+   (loop [[goal-score open-set nodes]
+          [{(state-hash start) 0}
+           (priority-map start 0)
+           0]]
     ;; (println (peek open-set))
-    (if-let [[current _] (peek open-set)]
-      (cond
-        (is-goal? current) (goal-score (state-hash current))
-        (> nodes 1000000) (throw (Exception. "too many nodes"))
-        :else (recur
-        (reduce
-         (fn [[goal-score open-set nodes] neighbor]
-           (let [n-distance (distance current neighbor)
-                 n-new-score (+ (goal-score (state-hash current)) n-distance)
-                 n-score (get goal-score (state-hash neighbor) Integer/MAX_VALUE)]
-             (if (< n-new-score n-score)
-               [(assoc goal-score (state-hash neighbor) n-new-score)
-                (assoc open-set neighbor (+ n-new-score (heuristic neighbor)))
-                nodes]
-               [goal-score open-set nodes])))
-         [goal-score (pop open-set) (inc nodes)]
-         (neighbors current))))
-      (throw (Exception. "could not reach goal"))))))
+     (if-let [[current _] (peek open-set)]
+       (cond
+         (is-goal? current) (goal-score (state-hash current))
+         (> nodes 1000000) (throw (Exception. "too many nodes"))
+         :else (recur
+                (reduce
+                 (fn [[goal-score open-set nodes] neighbor]
+                   (let [n-distance (distance current neighbor)
+                         n-new-score (+ (goal-score (state-hash current)) n-distance)
+                         n-score (get goal-score (state-hash neighbor) Integer/MAX_VALUE)]
+                     (if (< n-new-score n-score)
+                       [(assoc goal-score (state-hash neighbor) n-new-score)
+                        (assoc open-set neighbor (+ n-new-score (heuristic neighbor)))
+                        nodes]
+                       [goal-score open-set nodes])))
+                 [goal-score (pop open-set) (inc nodes)]
+                 (neighbors current))))
+       (throw (Exception. "could not reach goal"))))))
