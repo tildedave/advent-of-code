@@ -1,5 +1,6 @@
 (ns utils
-  (:require [clojure.java.io :as io]))
+  (:require [clojure.java.io :as io]
+            [clojure.math.combinatorics :as combo]))
 
 (defn read-resource-lines [resource]
   (line-seq (io/reader (io/resource resource))))
@@ -72,3 +73,10 @@ will not be present in the new structure. "
               (if (= a b)
                 (recur s1 s2 len (if (> len maxlen) len maxlen))
                 (recur s1 s2 0 maxlen))))))
+
+
+(defn combinations-up-to [coll n]
+  (apply concat
+         (for [i (range (inc n))] (combo/combinations coll i))))
+
+(combinations-up-to [1 2 3 4 5 6] 2)

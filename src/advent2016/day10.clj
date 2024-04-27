@@ -88,7 +88,7 @@
   (->> (state-seq (utils/read-input "2016/day10.txt"))
        (reduce (fn [_ [state status]] (if (= status :terminal) (reduced state) nil)))
        (:output)
-       (#(* (% 0) (% 1) (% 2)))
-       ))
+       (#(reduce * (map first [(% 0) (% 1) (% 2)]))
+       )))
 
 (answer-part2)

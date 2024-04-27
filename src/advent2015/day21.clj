@@ -67,14 +67,6 @@
                (sort)
                (first))))
 
-(defn combinations-up-to [coll n]
-  (apply concat
-         (for [i (range (inc n))] (combo/combinations coll i))))
-
-(combinations-up-to [1 2 3 4 5 6] 2)
-(combinations-up-to [(vals armor)] 1)
-(combo/combinations  (vals armor) 1)
-
 (defn max-gold-for [armor-target damage-target]
   ;; must buy 1 weapon
   ;; must buy 0-1 armor
@@ -82,8 +74,8 @@
   (->>
    (combo/cartesian-product
     (combo/combinations (vals weapons) 1)
-    (combinations-up-to (vals armor) 1)
-    (combinations-up-to (vals rings) 2))
+    (utils/combinations-up-to (vals armor) 1)
+    (utils/combinations-up-to (vals rings) 2))
    (map #(apply concat %))
    (filter (fn [l]
              (let [armor-result (reduce + (map :armor l))
@@ -103,10 +95,10 @@
 
 (combo/cartesian-product
  (vals weapons)
- (combinations-up-to (vals armor) 1)
- (combinations-up-to (vals rings) 2))
+ (utils/combinations-up-to (vals armor) 1)
+ (utils/combinations-up-to (vals rings) 2))
 
-(combinations-up-to (vals rings) 2)
+(utils/combinations-up-to (vals rings) 2)
 
 (max-gold-for 1 1)
 
