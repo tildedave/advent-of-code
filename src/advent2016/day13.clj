@@ -36,12 +36,12 @@
     (+ (abs (- gx x)) (abs (- gy y)))))
 
 (defn answer [puzzle-input [gx gy]]
-  (grid/a*-search
+  (first (grid/a*-search
    [1 1]
    (fn [[x y]] (and (= x gx) (= y gy)))
    (neighbors (is-wall? puzzle-input))
    (heuristic [gx gy])
-   (fn [_ _] 1)))
+   (fn [_ _] 1))))
 
 (defn puzzle-input []
   (utils/parse-int (first (utils/read-input "2016/day13.txt"))))

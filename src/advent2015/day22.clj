@@ -146,7 +146,7 @@
     (neighbor-states)
 )
 
-(grid/a*-search
+(first (grid/a*-search
  example1-state
  (fn [{:keys [result]}] (= result :boss-dead))
  neighbor-states
@@ -155,9 +155,9 @@
      :boss-dead -100000
      :player-dead Integer/MAX_VALUE
      (+ boss-hp hp)))
- (fn [_ {:keys [spent-mana]}] spent-mana))
+ (fn [_ {:keys [spent-mana]}] spent-mana)))
 
-(grid/a*-search
+(first (grid/a*-search
  example2-state
  (fn [{:keys [result]}] (= result :boss-dead))
  neighbor-states
@@ -166,7 +166,7 @@
      :boss-dead -100000
      :player-dead Integer/MAX_VALUE
      (+ boss-hp hp)))
- (fn [_ {:keys [spent-mana]}] spent-mana))
+ (fn [_ {:keys [spent-mana]}] spent-mana)))
 
 
 (neighbor-states {:hp 7, :mana 31, :boss-hp 6, :boss-damage 8, :spent-mana 53, :action :magic-missile})
@@ -174,7 +174,7 @@
 (starting-state "2015/day22.txt")
 
 (defn answer-part1 [filename]
-  (grid/a*-search
+  (first (grid/a*-search
    (starting-state filename)
    (fn [{:keys [result]}] (= result :boss-dead))
    neighbor-states
@@ -183,7 +183,7 @@
        :boss-dead -100000
        :player-dead Integer/MAX_VALUE
        (+ boss-hp hp)))
-   (fn [_ {:keys [spent-mana]}] spent-mana)))
+   (fn [_ {:keys [spent-mana]}] spent-mana))))
 
 (defn answer-part2 [filename]
   (binding [part2? true]

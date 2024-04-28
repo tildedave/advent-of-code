@@ -108,3 +108,11 @@ will not be present in the new structure. "
 (assert (= (crt-inductive '([0 3] [3 4] [4 5])) 39))
 
 (crt-inductive '([0 5] [1 2]))
+
+(let [md (java.security.MessageDigest/getInstance "MD5")
+      hex-format (java.util.HexFormat/of)]
+  (defn md5-hex [^String s]
+    (->> s
+         (.getBytes)
+         (.digest md)
+         (.formatHex hex-format))))

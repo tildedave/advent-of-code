@@ -146,13 +146,14 @@
  state-hash)
 
 (defn answer-part1 []
-  (grid/a*-search
-   (initial-state (utils/read-input "2016/day11.txt"))
-   is-goal?
-   neighbors
-   heuristic
-   (fn [_ _] 1)
-   state-hash))
+  (first
+   (grid/a*-search
+    (initial-state (utils/read-input "2016/day11.txt"))
+    is-goal?
+    neighbors
+    heuristic
+    (fn [_ _] 1)
+    state-hash)))
 
 
 ;; (heuristic (initial-state (utils/read-input "2016/day11-example.txt")))
@@ -160,7 +161,8 @@
 
 
 (defn answer-part2 []
-  (grid/a*-search
+  (first
+   (grid/a*-search
    (-> (initial-state (utils/read-input "2016/day11.txt"))
        (update-in [1 :generators] #(conj % "elerium"))
        (update-in [1 :microchips] #(conj % "elerium"))
@@ -170,6 +172,6 @@
    neighbors
    heuristic
    (fn [_ _] 1)
-   state-hash))
+   state-hash)))
 
 (println (answer-part2))

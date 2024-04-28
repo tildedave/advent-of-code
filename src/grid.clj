@@ -62,7 +62,7 @@
     ;; (println (peek open-set))
      (if-let [[current _] (peek open-set)]
        (cond
-         (is-goal? current) (goal-score (state-hash current))
+         (is-goal? current) [(goal-score (state-hash current)) current]
          (> nodes 1000000) (throw (Exception. "too many nodes"))
          :else (recur
                 (reduce
