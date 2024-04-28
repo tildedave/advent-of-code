@@ -46,3 +46,4 @@
 
 (answer "10000" 20)
 (answer (first (utils/read-input "2016/day16.txt")) 272)
+(answer (first (utils/read-input "2016/day16.txt")) 35651584)
