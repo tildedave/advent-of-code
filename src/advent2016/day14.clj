@@ -11,6 +11,15 @@
      (.formatHex hex-format (.digest md (.getBytes (format "%s%d" salt num))))
      )))
 
+(defn stretched-hash [salt]
+  (memoize
+   (fn [num]
+     (->> (iterate #(.formatHex hex-format (.digest md (.getBytes %))) (format "%s%d" salt num))
+          (drop 2017)
+          (first)))))
+
+((stretched-hash "abc") 0)
+
 (defn triple [s]
   (let [end (dec (count s))]
   (loop [idx 1]
@@ -29,7 +38,7 @@
        (loop [idx 2
               results #{}]
          (cond
-           (= idx end) results
+           (>= idx end) results
            (apply = (map #(.charAt s %) (range (- idx 2) (+ idx 3))))
            (recur
             (+ idx 3)
@@ -44,6 +53,7 @@
 (defn is-key? [hash-fn]
   (let [five-in-a-row (five-in-a-row hash-fn)]
     (fn [n]
+      (if (zero? (mod n 100)) (println "checking is-key?" n) nil)
       (if-let [triple-ch (triple (hash-fn n))]
         (loop [i (inc n)]
           (cond
@@ -62,5 +72,15 @@
         is-key? (is-key? hash-fn)]
     (nth (filter #(is-key? %) (range)) 63)))
 
-(answer "abc")
-(answer (first (utils/read-input "2016/day14.txt")))
+;; (answer "abc")
+;; (answer (first (utils/read-input "2016/day14.txt")))
+
+(defn answer-part2 [salt]
+  (let [hash-fn (stretched-hash salt)
+        is-key? (is-key? hash-fn)]
+    (nth (filter #(is-key? %) (range)) 63)))
+
+((is-key? (stretched-hash "abc")) 10)
+
+;; (time (println (answer-part2 "abc")))
+(time (println (answer-part2 (first (utils/read-input "2016/day14.txt")))))
