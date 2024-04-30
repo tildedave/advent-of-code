@@ -103,6 +103,8 @@
           :else (+ x (* 2 (mod n x))))))
 
 (answer-part2 100)
+(answer-part2 (utils/parse-int (first (utils/read-input "2016/day19.txt"))))
+
 
 (highest-power-of-3 5)
 
