@@ -136,18 +136,21 @@
     (->> (utils/read-input "2016/day21.txt")
          (map parse-instruction)))))
 
-(defn scrambled-password [passwd-map]
-  (to-passwd
-   (reduce
-    perform-instruction
-    passwd-map
-    (->> (utils/read-input "2016/day21.txt")
-         (map parse-instruction)))))
-
 (count (combo/permutations [\a \b \c \d \e \f \g \h]))
 (defn answer-part2 []
-  (->> (combo/permutations [\a \b \c \d \e \f \g \h])
-       (map #(into {} (map-indexed vector %)))
-       (first)
-       ))
+  (let [instructions (->> (utils/read-input "2016/day21.txt")
+                          (map parse-instruction))
+        scrambled-password (fn [passwd-map]
+                             (to-passwd
+                              (reduce
+                               perform-instruction
+                               passwd-map
+                               instructions)))]
+    (->> (combo/permutations [\a \b \c \d \e \f \g \h])
+         (map #(into {} (map-indexed vector %)))
+         (filter #(= (scrambled-password %) "fbgdceah"))
+         (first)
+         (to-passwd))))
+
+(answer-part2)
 
