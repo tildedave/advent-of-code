@@ -34,25 +34,40 @@
     (reduce merge))))
 
 (defn path-length [adj path]
-  (loop [path path
-         result 0]
-    (if-let [[x y & rest] path]
-      (get-in adj x y)
-      (empty? path) result
-        ()
-        )
-    ()))
+  (reduce + (map (fn [x y]
+         (get-in adj [x y]))
+       path (rest path))))
 
-(let [grid (grid/parse (utils/read-input "2016/day24-example.txt"))
-      adj (adjacency-matrix grid)
-      zero-coord (->> (grid/coords grid)
-                      (filter #(= (grid/at grid %) \0))
-                      (first))]
-  (->> (combo/permutations (keys adj))
-       (filter (fn [l] (= (first l) zero-coord)))
-       (map (partial path-length adj))
-       (sort)
-       (first)))
+(defn answer [filename]
+  (let [grid (grid/parse (utils/read-input filename))
+        adj (adjacency-matrix grid)
+        zero-coord (->> (grid/coords grid)
+                        (filter #(= (grid/at grid %) \0))
+                        (first))]
+    (->> (combo/permutations (keys adj))
+         (filter (fn [l] (= (first l) zero-coord)))
+         (map (partial path-length adj))
+         (sort)
+         (first))))
+
+(answer "2016/day24-example.txt")
+(answer "2016/day24.txt")
+
+(defn answer-part2 [filename]
+  (let [grid (grid/parse (utils/read-input filename))
+         adj (adjacency-matrix grid)
+         zero-coord (->> (grid/coords grid)
+                         (filter #(= (grid/at grid %) \0))
+                         (first))]
+     (->> (combo/permutations (keys adj))
+          (map #(concat % (list zero-coord)) )
+          (filter (fn [l] (= (first l) zero-coord)))
+          (map (partial path-length adj))
+          (sort)
+          (first))))
+
+(answer-part2 "2016/day24.txt")
+)
 
   (combo/)(keys adj))
 
