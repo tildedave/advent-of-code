@@ -25,19 +25,21 @@
 (defn add [[x y] [dx dy]]
   [(+ x dx) (+ y dy)])
 
+(defn at [grid [x y]]
+  (get-in grid [y x]))
+
 (defn neighbors
   ([grid [x y]] (neighbors grid [x y] cardinal-directions))
-  ([grid [x y] directions]
+  ([grid [x y] directions] (neighbors grid [x y] directions (fn [_] false)))
+  ([grid [x y] directions is-wall?]
    (remove
     nil?
     (for [[dx dy] directions]
       (let [[nx ny] [(+ x dx) (+ y dy)]]
-        (if (out-of-bounds? grid [nx ny])
-          nil
-          [nx ny]))))))
-
-(defn at [grid [x y]]
-  (get-in grid [y x]))
+        (cond
+          (out-of-bounds? grid [nx ny]) nil
+          (is-wall? (at grid [nx ny])) nil
+          :else [nx ny]))))))
 
 (defn coords [grid]
   (let [xmax (count (first grid))
@@ -82,7 +84,7 @@
 (defn dijkstra-search [start neighbors should-cutoff?]
   (loop [[visited distance queue] [#{} {start 0} (priority-map start 0)]]
     (if (empty? queue)
-      visited
+      distance
       (let [[current dist] (peek queue)
             queue (pop queue)
             visited (conj visited current)]
