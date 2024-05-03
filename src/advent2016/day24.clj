@@ -67,14 +67,3 @@
           (first))))
 
 (answer-part2 "2016/day24.txt")
-)
-
-  (combo/)(keys adj))
-
-
-
-(grid/neighbors
-
- [1 1]
- grid/cardinal-directions
- (fn [ch] (not= ch \#)))
