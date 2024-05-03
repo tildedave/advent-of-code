@@ -46,11 +46,20 @@
 
 (answer (utils/parse-int (first (utils/read-input "2017/day3.txt"))))
 
-(reductions
- (fn [acc [[x y]]]
-   (assoc acc [x y]
-          (->> (for [[dx dy] grid/all-directions]
-                 (get acc [(+ x dx) (+ y dy)] 0))
-               (reduce +))))
- {[0 0] 1}
- ride-the-spiral)
+(defn answer-part2 []
+  (let [bound (utils/parse-int (first (utils/read-input "2017/day3.txt")))]
+    (reduce
+     (fn [acc [_ n]]
+       (if (> n bound)
+         (reduced n)
+         acc))
+     (reductions
+      (fn [[acc l] [[x y]]]
+        (let [l (->> (for [[dx dy] grid/all-directions]
+                       (get acc [(+ x dx) (+ y dy)] 0))
+                     (reduce +))]
+          [(assoc acc [x y] l) l]))
+      [{[0 0] 1} 1]
+      (rest ride-the-spiral)))))
+
+(answer-part2)
