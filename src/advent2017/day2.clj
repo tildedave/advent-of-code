@@ -19,11 +19,12 @@
 
 (defn row-divisibility [row]
   (->> (combo/combinations row 2)
-       (map (fn [m n] (cond
+       (map (fn [[m n]] (cond
                         (zero? (mod m n)) (quot m n)
                         (zero? (mod n m)) (quot n m)
                         :else 0)))
-       (remove zero?)))
+       (remove zero?)
+       (first)))
 
 (row-divisibility '(5 9 2 8))
 
@@ -33,3 +34,5 @@
         (map parse-row)
         (map row-divisibility)
         (reduce +)))
+
+(answer-part2)
