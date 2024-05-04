@@ -51,3 +51,15 @@
 
 (answer [0 2 7 0])
 (answer (map utils/parse-int (.split #"\s+" (first (utils/read-input "2017/day6.txt")))))
+
+(defn answer-part2 [nums]
+  (reduce
+   (fn [[acc n] num-map]
+     (if (contains? acc num-map)
+       (reduced (- n (acc num-map)))
+       [(assoc acc num-map n) (inc n)]))
+   [{} 0]
+   (iterate step (make-map nums))))
+
+(answer-part2 [0 2 7 0])
+(answer-part2 (map utils/parse-int (.split #"\s+" (first (utils/read-input "2017/day6.txt")))))
