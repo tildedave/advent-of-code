@@ -39,8 +39,7 @@
        (if-let [{:keys [length position]} (state my-position)]
          [(inc my-position)
           (if (zero? position)
-            (do (println "caught at" my-position)
-            (+ total-severity (* length my-position)))
+            (+ total-severity (* length my-position))
             total-severity)]
          [(inc my-position)
           total-severity]))
@@ -52,3 +51,28 @@
 
 (answer "2017/day13-example.txt")
 (answer "2017/day13.txt")
+
+(defn is-caught? [state-seq]
+  (let [n (reduce max (keys (first state-seq)))]
+    (->>
+     state-seq
+     (take (inc n))
+     (reduce (fn [[my-position caught?] state]
+               (if (and (contains? state my-position)
+                        (zero? (get-in state [my-position :position])))
+                   (reduced [my-position true])
+                   [(inc my-position) false]))
+             [0 false])
+     (second))))
+
+(is-caught? (drop 9 (iterate tick (parse-lengths "2017/day13-example.txt"))))
+
+;; brute force for part 2 😎
+(let [lengths (parse-lengths "2017/day13.txt")]
+  (reduce
+   (fn [state-seq n]
+     (if (is-caught? state-seq)
+       (rest state-seq)
+       (reduced n)))
+   (iterate tick lengths)
+   (range)))
