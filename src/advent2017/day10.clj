@@ -82,3 +82,5 @@
 (answer-part2 "AoC 2017" 256)
 
 (answer-part2 (first (utils/read-input "2017/day10.txt")) 256)
+
+(defn knot-hash [s] (answer-part2 s 256))
