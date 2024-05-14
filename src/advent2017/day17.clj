@@ -6,7 +6,7 @@
     (swap! a #(assoc % :next a))
     {:node a :next-number 1}))
 
-(:num (deref (:next (deref (initial-state)))))
+;; (:num (deref (:next (deref (initial-state)))))
 
 (defn print-node [node n]
   (first
@@ -41,3 +41,19 @@
 (answer (->> (utils/read-input "2017/day17.txt")
              (first)
              (utils/parse-int)))
+
+(defn number-after-0 [steps-per-insert]
+  (first
+   (reduce
+   (fn [[last-zero idx] n]
+     (let [next-idx (mod (+ idx steps-per-insert) (dec n))]
+       [(if (zero? next-idx)
+          (dec n)
+          last-zero)
+        (mod (inc next-idx) n)]))
+   [0 0]
+   (range 2 50000000))))
+
+(number-after-0 (->> (utils/read-input "2017/day17.txt")
+                                    (first)
+                                    (utils/parse-int)))
