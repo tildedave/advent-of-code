@@ -114,16 +114,16 @@
                       (>!! (case p
                                 0 b-input
                                 1 a-input) (resolve x))
-                      ;; (if (= p 1)
-                      (send printer (fn [s] (println "*****" (inc (:num-sends state)) p "*****")))
+                      (if (= p 1)
+                      (send printer (fn [s] (println "*****" (inc (:num-sends state)) p "*****"))))
                       (-> state
                           (update :pc inc)
                           (update :num-sends inc)))
                :rcv (let [q (<!! (case p 0 a-input 1 b-input))
                           _ (send printer (fn [s] (println "received" q "p" p)))]
                       (-> state
-                        (assoc [:registers x] q)
-                        (update state :pc inc)))
+                        (assoc-in [:registers x] q)
+                        (update :pc inc)))
                :set (-> state
                         (assoc-in [:registers x] (resolve y))
                         (update :pc inc))
