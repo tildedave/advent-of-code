@@ -50,11 +50,11 @@
                              (first))
                         direction)
             coords (walk-direction coords direction)
-            done? (or (nil? ch) (= (grid/at grid coords) \space))]
+            done? (let [next-ch (grid/at grid coords)]
+                    (or (= next-ch \space) (= next-ch nil)))]
         (-> state
             (update :steps inc)
-            (update :seen #(cond (nil? ch) %
-                                 (Character/isAlphabetic (int ch)) (conj % ch)
+            (update :seen #(cond (Character/isAlphabetic (int ch)) (conj % ch)
                                  :else %))
             (assoc :direction direction)
             (assoc :done? done?)
