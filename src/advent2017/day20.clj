@@ -27,6 +27,34 @@
 
 (iterate step (parse-particle "p=<3,0,0>, v=<2,0,0>, a=<-1,0,0>"))
 
-(->> (utils/read-input "2017/day20.txt")
-     (map parse-particle)
-     (map (partial iterate step)))
+(defn answer-part1 []
+  (let [long-enough-threshold 1000]
+    (->> (utils/read-input "2017/day20.txt")
+         (map parse-particle)
+         (map (partial iterate step))
+         (map-indexed (fn [n state-list] [n (manhattan-distance (nth state-list long-enough-threshold))]))
+         (sort-by second)
+         (first)
+         (first))))
+
+
+
+(defn reductive-step [particles]
+  (let [next-particles (map step particles)
+        positions (map #(select-keys % [:px :py :pz]) next-particles)
+        common-positions (->> (frequencies positions)
+                              (filter (fn [[_ n]] (> n 1)))
+                              (map first)
+                              (set))]
+    (->> next-particles
+         (remove #(contains? common-positions (select-keys % [:px :py :pz]))))))
+
+(defn answer-part2 []
+  (->
+   (->> (utils/read-input "2017/day20.txt")
+        (map parse-particle)
+        (iterate reductive-step))
+   (nth 10000)
+   (count)))
+
+(answer-part2)
