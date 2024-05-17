@@ -33,8 +33,27 @@
   {:pc 0
    :registers {"a" 0 "b" 0 "c" 0 "d" 0 "e" 0 "f" 0 "g" 0 "h" 0}})
 
-(let [program (->> (utils/read-input "2017/day23.txt")
+(defn answer-part1 []
+  (let [program (->> (utils/read-input "2017/day23.txt")
+                     (mapv parse-instr))]
+    (->> (iterate (step program) (initial-state))
+         (partition-by #(contains? program (:pc %)))
+         (first)
+         (map #(first (get program (:pc %))))
+         (filter (partial = :mul))
+         (count))))
+
+
+(let [program (->> (utils/read-input "2017/day23-modded.txt")
                    (mapv parse-instr))]
   (->> (iterate (step program) (initial-state))
        (partition-by #(contains? program (:pc %)))
-       (first)))
+       (first)
+       (last)))
+
+
+(let [program (->> (utils/read-input "2017/day23.txt")
+                   (mapv parse-instr))]
+  (iterate (step program) (assoc-in (initial-state) [:registers "a"] 1)))
+
+(- 123700 106700)
