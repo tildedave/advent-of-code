@@ -25,7 +25,7 @@
      (map count)
      (reduce *))
 
-(->> (combo/combinations (utils/read-input "2018/day2-example2.txt") 2)
+(->> (combo/combinations (utils/read-input "2018/day2.txt") 2)
      (map (fn [[s1 s2]]
             (let [diffs (->> (map = (seq s1) (seq s2))
                              (remove true?))]
@@ -34,7 +34,7 @@
                      (filter #(apply = %))
                      (map first)
                      (string/join)
-                     (first)
                      )
                 nil))))
-     (remove nil?))
+     (remove nil?)
+     (first))
