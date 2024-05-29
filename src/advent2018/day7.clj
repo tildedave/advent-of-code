@@ -34,8 +34,7 @@
           (fn [acc [order keys-left deps]]
             (if (empty? keys-left)
               (reduced (string/join order))
-              acc
-            ))
+              acc))
           nil))))
 
 (->> (utils/read-input "2018/day7.txt")
@@ -53,6 +52,44 @@
 (into {} [[1 2] [3 4]])
 (int \A)
 
+(defn complete-workers [state]
+  (let [{:keys [workers]} state
+        just-done-workers (->> workers
+                               (map (fn [[worker-num {:keys [letter time-left]}]]
+                                      (if (and (zero? time-left)
+                                               (not (nil? letter)))
+                                        [worker-num letter]
+                                        nil)))
+                               (remove nil?))
+        just-done-letters (set (map second just-done-workers))
+        next-workers (reduce
+                      (fn [workers worker-num]
+                        (assoc-in workers [worker-num :letter] nil))
+                      workers
+                      (map first just-done-workers))]
+    (-> state
+        (update :keys-left #(set/difference % just-done-letters))
+        (update :deps #(update-vals % (fn [s] (set/difference s just-done-letters))))
+        (update :order #(into % just-done-letters))
+        (assoc :workers next-workers))))
+
+(defn assign-new-workers [state tax]
+  (let [{:keys [keys-left workers deps]} state
+        idle-workers (->> workers
+                          (filter (fn [[_ {:keys [time-left]}]] (zero? time-left)))
+                          (map first))
+        still-working-letters (set (remove nil? (map :letter (vals workers))))
+        available-keys (ready-keys deps (set/difference keys-left still-working-letters))
+        new-assignments (->> (map vector idle-workers available-keys)
+                             (into {}))]
+    (update state :workers (fn [workers] (->> workers
+                                              (map (fn [[worker-num {:keys [time-left letter]}]]
+                                                     [worker-num
+                                                      (if-let [letter (new-assignments worker-num)]
+                                                        {:time-left (+ tax (- (int (.charAt letter 0)) 65))
+                                                         :letter letter}
+                                                        {:time-left (max (dec time-left) 0) :letter letter})]))
+                                              (into {}))))))
 
 (defn topo-sort-with-workers [tax num-workers backward-deps]
   (let [all-keys (set/union (set (keys backward-deps))
@@ -63,58 +100,29 @@
     (->> (iterate
          ;; it's easiest for iterate to "tick" a second forward,
          ;; even though this is a lot of extra states.
-          (fn [[curr-second order keys-left workers deps]]
-            (let [just-done-workers (->> workers
-                                         (map (fn [[worker-num {:keys [letter time-left]}]]
-                                                (if (and (zero? time-left)
-                                                         (not (nil? letter)))
-                                                  [worker-num letter]
-                                                  nil)))
-                                         (remove nil?))
-                  just-done-letters (set (map second just-done-workers))
-                  workers (reduce
-                           (fn [workers worker-num]
-                             (assoc-in workers [worker-num :letter] nil))
-                           workers
-                           (map first just-done-workers))
-                  ;; _ (println "just-done-letters" just-done-letters)
-                  order (into order just-done-letters)
-                  idle-workers (->> workers
-                                    (filter (fn [[_ {:keys [time-left]}]] (zero? time-left)))
-                                    (map first))
-                  ;; _ (println "idle-workers" idle-workers)
-                  working-letters (set (remove nil? (map :letter (vals workers))))
-                  keys-left (set/difference keys-left just-done-letters)
-                  deps (update-vals deps #(set/difference % just-done-letters))
-                  new-assignments (->> (map vector idle-workers (ready-keys deps (set/difference keys-left working-letters)))
-                                       (into {}))
-                  ;; _ (println "new assigments" new-assignments)
-                  next-workers (->> workers
-                                    (map (fn [[worker-num {:keys [time-left letter]}]]
-                                           [worker-num
-                                            (if-let [letter (new-assignments worker-num)]
-                                              {:time-left (+ tax (- (int (.charAt letter 0)) 65))
-                                               :letter letter}
-                                              {:time-left (max (dec time-left) 0) :letter letter})]))
-                                    (into {}))]
-              [(inc curr-second)
-               order
-               keys-left
-               next-workers
-               deps]))
-          [0 [] all-keys starting-workers backward-deps])
+          (fn [[curr-second state]]
+            [(inc curr-second)
+             (-> state
+                 (complete-workers)
+                 (assign-new-workers tax))])
+          [0 {:keys-left all-keys
+              :order []
+              :workers starting-workers
+              :deps backward-deps}])
+    ;; )))
          (reduce
-          (fn [acc [curr-second _ keys-left]]
+          (fn [acc [curr-second {:keys [keys-left]}]]
             (if (empty? keys-left)
               (reduced (dec curr-second))
-              acc)))
-  )))
+              acc))))))
 
 (->> (utils/read-input "2018/day7.txt")
      (map parse-step)
      (reduce (partial merge-with set/union) {})
      (backward-deps)
      (topo-sort-with-workers 60 5)
+    ;;  (take 3)
+    ;;  (last)
     ;;  (println)
     ;;  (take 16)
     ;;  (last)
