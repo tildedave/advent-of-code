@@ -41,7 +41,7 @@
                                   ((fn [[[initial-str] trans-strs]]
                                      [(parse-initial-state initial-str)
                                       (reduce merge (map parse-transformation trans-strs))])))]
-    (map print-pots (iterate (step transformations) pots)))
+  (map print-pots (iterate (step transformations) pots)))
 
 (defn answer [filename]
   (let [[pots transformations] (->> (utils/read-input filename)
@@ -49,6 +49,29 @@
                                     ((fn [[[initial-str] trans-strs]]
                                        [(parse-initial-state initial-str)
                                         (reduce merge (map parse-transformation trans-strs))])))]
-    (nth (iterate (step transformations) pots) 20)))
+    (->> (nth (iterate (step transformations) pots) 20)
+         (keys)
+         (reduce +))))
 
 (println (answer "2018/day12-example.txt"))
+(println (answer "2018/day12.txt"))
+
+(defn pot-sum [pots]
+  (reduce + (keys pots)))
+
+(defn answer-part2 [filename]
+  (let [[pots transformations] (->> (utils/read-input filename)
+                                    (utils/split-by "")
+                                    ((fn [[[initial-str] trans-strs]]
+                                       [(parse-initial-state initial-str)
+                                        (reduce merge (map parse-transformation trans-strs))])))
+        pot-sum-seq (->> (iterate (step transformations) pots)
+                         (map pot-sum))
+        diff-seq (map (fn [n x1 x2] [n (- x1 x2)]) (range) (rest pot-sum-seq) pot-sum-seq)
+        [n delta] (->> (map vector diff-seq (rest diff-seq))
+                       (drop-while (fn [[[_ diff1] [_ diff2]]] (not= diff1 diff2)))
+                       (first)
+                       (first))]
+    (+ starting-point (* delta (- 50000000000N n)))))
+
+    (println (answer-part2 "2018/day12.txt"))
