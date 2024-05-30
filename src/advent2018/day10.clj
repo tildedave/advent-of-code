@@ -42,6 +42,7 @@
     x
     (recur f (dec n) (f x))))
 (+ 10500 211)
+
 (->> (utils/read-input "2018/day10.txt")
      (map parse-point)
      (apply-n #(mapv step %) 10500)
