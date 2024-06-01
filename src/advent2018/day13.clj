@@ -68,18 +68,22 @@
     ;; new direction (and make the step from there).
   (reduce
    (fn [carts cart]
-     (if (:crashed? cart)
+     (if (or (:crashed? cart) (not (contains? carts (:id cart))))
        carts
        (let [next-cart (move-cart grid cart)
+             next-coords (:coords next-cart)
              crash-carts (filter (fn [{:keys [coords id]}] (and
                                                          (not= (:id next-cart) id)
-                                                         (= (:coords next-cart) coords)))
+                                                         (= next-coords coords)))
                                  (vals carts))]
          (if (empty? crash-carts)
            (assoc carts (:id next-cart) next-cart)
-           (if part2?
+           (if true
              (reduce
-              dissoc
+              (fn [carts id]
+                (if (not (contains? carts id))
+                  (throw (Exception. "asked to remove cart that did not exist")))
+                (dissoc carts id))
               (dissoc carts (:id next-cart))
               (map :id crash-carts))
              (reduce
@@ -89,27 +93,30 @@
    carts
    (sort-by :coords cart-compare (vals carts))))
 
-;; part1
+;; part 1
 (let [[grid carts] (->> (utils/read-input "2018/day13.txt")
                         (parse-track)
                         (extract-carts))]
   (reduce
-   (fn [acc carts]
+   (fn [acc [n carts]]
      (if-let [x (first (filter :crashed? carts))]
-       (reduced (:coords x))
+       (reduced [n (:coords x)])
        acc))
    nil
-   (map vals (iterate (partial tick grid) carts))))
+   (map-indexed
+    (fn [n c] [n (vals c)])
+    (iterate (partial tick grid) carts))))
 
-(binding [part2? true]
-  (let [[grid carts] (->> (utils/read-input "2018/day13.txt")
-                          (parse-track)
-                          (extract-carts))]
+;; part 2
+(let [[grid carts] (->> (utils/read-input "2018/day13.txt")
+                        (parse-track)
+                        (extract-carts))]
     (reduce
-     (fn [acc carts]
+     (fn [acc [n carts]]
        (case (count carts)
-         1 (reduced (:coords (first carts)))
+         1 (reduced [n (:coords (first carts))])
          acc))
      nil
-     (map vals (iterate #(tick grid %) carts))))
-)
+     (map-indexed
+      (fn [n c] [n (vals c)])
+      (iterate #(binding [part2? true] (tick grid %)) carts))))
