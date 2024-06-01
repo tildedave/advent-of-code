@@ -72,6 +72,8 @@
                        (drop-while (fn [[[_ diff1] [_ diff2]]] (not= diff1 diff2)))
                        (first)
                        (first))]
-    (+ starting-point (* delta (- 50000000000N n)))))
+    (+ (nth pot-sum-seq n) (* delta (- 50000000000N n)))))
 
-    (println (answer-part2 "2018/day12.txt"))
+(* (- 50000000000 128) 78)
+
+(println (answer-part2 "2018/day12.txt"))
