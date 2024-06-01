@@ -1,6 +1,8 @@
 (ns advent2018.day13
   (:require [utils :as utils]))
 
+(def ^:dynamic part2? false)
+
 (defn parse-track [lines]
   (->> lines
        (map-indexed
@@ -18,7 +20,10 @@
   [(update-vals grid (fn [ch] (case ch \v \| \^ \| \> \- \< \- ch)))
    (->> grid
         (filter (fn [[coords ch]] (contains? #{\^ \v \> \<} ch)))
-        (map (fn [[coords ch]] {:coords coords :dir ch :num-intersections 0 :crashed? false})))])
+        (map (fn [[coords ch]]
+               (let [id (random-uuid)]
+                 {id {:coords coords :dir ch :num-intersections 0 :crashed? false :id id}})))
+        (reduce merge))])
 
 (->> (utils/read-input "2018/day13-example.txt")
      (parse-track)
@@ -57,26 +62,34 @@
         (assoc :dir dir)
         (assoc :num-intersections num-intersections))))
 
-(defn tick [grid]
-  (fn [carts]
+(defn tick [grid carts]
     ;; for each cart, step it forward
     ;; if a cart is at a "+", then we apply the num to determine
     ;; new direction (and make the step from there).
-    (reduce
-     (fn [carts cart]
-       (if (:crashed? cart)
-         (conj carts cart)
-         (let [next-cart (move-cart grid cart)
-               crash-carts (filter (fn [{:keys [coords]}] (= (:coords next-cart) coords)) carts)]
-           (if (empty? crash-carts)
-             (conj carts next-cart)
-             (conj (map (fn [cart] (if (= (:coords cart) (:coords next-cart))
-                                     (assoc cart :crashed? true)
-                                     cart)) carts)
-                   (assoc next-cart :crashed? true))))))
-     []
-     (sort-by :coords cart-compare carts))))
+  (reduce
+   (fn [carts cart]
+     (if (:crashed? cart)
+       carts
+       (let [next-cart (move-cart grid cart)
+             crash-carts (filter (fn [{:keys [coords id]}] (and
+                                                         (not= (:id next-cart) id)
+                                                         (= (:coords next-cart) coords)))
+                                 (vals carts))]
+         (if (empty? crash-carts)
+           (assoc carts (:id next-cart) next-cart)
+           (if part2?
+             (reduce
+              dissoc
+              (dissoc carts (:id next-cart))
+              (map :id crash-carts))
+             (reduce
+              (fn [carts id] (assoc-in carts [id :crashed?] true))
+              (assoc carts (:id next-cart) (assoc next-cart :crashed? true))
+              (map :id crash-carts)))))))
+   carts
+   (sort-by :coords cart-compare (vals carts))))
 
+;; part1
 (let [[grid carts] (->> (utils/read-input "2018/day13.txt")
                         (parse-track)
                         (extract-carts))]
@@ -86,4 +99,17 @@
        (reduced (:coords x))
        acc))
    nil
-   (take 100 (iterate (tick grid) carts))))
+   (map vals (iterate (partial tick grid) carts))))
+
+(binding [part2? true]
+  (let [[grid carts] (->> (utils/read-input "2018/day13.txt")
+                          (parse-track)
+                          (extract-carts))]
+    (reduce
+     (fn [acc carts]
+       (case (count carts)
+         1 (reduced (:coords (first carts)))
+         acc))
+     nil
+     (map vals (iterate #(tick grid %) carts))))
+)
