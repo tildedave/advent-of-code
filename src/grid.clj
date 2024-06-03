@@ -101,3 +101,50 @@
                    [visited distance queue]))))
             [visited distance queue]
             (neighbors current))))))))
+
+(defn breadth-first-search [start end neighbors should-cutoff?]
+  (loop [[visited distances parent queue] [#{start} {start 0} {} (priority-map start 0)]]
+    (if (empty? queue)
+      [parent distances nil]
+      (let [[current dist] (peek queue)
+            queue (pop queue)]
+        (cond
+          (= current end) [parent distances dist]
+          (should-cutoff? current dist) (recur [visited distances parent queue])
+          :else (recur
+           (reduce
+           (fn [[visited distances parent queue] neighbor]
+             (if (contains? visited neighbor)
+               [visited distances parent queue]
+               [(conj visited neighbor)
+                (assoc distances neighbor (inc dist))
+                (assoc parent neighbor current)
+                (assoc queue neighbor (inc dist))]))
+           [visited distances parent queue]
+           (neighbors current))))))))
+
+(peek [1 2 3 4])
+
+;; idea from
+;; https://stackoverflow.com/questions/14144071/finding-all-the-shortest-paths-between-two-nodes-in-unweighted-undirected-graph
+(defn all-paths [source dest neighbors should-cutoff?]
+  (let [[parent distances _] (breadth-first-search source dest neighbors should-cutoff?)]
+    ;; we have a "current path", which generates multiple other paths
+    (letfn [(paths-back [path-so-far]
+                        (let [x (peek path-so-far)]
+                          (if (= x source)
+                            [(rseq path-so-far)]
+                            (let [x-dist (distances x)
+                                  is-valid-neighbor? #(= (distances %) (dec x-dist))
+                                  is-source-adjacent? (= (parent x) source)]
+                              ;; this is a bit of a hack since the "neighbors"
+                              ;; function might not allow stepping back into
+                              ;; source due to source being in the grid.
+                              (if is-source-adjacent?
+                                [(rseq (conj path-so-far source))]
+                                (->> (neighbors x)
+                                     (filter is-valid-neighbor?)
+                                     (map (partial conj path-so-far))
+                                     (map paths-back)
+                                     (apply concat)))))))]
+      (paths-back [dest]))))
