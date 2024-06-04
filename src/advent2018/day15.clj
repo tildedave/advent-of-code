@@ -54,16 +54,14 @@
                         (first))]
         [target (distances target)])
       ;; don't move
-      [agent-coords 0]
-      )))
+      [agent-coords 0])))
 
 (let [grid (grid/parse (utils/read-input "2018/day15-move-example.txt"))]
   (grid/breadth-first-search
    [1 1]
    [3 1]
    (neighbors grid)
-   (fn [& _] false)
-   ))
+   (fn [& _] false)))
 
 (let [grid (grid/parse (utils/read-input "2018/day15-move-example.txt"))]
   (grid/all-paths [1 1] [2 2] (neighbors grid) (fn [& args] false)))
@@ -108,23 +106,23 @@
       (empty? targets) [grid agents true] ;; no target, full round does not complete.
       (empty? adjacent-targets) [grid agents finished?]
       :else (let [my-target (->> adjacent-targets
-                           (sort
-                            (fn [c1 c2]
-                              (case
-                               (compare (:hp (coords-to-agent c1)) (:hp (coords-to-agent c2)))
-                                -1 -1
-                                1 1
-                                0 0 (reading-order-compare c1 c2))))
-                           (first)
-                           (coords-to-agent))
-            [tx ty] (my-target :coords)
-            next-agents (update-in agents [(my-target :id) :hp] #(- % (:attack-power current-agent)))]
-        (if (<= (get-in next-agents [(my-target :id) :hp]) 0)
+                                 (sort
+                                  (fn [c1 c2]
+                                    (case
+                                     (compare (:hp (coords-to-agent c1)) (:hp (coords-to-agent c2)))
+                                      -1 -1
+                                      1 1
+                                      0 0 (reading-order-compare c1 c2))))
+                                 (first)
+                                 (coords-to-agent))
+                  [tx ty] (my-target :coords)
+                  next-agents (update-in agents [(my-target :id) :hp] #(- % (:attack-power current-agent)))]
+              (if (<= (get-in next-agents [(my-target :id) :hp]) 0)
           ;; death
-          [(assoc-in grid [ty tx] \.)
-           (dissoc next-agents (my-target :id))
-           finished?]
-          [grid next-agents finished?])))))
+                [(assoc-in grid [ty tx] \.)
+                 (dissoc next-agents (my-target :id))
+                 finished?]
+                [grid next-agents finished?])))))
 
 (defn tick [[grid agents finished?]]
   (reduce
@@ -140,34 +138,91 @@
 (let [grid (grid/parse (utils/read-input "2018/day15-full-example.txt"))]
   (nth (iterate tick [grid (agents grid) false]) 48))
 
-(defn outcome [grid]
-  (->> (iterate tick [grid (agents grid) false])
+(defn outcome [state-seq]
+  (->> state-seq
        (map-indexed vector)
        (reduce
         (fn [acc [n [grid agents finished?]]]
           (if finished?
-          ;; (if (apply = (map :type (vals agents)))
-                   ;; all done
             (do
               (println (string/join "\n" (map string/join grid)))
-              (println "after" n "seconds")
-              (reduced (* (dec n) (reduce + (map :hp (vals agents))))))
+              (println "after" (dec n) "seconds")
+              (println "power was" (->> (vals agents)
+                                        (filter #(= (:type %) \E))
+                                        (map :attack-power)
+                                        (first)))
+              (println "hp left" (->> (vals agents)
+                                      (filter #(> (:hp %) 0))
+                                      (map :hp)
+                                      (reduce +)))
+              (reduced (* (dec n) (->> (vals agents)
+                                       (filter #(> (:hp %) 0))
+                                       (map :hp)
+                                       (reduce +)))))
             acc))
         nil)))
 
-(assert (= 27730 (outcome (grid/parse (utils/read-input "2018/day15-full-example.txt")))))
-(assert (= 36334 (outcome (grid/parse (utils/read-input "2018/day15-full-example2.txt")))))
-(assert (= 39514 (outcome (grid/parse (utils/read-input "2018/day15-full-example3.txt")))))
-(assert (= 27755 (outcome (grid/parse (utils/read-input "2018/day15-full-example4.txt")))))
-(assert (= 28944 (outcome (grid/parse (utils/read-input "2018/day15-full-example5.txt")))))
+(defn answer-part1 [grid]
+  (->> (iterate tick [grid (agents grid) false])
+       (outcome)))
 
+(assert (= 27730 (answer-part1 (grid/parse (utils/read-input "2018/day15-full-example.txt")))))
+(assert (= 36334 (answer-part1 (grid/parse (utils/read-input "2018/day15-full-example2.txt")))))
+(assert (= 39514 (answer-part1 (grid/parse (utils/read-input "2018/day15-full-example3.txt")))))
+(assert (= 27755 (answer-part1 (grid/parse (utils/read-input "2018/day15-full-example4.txt")))))
+(assert (= 28944 (answer-part1 (grid/parse (utils/read-input "2018/day15-full-example5.txt")))))
+(assert (= 18740 (answer-part1 (grid/parse (utils/read-input "2018/day15-full-example6.txt")))))
+
+(defn any-elf-dies? [elf-agent-ids state-seq]
+  (reduce
+   (fn [acc [_ agents finished?]]
+     (let [every-elf? (every? (partial contains? agents) elf-agent-ids)]
+       (cond (not every-elf?) (reduced true)
+             finished? (reduced false)
+             :else acc)))
+   nil
+   state-seq))
+
+(defn augment-elves [elf-agent-ids agents p]
+  (reduce
+   (fn [agents elf-id]
+     (assoc-in agents [elf-id :attack-power] p))
+   agents
+   elf-agent-ids))
+
+(defn answer-part2 [grid]
+  (let [initial-agents (agents grid)
+        elf-agent-ids (->> (keys initial-agents)
+                           (filter #(= \E (get-in initial-agents [% :type])))
+                           (set))]
+    (->> (drop 4 (range))
+         (map
+          (fn [p]
+            (iterate
+             tick
+             [grid (augment-elves elf-agent-ids initial-agents p) false])))
+         (remove (partial any-elf-dies? elf-agent-ids))
+         (first)
+         (outcome))))
+
+(assert (= 4988 (answer-part2 (grid/parse (utils/read-input "2018/day15-full-example.txt")))))
+(assert (= 31284 (answer-part2 (grid/parse (utils/read-input "2018/day15-full-example3.txt")))))
+(assert (= 3478 (answer-part2 (grid/parse (utils/read-input "2018/day15-full-example4.txt")))))
+(assert (= 6474 (answer-part2 (grid/parse (utils/read-input "2018/day15-full-example5.txt")))))
+;; there's a bug in this one :/ but my second star is right.  goodbye to this problem.
+(assert (= 1140 (answer-part2 (grid/parse (utils/read-input "2018/day15-full-example6.txt")))))
+
+(let [g (grid/parse (utils/read-input "2018/day15-full-example6.txt"))
+      initial-agents (agents g)
+      elf-agent-ids (->> (keys initial-agents)
+                         (filter #(= \E (get-in initial-agents [% :type])))
+                         (set))]
+  (->> (any-elf-dies? elf-agent-ids
+                      (iterate
+                       tick
+                       [g initial-agents false]))))
+
+
+;; in general I don't want to run this since it's slow :-)
 (outcome (grid/parse (utils/read-input "2018/day15.txt")))
-;; (let [grid (grid/parse (utils/read-input "2018/day15-move-example.txt"))
-;;           agents (agents grid)
-;;           neighbors (memoize (neighbors grid))
-;;           _ (println "agents are "  agents)
-;;           elf-agent-id (->> (vals agents) (filter #(= (:coords %) [1 1])) (first) (:id))]
-;;       (agent-move grid neighbors agents elf-agent-id)))(agents grid)
-;;   ((agent-move grid) (agent-coords grid) [1 1]))
-
-
+(answer-part2 (grid/parse (utils/read-input "2018/day15.txt")))
