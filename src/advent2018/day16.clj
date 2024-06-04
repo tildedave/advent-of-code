@@ -39,7 +39,7 @@
 
 (candidates [3 2 1 1] [9 2 1 2] [3 2 2 1])
 
-(def magic-separator 3123)
+(def magic-separator 3124)
 
 (defn parse-number-list [num-list-str]
   (mapv utils/parse-int
@@ -63,6 +63,41 @@
        (filter #(>= (count (first (vals %))) 3))
        (count)))
 
-    ;;    (reduce (partial merge-with set/intersection))))
-
 (answer-part1)
+
+(first #{1})
+
+(defn opcode-mapping []
+  (loop [opcode-candidates (->> (take magic-separator (utils/read-input "2018/day16.txt"))
+                                 (partition 4)
+                                 (map (partial take 3))
+                                 (map parse-sample)
+                                 (map #(apply candidates %))
+                                 (reduce (partial merge-with set/intersection)))
+          result {}]
+     (if (empty? opcode-candidates)
+       result
+       (let [[opcode singleton-set] (->> opcode-candidates
+                                         (filter (fn [[n s]] (= (count s) 1)))
+                                         (first))
+             interpret-opcode (first singleton-set)]
+         (recur
+          (-> opcode-candidates
+              (update-vals #(disj % interpret-opcode))
+              (dissoc opcode))
+          (assoc result opcode interpret-opcode))))))
+
+(defn answer-part2 []
+  (let [mapping (opcode-mapping)]
+  (->> (utils/read-input "2018/day16.txt")
+       (drop magic-separator)
+       (drop-while (partial = ""))
+       (map (fn [^String s]
+              (update (mapv utils/parse-int (.split s " "))
+                     0
+                      mapping)))
+       (reduce process-instruction [0 0 0 0])
+       (first)
+       )))
+
+(answer-part2)
