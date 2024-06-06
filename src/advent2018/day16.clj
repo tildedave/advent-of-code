@@ -1,6 +1,5 @@
 (ns advent2018.day16
-  (:require [clojure.core.async :as a]
-            [utils :as utils]
+  (:require [utils :as utils]
             [clojure.set :as set]))
 
 (def opcodes
