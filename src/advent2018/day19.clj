@@ -49,10 +49,16 @@
             acc))
         nil)))
 
-(answer "2018/day19.txt" 0 {0 1})
 
 (->> (parse-file "2018/day19.txt")
-     ((fn [state] (-> state
-                      (update :registers #(merge % {0 1})))))
+    ;;  ((fn [state] (-> state
+    ;;                   (update :registers #(merge % {0 1})))))
      (iterate process-instruction)
      (map :registers))
+
+(answer "2018/day19.txt" 0 {0 1})
+
+;; this machine is summing up all the factors of a large number.
+;; without extra input, 911 = 911 * 1 = 1 + 911 = 912
+;; with extra input, 10551311 = 431 * 24481 = 1 + 431 + 24481 + 10551311 = 10576224
+
