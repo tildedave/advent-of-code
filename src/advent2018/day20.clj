@@ -15,7 +15,6 @@
 (defn to-next-bar
   "Given a string, chop off the current 'or' clause from it."
   [^String s]
-  (println "to-next-bar" s)
   (let [lparen-idx (.indexOf s "(")
         bar-idx (.indexOf s "|")]
     (cond
@@ -125,12 +124,14 @@
        then-l))
     ;; otherwise we have a list of options from the current position.
     (vector? item)
-    (reduce
-     (fn [[[cx cy] door-map] item]
-       (let [[_ door-map] (step-regex [[cx cy] door-map] item)]
-         [[cx cy] door-map]))
-     state
-     item)
+    (if (= (count item) 1)
+      (step-regex state (first item))
+      (reduce
+       (fn [[[cx cy] door-map] item]
+         (let [[_ door-map] (step-regex [[cx cy] door-map] item)]
+           [[cx cy] door-map]))
+       state
+       item))
     :else
     (throw (Exception. "should be impossible"))))
 
@@ -147,8 +148,8 @@
          (vals)
          (reduce max))))
 
-
-(parse-door-regex "^ENWWW(NEEE|SSE(EE|N))$")
+(step-regex [[0 0] {}] (parse-door-regex "^ENWWW(NEEE|SSE(EE|N))$"))
+(step-regex [[0 0] {}] (parse-door-regex "^ENWWW$"))
 
 (assert (= 3 (answer "^WNE$")))
 (assert (= 10 (answer "^ENWWW(NEEE|SSE(EE|N))$")))
@@ -156,4 +157,15 @@
 (assert (= 23 (answer "^ESSWWN(E|NNENN(EESS(WNSE|)SSS|WWWSSSSE(SW|NNNE)))$")))
 (assert (= 31 (answer "^WSSEESWWWNW(S|NENNEEEENN(ESSSSW(NWSW|SSEN)|WSWWN(E|WWS(E|SS))))$")))
 
-(parse-door-regex "^ENNWSWW(NEWS|)SSSEEN(WNSE|)EE(SWEN|)NNN$")
+(->> (utils/read-input "2018/day20.txt") (first) (answer))
+
+(defn answer-part2 [regex]
+  (let [[_ door-map] (step-regex [[0 0] {}] (parse-door-regex regex))]
+    (->> (grid/dijkstra-search
+          [0 0]
+          (neighbors door-map)
+          (fn [& args] false))
+         (vals)
+         (filter (partial <= 1000))
+         (count))))
+
