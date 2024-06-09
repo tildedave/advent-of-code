@@ -126,3 +126,10 @@ will not be present in the new structure. "
   (/ (reduce + 0.0 nums) (count nums)))
 
 (mean '(1 2 10))
+
+(defn manhattan-distance [coord1 coord2]
+  (->> (map - coord1 coord2)
+       (map abs)
+       (reduce +)))
+
+(manhattan-distance [0 0 0] [0 2 0])
