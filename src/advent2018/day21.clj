@@ -34,9 +34,7 @@
      (map #(dissoc % :program))
      (filter #(= (:ip %) 16))
      (map #(vector (get-in % [:registers 1]) (get-in % [:registers 2])))
-     (first)
-     (first)
-     (println))
+     (first))
 
 (->> (day19/parse-file "2018/day21.txt")
      (iterate process-instruction)
@@ -45,9 +43,11 @@
      (map #(vector (get-in % [:registers 1]) (get-in % [:registers 2])))
      (reduce
       (fn [[seen order] curr]
-        (println seen)
         (if (contains? seen curr)
-          (reduced (peek order))
+          (reduced order)
           [(conj seen curr) (conj order curr)]))
-        [#{} []]))
+        [#{} []])
+     (map second)
+     (last))
 
+1
