@@ -1,6 +1,7 @@
 (ns advent2018.day20
   (:require [advent2020.day18 :refer [matching-paren]]
-            [grid :as grid]))
+            [grid :as grid]
+            [utils :as utils]))
 
 ;; so we use the regex to construct the map
 ;; then we run dijskstra to find the distances
@@ -169,3 +170,4 @@
          (filter (partial <= 1000))
          (count))))
 
+(->> (utils/read-input "2018/day20.txt") (first) (answer-part2))
