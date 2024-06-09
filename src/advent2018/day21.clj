@@ -40,14 +40,13 @@
      (iterate process-instruction)
      (map #(dissoc % :program))
      (filter #(= (:ip %) 16))
-     (map #(vector (get-in % [:registers 1]) (get-in % [:registers 2])))
+     (map #(get-in % [:registers 2]))
      (reduce
       (fn [[seen order] curr]
         (if (contains? seen curr)
           (reduced order)
           [(conj seen curr) (conj order curr)]))
         [#{} []])
-     (map second)
      (last))
 
 1

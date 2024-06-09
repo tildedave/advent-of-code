@@ -1,7 +1,6 @@
 (ns advent2021.day22
   (:require [utils :as utils]
-            [clojure.math.combinatorics :as combo]
-            [clojure.core.match :refer [match]]))
+            [clojure.math.combinatorics :as combo]))
 
 ;; part 1 can be brute forced (1 million cubes) but part 2
 ;; almost certainly can't be.
