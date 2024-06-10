@@ -36,7 +36,7 @@
 (defn effective-power [army]
   (* (:num-units army) (:attack-power army)))
 
-(effective-power (parse-unit "18 units each with 729 hit points (weak to fire; immune to cold, slashing) with an attack that does 8 radiation damage at initiative 10"))
+(effective-power (parse-unit 0 "18 units each with 729 hit points (weak to fire; immune to cold, slashing) with an attack that does 8 radiation damage at initiative 10"))
 
 (defn target-selection-order-compare [army1 army2]
   (let [ep1 (effective-power army1)
@@ -62,32 +62,33 @@
       -1 -1
       1 1
       (case (compare ep2 ep1)
-        -1 1
+        -1 -1
         1 1
         (compare (:initiative army2) (:initiative army1))))))
 
-(defn short-army [{:keys [group type]}]
-  {:group group :type type})
+(defn short-army [{:keys [group type num-units]}]
+  {:group group :type type :num-units num-units})
 
 ;; result is a map from uuid to uuid
 (defn target-selection [armies]
   (set/map-invert
    (reduce
     (fn [targeted-by army]
-      (let [target (->> armies
-                        (remove #(= (:type %) (:type army)))
-                        (remove #(contains? targeted-by (:id %)))
-                        (remove #(zero? (expected-damage army %)))
-                        (sort (partial target-selection-target-compare army))
-                        (first))]
-        (if (nil? target)
-          targeted-by
+      (if (zero? (:num-units army))
+        targeted-by
+        (let [target (->> armies
+                          (remove #(= (:type %) (:type army)))
+                          (remove #(zero? (:num-units %)))
+                          (remove #(contains? targeted-by (:id %)))
+                          (remove #(zero? (expected-damage army %)))
+                          (sort (partial target-selection-target-compare army))
+                          (first))]
+          (if (nil? target)
+            targeted-by
         ;;   (do (println (short-army army) "targets" (short-army target) "expecting" (expected-damage army target))
-          (assoc targeted-by (:id target) (:id army)))))
+            (assoc targeted-by (:id target) (:id army))))))
     {}
     (sort target-selection-order-compare armies))))
-
-;; (target-selection (parse-armies "2018/day24-example.txt"))
 
 (defn process-attacks [armies targets]
   (vals
@@ -98,8 +99,8 @@
         (let [army (armies-by-id army-id)
               target-army (armies-by-id target-id)
               damage (expected-damage army target-army)
-              dead-units (quot damage (:hp target-army))
-              _ (println (short-army army) "attacks" (short-army target-army) "damage" damage "killing" dead-units)]
+              dead-units (quot damage (:hp target-army))]
+            ;;   _ (println (short-army army) "attacks" (short-army target-army) "damage" damage "killing" dead-units)]
           (update-in armies-by-id [target-id :num-units]
                      (fn [curr-units]
                        (max (- curr-units dead-units) 0))))
@@ -116,9 +117,18 @@
         (every? #(zero? (:num-units %)) (by-type :infection)))))
 
 ;; this is our answer, but we are off by a few points somewhere.
+(defn answer [filename]
+  (->> (parse-armies filename)
+       (iterate process-round)
+       (drop-while #(not (is-over? %)))
+       (first)
+       (map :num-units)
+       (reduce +)))
+
+(answer "2018/day24-example.txt")
+(answer "2018/day24.txt")
+
 (->> (parse-armies "2018/day24-example.txt")
      (iterate process-round)
-     (drop-while #(not (is-over? %)))
-     (first)
-     (map :num-units)
-     (reduce +))
+     (map #(map short-army %))
+     (take-while #(not (is-over? %))))
