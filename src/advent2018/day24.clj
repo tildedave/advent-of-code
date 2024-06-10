@@ -1,6 +1,6 @@
 (ns advent2018.day24
-  (:require [utils :as utils]
-            [clojure.set :as set]))
+   (:require [utils :as utils]
+             [clojure.set :as set]))
 
 (defn parse-unit [n s]
   (let [extract-number (fn [re] (utils/parse-int (second (re-find re s))))
@@ -85,7 +85,6 @@
                           (first))]
           (if (nil? target)
             targeted-by
-        ;;   (do (println (short-army army) "targets" (short-army target) "expecting" (expected-damage army target))
             (assoc targeted-by (:id target) (:id army))))))
     {}
     (sort target-selection-order-compare armies))))
@@ -111,24 +110,66 @@
 (defn process-round [armies]
   (process-attacks armies (target-selection armies)))
 
-(defn is-over? [armies]
+;; this is better than is-owner
+(defn winning-team [armies]
   (let [by-type (group-by :type armies)]
-    (or (every? #(zero? (:num-units %)) (by-type :immune))
-        (every? #(zero? (:num-units %)) (by-type :infection)))))
+    (if (every? #(zero? (:num-units %)) (by-type :immune))
+      :infection
+      (if (every? #(zero? (:num-units %)) (by-type :infection))
+        :immune
+        nil))))
 
-;; this is our answer, but we are off by a few points somewhere.
-(defn answer [filename]
-  (->> (parse-armies filename)
+(defn winner [armies]
+  (->> armies
        (iterate process-round)
-       (drop-while #(not (is-over? %)))
+       (map #(remove (fn [army] (zero? (:num-units army))) %))
+       (map #(map short-army %))
+       (map #(sort-by :num-units %))
+       (reduce
+        (fn [prev-set armies]
+          (let [wt (winning-team armies)
+                army-set (set armies)]
+            (if (nil? wt)
+              (if (= army-set prev-set)
+                (reduced :draw)
+                army-set)
+              (reduced wt))))
+        nil)))
+
+(defn answer [armies]
+  (->> armies
+       (iterate process-round)
+       (drop-while #(nil? (winning-team %)))
        (first)
        (map :num-units)
        (reduce +)))
 
-(answer "2018/day24-example.txt")
-(answer "2018/day24.txt")
+(defn boost-immune-system [n armies]
+  (map
+   #(if (= (:type %) :immune)
+      (update % :attack-power (partial + n))
+      %)
+   armies))
 
-(->> (parse-armies "2018/day24-example.txt")
-     (iterate process-round)
-     (map #(map short-army %))
-     (take-while #(not (is-over? %))))
+(answer (parse-armies "2018/day24-example.txt"))
+
+;; looks like the actual boost is between 1 and 100 for my input so we can be
+;; sort of stupid.
+(defn needed-boost [armies]
+  (loop [lower 0
+         upper 5000]
+    (cond
+      (= lower upper) lower
+      (= (inc lower) upper) upper
+      :else (let [curr (quot (+ lower upper) 2)]
+              (case (winner (boost-immune-system curr armies))
+                :infection (recur curr upper)
+                :draw (recur curr upper)
+                (recur lower curr))))))
+
+(defn answer-part2 [filename]
+  (let [armies (parse-armies filename)]
+    (answer (boost-immune-system  (needed-boost armies) armies))))
+
+(answer-part2 "2018/day24.txt")
+(answer-part2 "2018/day24-example.txt")
