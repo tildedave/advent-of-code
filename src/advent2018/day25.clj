@@ -1,10 +1,7 @@
 (ns advent2018.day25
   (:require [utils :as utils]
-            [clojure.math.combinatorics :as combo]
             [clojure.string :as string]
             [clojure.set :as set]))
-
-(def distance (memoize utils/manhattan-distance))
 
 (defn in-range? [constellation point]
   (not (empty? (filter #(<= (utils/manhattan-distance point %) 3)
