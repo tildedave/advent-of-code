@@ -133,3 +133,4 @@ will not be present in the new structure. "
        (reduce +)))
 
 (manhattan-distance [0 0 0] [0 2 0])
+
