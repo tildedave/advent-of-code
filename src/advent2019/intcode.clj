@@ -1,5 +1,6 @@
 (ns advent2019.intcode
-  (:require [utils :as utils]))
+  (:require [utils :as utils]
+            [clojure.test :refer [deftest is run-tests]]))
 
 (defn parse-program [^String line]
   {:program
@@ -15,12 +16,13 @@
 (assoc-in {:program [1 2 3 4 5]} [:program 3] 1)
 
 (defn execute-op [op-f arity state]
-  (let [{:keys [program pc]} state]
-        ;; _ (println (apply op-f (map program (map program (range (inc pc) (+ arity pc 1))))))
-        ;; _ (println  (+ pc arity 1))]
+  (let [{:keys [program pc]} state
+        params (map program (range (inc pc) (+ arity pc 1)))
+        ;; for now the vals are just registers, this changes eventually
+        vals (map program params)]
     (-> state
-        (assoc-in [:program (+ pc arity 1)]
-                  (apply op-f (map program (map program (range (inc pc) (+ arity pc 1))))))
+        (assoc-in [:program (program (+ pc arity 1))]
+                  (apply op-f vals))
         (update :pc (partial + arity 2)))))
 
 (defn step-program [state]
@@ -42,4 +44,19 @@
        (drop-while #(not (:halted? %)))
        (first)))
 
-(halting-state (parse-program "1,9,10,3,2,3,11,0,99,30,40,50"))
+(defn run-program [^String line]
+  (:program (halting-state (parse-program line))))
+
+(deftest day2
+  (is (= (run-program "1,9,10,3,2,3,11,0,99,30,40,50")
+         [3500 9 10 70 2 3 11 0 99 30 40 50]))
+  (is (= (run-program "1,0,0,0,99")
+         [2 0 0 0 99]))
+  (is (= (run-program "2,3,0,3,99")
+         [2 3 0 6 99]))
+  (is (= (run-program "2,4,4,5,99,0")
+         [2 4 4 5 99 9801]))
+  (is (= (run-program "1,1,1,4,99,5,6,0,99")
+         [30 1 1 4 2 5 6 0 99])))
+
+(run-tests 'advent2019.intcode)
