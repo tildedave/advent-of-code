@@ -137,3 +137,7 @@ will not be present in the new structure. "
 (defn range-inclusive [m n]
   (range m (inc n)))
 
+(defn to-digits [n left]
+  (if (zero? left)
+    []
+    (conj (to-digits (quot n 10) (dec left)) (mod n 10))))

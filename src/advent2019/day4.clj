@@ -1,11 +1,6 @@
 (ns advent2019.day4
   (:require [utils :as utils]))
 
-(defn to-digits [n left]
-  (if (zero? left)
-    []
-    (conj (to-digits (quot n 10) (dec left)) (mod n 10))))
-
 (defn increasing? [digits]
   (let [res (reduce (fn [prev curr]
             (if (< curr prev)
@@ -28,7 +23,7 @@
 (->> (.split (first (utils/read-input "2019/day4.txt")) "-")
      (map utils/parse-int)
      (apply utils/range-inclusive)
-     (map #(to-digits % 6))
+     (map #(utils/to-digits % 6))
      (filter matches-part1?)
      (count))
 
@@ -36,7 +31,7 @@
 (->> (.split (first (utils/read-input "2019/day4.txt")) "-")
      (map utils/parse-int)
      (apply utils/range-inclusive)
-     (map #(to-digits % 6))
+     (map #(utils/to-digits % 6))
      (filter matches-part1?)
      (filter #(->> %
                    (partition-by identity)
