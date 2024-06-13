@@ -134,3 +134,6 @@ will not be present in the new structure. "
 
 (manhattan-distance [0 0 0] [0 2 0])
 
+(defn range-inclusive [m n]
+  (range m (inc n)))
+
