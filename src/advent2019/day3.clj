@@ -12,35 +12,43 @@
                  \U :up
                  \L :left)
                (utils/parse-int (.substring s 1))]))))
+(conj '(1 2 3 4) 5)
 
-(defn step [{:keys [coords seen total-steps]}
-            [direction num-steps]]
-  (let [[x y] coords
-        [dx dy] (case direction
-                  :right [1 0]
-                  :left [-1 0]
-                  :up [0 -1]
-                  :down [0 1])]
-       {:coords [(+ x (* num-steps dx)) (+ y (* num-steps dy))]
-        :total-steps (+ num-steps total-steps)
-        :seen
-        (merge
-        seen
-        (->> (range 1 (inc num-steps))
-             (map (fn [n] [(+ n total-steps) (* n dx) (* n dy)]))
-             (map (fn [[n dx dy]] {[(+ x dx) (+ y dy)] n}))
-             (reduce merge {})))}))
+(defn steps [[x y] command-list]
+  (if-let [[direction num-steps] (first command-list)]
+    (if (zero? num-steps)
+      (steps [x y] (rest command-list))
+      (let [[dx dy] (case direction
+                      :right [1 0]
+                      :left [-1 0]
+                      :up [0 -1]
+                      :down [0 1])
+            [nx ny] [(+ x dx) (+ y dy)]]
+        (cons
+         [nx ny]
+         (lazy-seq (steps [nx ny]
+                          (cons
+                           [direction (dec num-steps)]
+                           (rest command-list)))))))
+    '()
+    ))
+
+(steps [0 0] (parse-commands "R8,U5,L5,D3"))
+
+(defn coord-set [wire]
+  (->> wire
+        (parse-commands)
+        (steps [0 0])
+        (set)))
 
 (defn answer-part1 [wire1 wire2]
-  (let [seen-coords (fn [wire] (->> wire
-                                    (parse-commands)
-                                    (reduce step {:coords [0 0] :seen {} :total-steps 0})
-                                    :seen))
-        coord-set (fn [wire] (->> (seen-coords wire) (keys) (set)))]
-    (->> (set/intersection (coord-set wire1) (coord-set wire2))
-         (sort-by (partial utils/manhattan-distance [0 0]))
-         (first)
-         (utils/manhattan-distance [0 0]))))
+  (->> (set/intersection (coord-set wire1) (coord-set wire2))
+       (sort-by (partial utils/manhattan-distance [0 0]))
+       (first)
+       (utils/manhattan-distance [0 0])))
+
+(answer-part1 "R8,U5,L5,D3"
+              "U7,R6,D4,L4")
 
 (answer-part1 "R75,D30,R83,U83,L12,D49,R71,U7,L72"
         "U62,R66,U55,R34,D71,R55,D58,R83")
@@ -54,11 +62,12 @@
 (defn answer-part2 [wire1 wire2]
   (let [seen-coords (fn [wire] (->> wire
                                     (parse-commands)
-                                    (reduce step {:coords [0 0] :seen {} :total-steps 0})
-                                    :seen))
+                                    (steps [0 0])
+                                    (map-indexed (fn [n x] [x (inc n)]))
+                                    (into {})))
         seen-wire1 (seen-coords wire1)
         seen-wire2 (seen-coords wire2)]
-    (->> (set/intersection (set (keys seen-wire1)) (set (keys seen-wire2)))
+    (->> (set/intersection (set (map first seen-wire1)) (set (map first seen-wire2)))
          (map (fn [coord] (+ (seen-wire1 coord)
                              (seen-wire2 coord))))
          (sort)
