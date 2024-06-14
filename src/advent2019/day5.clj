@@ -3,16 +3,21 @@
             [clojure.core.async :as a :refer [>!! <!!]]))
 
 ;; part 1
-(let [input (a/chan)
-      output (a/chan)]
-  (a/go
-    (intcode/run-program
-     (intcode/parse-file "2019/day5.txt")
-     input
-     output))
-  (>!! input 1)
+(let [output (intcode/run-input-output
+              (intcode/parse-file "2019/day5.txt")
+              1)]
   (loop []
     (let [res (<!! output)]
       (if (zero? res)
         (recur)
         res))))
+
+;; part 2
+(let [output (intcode/run-input-output
+              (intcode/parse-file "2019/day5.txt")
+              5)]
+  (loop []
+   (let [res (<!! output)]
+     (if (zero? res)
+       (recur)
+       res))))
