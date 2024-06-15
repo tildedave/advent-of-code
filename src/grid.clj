@@ -114,7 +114,9 @@
                [visited distance queue]
                (neighbors current))))))))
 
-   (defn breadth-first-search [start end neighbors should-cutoff?]
+   (defn breadth-first-search
+     ([start neighbors] (breadth-first-search start nil neighbors (fn [& args] false)))
+     ([start end neighbors should-cutoff?]
      (loop [[visited distances parent queue] [#{start} {start 0} {} (priority-map start 0)]]
        (if (empty? queue)
          [parent distances nil]
@@ -133,7 +135,7 @@
                           (assoc parent neighbor current)
                           (assoc queue neighbor (inc dist))]))
                      [visited distances parent queue]
-                     (neighbors current))))))))
+                     (neighbors current)))))))))
 
    (peek [1 2 3 4])
 
