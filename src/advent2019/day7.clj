@@ -38,32 +38,33 @@
 ;; return the right answer.
 (defn run-amplifier-part2 [program phase-sequence]
   (let [inputs (for [_ (range 5)] (a/chan))
-        outputs (map (fn [x] (a/chan)) (range 5))]
+        outputs (for [_ (range 5)] (a/chan))]
     (doseq [n (range 5)]
+      (let [input (nth inputs n)
+            output (nth outputs n)
+            phase-number (nth phase-sequence n)]
       (a/go
         (do
           (intcode/run-program program
-                               (nth inputs n)
-                               (nth outputs n))
-          (a/close! (nth inputs n))
-          (a/close! (nth outputs n))))
-      (a/thread (>!! (nth inputs n) (nth phase-sequence n)))
+                               input
+                               output)
+          (a/close! input)
+          (a/close! output)))
+      (<!! (a/go (>! input phase-number)))
       (a/go-loop []
         (if (not= n 4)
-          (let [i (<! (nth outputs n))]
+          (let [i (<! output)]
             (if (nil? i)
               nil
               (do
                 (>! (nth inputs (inc n)) i)
                 (recur))))
-          nil)))
+          nil))))
     (>!! (first inputs) 0)
     (<!! (a/go-loop [prev-output nil]
       (let [i (<! (last outputs))]
-        (println i)
         (if (nil? i)
-          (do (println "done!" prev-output)
-              prev-output)
+          prev-output
           (do
             (>! (first inputs) i)
             (recur i))))))))
