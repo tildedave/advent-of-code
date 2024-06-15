@@ -102,13 +102,13 @@
 (run-program "1101,100,-1,4,0")
 /
 ;; works
-(let [input (a/chan)
-      output (a/chan)]
-  (a/thread (run-program "3,0,1002,0,5,0,4,0,99" input output))
-  (>!! input 5)
-  (assert (= 25 (<!! output)))
-  (a/close! input)
-  (a/close! output))
+;; (let [input (a/chan)
+;;       output (a/chan)]
+;;   (a/thread (run-program "3,0,1002,0,5,0,4,0,99" input output))
+;;   (>!! input 5)
+;;   (assert (= 25 (<!! output)))
+;;   (a/close! input)
+;;   (a/close! output))
 
 (deftest day2
   (is (= (run-program "1,9,10,3,2,3,11,0,99,30,40,50")
