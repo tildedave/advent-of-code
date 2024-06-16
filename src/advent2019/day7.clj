@@ -51,15 +51,14 @@
           (a/close! input)
           (a/close! output)))
       (<!! (a/go (>! input phase-number)))
-      (a/go-loop []
-        (if (not= n 4)
-          (let [i (<! output)]
-            (if (nil? i)
-              nil
-              (do
-                (>! (nth inputs (inc n)) i)
-                (recur))))
-          nil))))
+      ;; TODO(davek): should have a single goloop with alts!
+      (if (not= n 4)
+        (a/go-loop []
+          (if-let [i (<! output)]
+            (do
+              (>! (nth inputs (inc n)) i)
+              (recur))
+            nil)))))
     (>!! (first inputs) 0)
     (<!! (a/go-loop [prev-output nil]
       (let [i (<! (last outputs))]
@@ -71,3 +70,13 @@
 
 (run-amplifier-part2 "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"
                      '(9 8 7 6 5))
+
+(defn max-amplifier-part2 [program]
+  (->> (combo/permutations (range 5))
+       (map #(map (partial + 5) %))
+       (map (partial run-amplifier-part2 program))
+       (reduce max)))
+
+;; part 2
+(max-amplifier-part2 "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5")
+(max-amplifier-part2 (intcode/parse-file "2019/day7.txt"))
