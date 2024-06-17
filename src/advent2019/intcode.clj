@@ -1,29 +1,33 @@
 (ns advent2019.intcode
   (:require [utils :as utils]
-            [clojure.test :refer [deftest is run-tests]]
-            [clojure.core.async :as a :refer [>!! <!!]]))
+            [clojure.test :refer [deftest is run-tests testing]]
+            [clojure.core.async :as a :refer [>!! <!! <!]]))
+
+(into {} (map-indexed vector [1 2 3 4]))
 
 (defn parse-program [^String line]
   {:program
    (->> (.split line ",")
-        (mapv utils/parse-int))
-   :pc 0})
+        (map utils/parse-int)
+        (map-indexed vector)
+        (into {}))
+   :pc 0
+   :relative-base 0})
 
 (defn parse-file [filename]
   (->> (utils/read-input filename)
        (first)
        (parse-program)))
 
-(assoc-in {:program [1 2 3 4 5]} [:program 3] 1)
-
 (defn val-list [state arity param-modes]
-  (let [{:keys [program pc]} state
-        params (map program (range (inc pc) (+ arity pc 1)))]
+  (let [{:keys [program pc relative-base]} state
+        params (map #(get program % 0) (range (inc pc) (+ arity pc 1)))]
     (map
      (fn [[mode arg]]
        (case mode
-         0 (program arg)
-         1 arg))
+         0 (get program arg 0)
+         1 arg
+         2 (get program (+ relative-base arg) 0)))
                    ;; we add relative mode next
      (map vector param-modes params))))
 
@@ -34,7 +38,7 @@
 
 (utils/to-digits (quot 1002 100) 3)
 
-(def opcode-arity {1 2 2 2 3 0 4 1 5 2 6 2 7 2 8 2 99 0})
+(def opcode-arity {1 2 2 2 3 0 4 1 5 2 6 2 7 2 8 2 9 1 99 0})
 (def opcode-has-output? {1 true 2 true 3 true 7 true 8 true})
 
 (defn step-program [state]
@@ -47,37 +51,41 @@
     (if halted?
       state
       (let [state (case opcode
-        1 (execute-op + vlist output-register state)
-        2 (execute-op * vlist output-register state)
-        3 (let [i (<!! input)]
-            (-> state
-                (assoc-in [:program (program (inc pc))] i)))
-        4 (do
-            (>!! output (first vlist))
-            state)
-        5 (if (not= (first vlist) 0)
-            (-> state
-                (assoc :pc (second vlist))
-                (assoc :jumped? true))
-            state)
-        6 (if (zero? (first vlist))
-            (-> state
-                (assoc :pc (second vlist))
-                (assoc :jumped? true))
-            state)
-        7 (assoc-in
-           state
-           [:program output-register]
-           (if (< (first vlist) (second vlist)) 1 0))
-        8 (assoc-in
-           state
-           [:program output-register]
-           (if (= (first vlist) (second vlist)) 1 0))
-        99 (assoc state :halted? true)
-        (throw (Exception. (format "Invalid opcode: %d" opcode))))]
-      (if (:jumped? state)
-        (dissoc state :jumped?)
-        (update state :pc (partial + 1 arity (if has-output? 1 0))))))))
+                    1 (execute-op + vlist output-register state)
+                    2 (execute-op * vlist output-register state)
+                    3 (let [i (<!! input)]
+                        (-> state
+                            (assoc-in [:program (program (inc pc))] i)))
+                    4 (do
+                        (>!! output (first vlist))
+                        state)
+                    5 (if (not= (first vlist) 0)
+                        (-> state
+                            (assoc :pc (second vlist))
+                            (assoc :jumped? true))
+                        state)
+                    6 (if (zero? (first vlist))
+                        (-> state
+                            (assoc :pc (second vlist))
+                            (assoc :jumped? true))
+                        state)
+                    7 (assoc-in
+                       state
+                       [:program output-register]
+                       (if (< (first vlist) (second vlist)) 1 0))
+                    8 (assoc-in
+                       state
+                       [:program output-register]
+                       (if (= (first vlist) (second vlist)) 1 0))
+                    9 (update
+                       state
+                       :relative-base
+                       (partial + (first vlist)))
+                    99 (assoc state :halted? true)
+                    (throw (Exception. (format "Invalid opcode: %d" opcode))))]
+        (if (:jumped? state)
+          (dissoc state :jumped?)
+          (update state :pc (partial + 1 arity (if has-output? 1 0))))))))
 
 (defn halting-state [program]
   (if (:halted? program)
@@ -91,15 +99,19 @@
    (if (string? program-or-string)
      (run-program (parse-program program-or-string)
                   input output)
-     (-> program-or-string
-         (assoc :input input)
-         (assoc :output output)
-         (halting-state)
-         :program))))
+     (->>
+      (-> program-or-string
+          (assoc :input input)
+          (assoc :output output)
+          (halting-state)
+          :program)
+      (sort-by first)
+      (mapv second)))))
 
 (run-program "1,9,10,3,2,3,11,0,99,30,40,50")
 
 (run-program "1101,100,-1,4,0")
+
 /
 ;; works
 ;; (let [input (a/chan)
@@ -136,7 +148,23 @@
     output))
 
 (<!! (run-input-output "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99"
-                  1))
+                       1))
+
+(deftest day-9-test
+  (testing "quine"
+    (let [input (a/chan)
+          output (a/chan)
+          quine "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"]
+      (a/go (do
+              (run-program quine input output)
+              (a/close! input)
+              (a/close! output)))
+      (is (= (mapv utils/parse-int (.split quine ","))
+             (<!! (a/go-loop [res []]
+                    (let [n (<! output)]
+                      (if (nil? n)
+                        res
+                        (recur (conj res n)))))))))))
 
 (deftest day5-input-output
   (let [eq-8 "3,9,8,9,10,9,4,9,99,-1,8"
