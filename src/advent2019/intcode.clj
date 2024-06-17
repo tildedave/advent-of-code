@@ -131,7 +131,7 @@
 (defn run-input-output [program-or-string input-val]
   (let [input (a/chan)
         output (a/chan)]
-    (a/thread (run-program program-or-string input output))
+    (a/go (run-program program-or-string input output))
     (>!! input input-val)
     output))
 

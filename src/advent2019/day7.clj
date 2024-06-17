@@ -5,19 +5,23 @@
 
 (defn run-amplifier [program phase-sequence]
   (let [inputs (for [_ (range 5)] (a/chan))
-        outputs (for [_ (range 5)] (a/chan))]
-    (doseq [n (range 5)]
+        outputs (for [_ (range 5)] (a/chan))
+        output-to-input-map (into {} (map vector (drop-last outputs) (rest inputs)))]
+    (dotimes [n 5]
       (a/go
-          (intcode/run-program program
-                               (nth inputs n)
-                               (nth outputs n)))
-      (a/thread (>!! (nth inputs n) (nth phase-sequence n)))
-      (a/go-loop []
-        (if (not= n 4)
-          (let [i (<! (nth outputs n))]
-            (>! (nth inputs (inc n)) i)
-            (recur))
-          nil)))
+        (intcode/run-program program
+                             (nth inputs n)
+                             (nth outputs n)))
+      (<!! (a/go (>! (nth inputs n) (nth phase-sequence n)))))
+    (a/go-loop [listen-set (set (keys output-to-input-map))]
+      (if (empty? listen-set)
+        nil
+        (let [[v chan] (a/alts! listen-set)]
+          (if (nil? v)
+            (recur (disj listen-set chan))
+            (do
+              (>! (output-to-input-map chan) v)
+              (recur listen-set))))))
     (>!! (first inputs) 0)
     (<!! (last outputs))))
 
@@ -38,38 +42,41 @@
 ;; return the right answer.
 (defn run-amplifier-part2 [program phase-sequence]
   (let [inputs (for [_ (range 5)] (a/chan))
-        outputs (for [_ (range 5)] (a/chan))]
-    (doseq [n (range 5)]
+        outputs (for [_ (range 5)] (a/chan))
+        output-to-input-map (into {} (map vector (drop-last outputs) (rest inputs)))]
+    (dotimes [n 5]
       (let [input (nth inputs n)
             output (nth outputs n)
             phase-number (nth phase-sequence n)]
-      (a/go
-        (do
-          (intcode/run-program program
-                               input
-                               output)
-          (a/close! input)
-          (a/close! output)))
-      (<!! (a/go (>! input phase-number)))
-      ;; TODO(davek): should have a single goloop with alts!
-      (if (not= n 4)
-        (a/go-loop []
-          (if-let [i (<! output)]
+        (a/go
+          (do
+            (intcode/run-program program
+                                 input
+                                 output)
+            (a/close! input)
+            (a/close! output)))
+        (<!! (a/go (>! input phase-number)))))
+    (a/go-loop [listen-set (set (keys output-to-input-map))]
+      (if (empty? listen-set)
+        nil
+        (let [[v chan] (a/alts! listen-set)]
+          (if (nil? v)
+            (recur (disj listen-set chan))
             (do
-              (>! (nth inputs (inc n)) i)
-              (recur))
-            nil)))))
+              (>! (output-to-input-map chan) v)
+              (recur listen-set))))))
     (>!! (first inputs) 0)
     (<!! (a/go-loop [prev-output nil]
-      (let [i (<! (last outputs))]
-        (if (nil? i)
-          prev-output
-          (do
-            (>! (first inputs) i)
-            (recur i))))))))
+           (let [i (<! (last outputs))]
+             (if (nil? i)
+               prev-output
+               (do
+                 (>! (first inputs) i)
+                 (recur i))))))))
 
-(run-amplifier-part2 "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"
-                     '(9 8 7 6 5))
+(println
+ (run-amplifier-part2 "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"
+                     '(9 8 7 6 5)))
 
 (defn max-amplifier-part2 [program]
   (->> (combo/permutations (range 5))
@@ -79,4 +86,4 @@
 
 ;; part 2
 (max-amplifier-part2 "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5")
-(max-amplifier-part2 (intcode/parse-file "2019/day7.txt"))
+(println (max-amplifier-part2 (intcode/parse-file "2019/day7.txt")))
