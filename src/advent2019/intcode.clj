@@ -46,6 +46,8 @@
         opcode (mod (program pc) 100)
         arity (get opcode-arity opcode 0)
         has-output? (get opcode-has-output? opcode false)
+        ;; TODO(davek):
+        ;; we need to handle the output register being in relative mode
         output-register (if has-output? (program (+ pc arity 1)) -1)
         vlist (val-list state arity (reverse (utils/to-digits (quot (program pc) 100) 3)))]
     (if halted?
@@ -55,7 +57,7 @@
                     2 (execute-op * vlist output-register state)
                     3 (let [i (<!! input)]
                         (-> state
-                            (assoc-in [:program (program (inc pc))] i)))
+                            (assoc-in [:program output-register] i)))
                     4 (do
                         (>!! output (first vlist))
                         state)
