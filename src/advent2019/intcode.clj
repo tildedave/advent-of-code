@@ -8,7 +8,7 @@
 (defn parse-program [^String line]
   {:program
    (->> (.split line ",")
-        (map utils/parse-int)
+        (map parse-long)
         (map-indexed vector)
         (into {}))
    :pc 0
@@ -99,14 +99,17 @@
    (if (string? program-or-string)
      (run-program (parse-program program-or-string)
                   input output)
-     (->>
-      (-> program-or-string
-          (assoc :input input)
-          (assoc :output output)
-          (halting-state)
-          :program)
-      (sort-by first)
-      (mapv second)))))
+     (let [res (->>
+                (-> program-or-string
+                    (assoc :input input)
+                    (assoc :output output)
+                    (halting-state)
+                    :program)
+                (sort-by first)
+                (mapv second))]
+       (a/close! input)
+       (a/close! output)
+       res))))
 
 (run-program "1,9,10,3,2,3,11,0,99,30,40,50")
 
@@ -150,22 +153,6 @@
 (<!! (run-input-output "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99"
                        1))
 
-(deftest day-9-test
-  (testing "quine"
-    (let [input (a/chan)
-          output (a/chan)
-          quine "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"]
-      (a/go (do
-              (run-program quine input output)
-              (a/close! input)
-              (a/close! output)))
-      (is (= (mapv utils/parse-int (.split quine ","))
-             (<!! (a/go-loop [res []]
-                    (let [n (<! output)]
-                      (if (nil? n)
-                        res
-                        (recur (conj res n)))))))))))
-
 (deftest day5-input-output
   (let [eq-8 "3,9,8,9,10,9,4,9,99,-1,8"
         lt-8 "3,9,7,9,10,9,4,9,99,-1,8"
@@ -190,5 +177,20 @@
     (is (= 999 (<!! (run-input-output below-8-test 5))))
     (is (= 1000 (<!! (run-input-output below-8-test 8))))
     (is (= 1001 (<!! (run-input-output below-8-test 15))))))
+
+(deftest day9-test
+  (testing "quine"
+    (let [output (a/chan)
+          quine "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"]
+      (a/go (run-program quine (a/chan) output))
+      (is (= (mapv utils/parse-int (.split quine ","))
+             (<!! (a/into [] output))))))
+  (testing "large numbers"
+    (let [output (a/chan)]
+      (a/go (run-program "1102,34915192,34915192,7,4,7,99,0" (a/chan) output))
+      (is (= 1219070632396864 (<!! output))))
+    (let [output (a/chan)]
+      (a/go (run-program "104,1125899906842624,99" (a/chan) output))
+       (is (= 1125899906842624 (<!! output))))))
 
 (run-tests 'advent2019.intcode)

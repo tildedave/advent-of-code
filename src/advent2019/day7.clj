@@ -38,8 +38,8 @@
 (max-amplifier "3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0")
 (max-amplifier (intcode/parse-file "2019/day7.txt"))
 
-;; something here isn't right; it sometimes doesn't
-;; return the right answer.
+;; changing intcode so that it closes the channels seems to have caused this
+;; to infinite loop; let's figure out why (later)
 (defn run-amplifier-part2 [program phase-sequence]
   (let [inputs (for [_ (range 5)] (a/chan))
         outputs (for [_ (range 5)] (a/chan))
@@ -48,13 +48,9 @@
       (let [input (nth inputs n)
             output (nth outputs n)
             phase-number (nth phase-sequence n)]
-        (a/go
-          (do
-            (intcode/run-program program
-                                 input
-                                 output)
-            (a/close! input)
-            (a/close! output)))
+        (a/go (intcode/run-program program
+                                   input
+                                   output))
         (<!! (a/go (>! input phase-number)))))
     (a/go-loop [listen-set (set (keys output-to-input-map))]
       (if (empty? listen-set)
