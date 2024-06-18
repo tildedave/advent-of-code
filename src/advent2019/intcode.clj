@@ -113,12 +113,12 @@
     program
     (recur (step-program program))))
 
-(defn run-program
+(defn run-program-internal
   ([program-or-string]
-   (run-program program-or-string (a/chan) (a/chan)))
+   (run-program-internal program-or-string (a/chan) (a/chan)))
   ([program-or-string input output]
    (if (string? program-or-string)
-     (run-program (parse-program program-or-string)
+     (run-program-internal (parse-program program-or-string)
                   input output)
      (let [res (->>
                 (-> program-or-string
@@ -132,9 +132,16 @@
        (a/close! output)
        res))))
 
-(run-program "1,9,10,3,2,3,11,0,99,30,40,50")
+(defn run-program
+  ([program-or-string] (run-program program-or-string (a/chan)))
+  ([program-or-string input]
+   (let [output (a/chan)]
+     (do (a/go (run-program-internal program-or-string input output))
+         output))))
 
-(run-program "1101,100,-1,4,0")
+(run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
+
+(run-program-internal "1101,100,-1,4,0")
 
 /
 ;; works
@@ -147,31 +154,30 @@
 ;;   (a/close! output))
 
 (deftest day2
-  (is (= (run-program "1,9,10,3,2,3,11,0,99,30,40,50")
+  (is (= (run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
          [3500 9 10 70 2 3 11 0 99 30 40 50]))
-  (is (= (run-program "1,0,0,0,99")
+  (is (= (run-program-internal "1,0,0,0,99")
          [2 0 0 0 99]))
-  (is (= (run-program "2,3,0,3,99")
+  (is (= (run-program-internal "2,3,0,3,99")
          [2 3 0 6 99]))
-  (is (= (run-program "2,4,4,5,99,0")
+  (is (= (run-program-internal "2,4,4,5,99,0")
          [2 4 4 5 99 9801]))
-  (is (= (run-program "1,1,1,4,99,5,6,0,99")
+  (is (= (run-program-internal "1,1,1,4,99,5,6,0,99")
          [30 1 1 4 2 5 6 0 99])))
 
 (deftest day5
-  (is (= (run-program "1101,100,-1,4,0")
+  (is (= (run-program-internal "1101,100,-1,4,0")
          [1101 100 -1 4 99])
-      (= (run-program "1002,4,3,4,33")
+      (= (run-program-internal "1002,4,3,4,33")
          [1002, 4, 3, 4, 99])))
 
-(defn run-input-output [program-or-string input-val]
+(defn run-with-input [program-or-string input-val]
   (let [input (a/chan)
-        output (a/chan)]
-    (a/go (run-program program-or-string input output))
+        output (run-program program-or-string input)]
     (>!! input input-val)
     output))
 
-(<!! (run-input-output "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99"
+(<!! (run-with-input "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99"
                        1))
 
 (deftest day5-input-output
@@ -182,36 +188,30 @@
         jump-test "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9"
         jump-test-immediate "3,3,1105,-1,9,1101,0,0,12,4,12,99,1"
         below-8-test "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99"]
-    (is (= 25 (<!! (run-input-output "3,0,1002,0,5,0,4,0,99" 5))))
-    (is (= 1 (<!! (run-input-output eq-8 8))))
-    (is (= 0 (<!! (run-input-output eq-8 4))))
-    (is (= 0 (<!! (run-input-output lt-8 12))))
-    (is (= 1 (<!! (run-input-output lt-8 3))))
-    (is (= 1 (<!! (run-input-output eq-8-immediate 8))))
-    (is (= 0 (<!! (run-input-output eq-8-immediate 4))))
-    (is (= 0 (<!! (run-input-output lt-8-immediate 12))))
-    (is (= 1 (<!! (run-input-output lt-8-immediate 3))))
-    (is (= 1 (<!! (run-input-output jump-test 12))))
-    (is (= 0 (<!! (run-input-output jump-test 0))))
-    (is (= 1 (<!! (run-input-output jump-test-immediate 12))))
-    (is (= 0 (<!! (run-input-output jump-test-immediate 0))))
-    (is (= 999 (<!! (run-input-output below-8-test 5))))
-    (is (= 1000 (<!! (run-input-output below-8-test 8))))
-    (is (= 1001 (<!! (run-input-output below-8-test 15))))))
+    (is (= 25 (<!! (run-with-input "3,0,1002,0,5,0,4,0,99" 5))))
+    (is (= 1 (<!! (run-with-input eq-8 8))))
+    (is (= 0 (<!! (run-with-input eq-8 4))))
+    (is (= 0 (<!! (run-with-input lt-8 12))))
+    (is (= 1 (<!! (run-with-input lt-8 3))))
+    (is (= 1 (<!! (run-with-input eq-8-immediate 8))))
+    (is (= 0 (<!! (run-with-input eq-8-immediate 4))))
+    (is (= 0 (<!! (run-with-input lt-8-immediate 12))))
+    (is (= 1 (<!! (run-with-input lt-8-immediate 3))))
+    (is (= 1 (<!! (run-with-input jump-test 12))))
+    (is (= 0 (<!! (run-with-input jump-test 0))))
+    (is (= 1 (<!! (run-with-input jump-test-immediate 12))))
+    (is (= 0 (<!! (run-with-input jump-test-immediate 0))))
+    (is (= 999 (<!! (run-with-input below-8-test 5))))
+    (is (= 1000 (<!! (run-with-input below-8-test 8))))
+    (is (= 1001 (<!! (run-with-input below-8-test 15))))))
 
 (deftest day9-test
   (testing "quine"
-    (let [output (a/chan)
-          quine "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"]
-      (a/go (run-program quine (a/chan) output))
+    (let [quine "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99"]
       (is (= (mapv utils/parse-int (.split quine ","))
-             (<!! (a/into [] output))))))
+             (<!! (a/into [] (run-program quine)))))))
   (testing "large numbers"
-    (let [output (a/chan)]
-      (a/go (run-program "1102,34915192,34915192,7,4,7,99,0" (a/chan) output))
-      (is (= 1219070632396864 (<!! output))))
-    (let [output (a/chan)]
-      (a/go (run-program "104,1125899906842624,99" (a/chan) output))
-       (is (= 1125899906842624 (<!! output))))))
+    (is (= 1219070632396864 (<!! (run-program "1102,34915192,34915192,7,4,7,99,0"))))
+    (is (= 1125899906842624 (<!! (run-program "104,1125899906842624,99"))))))
 
 (run-tests 'advent2019.intcode)

@@ -4,18 +4,14 @@
 
 ;; part 1
 (let [input (a/chan)
-      output (a/chan)]
- (a/go
-   (intcode/run-program (intcode/parse-file "2019/day9.txt")
-                      input output))
+      output (intcode/run-program (intcode/parse-file "2019/day9.txt")
+                                    input)]
   (>!! input 1)
   (println (last (<!! (a/into [] output)))))
 
 ;; part 2
 (let [input (a/chan)
-      output (a/chan)]
- (a/go
-   (intcode/run-program (intcode/parse-file "2019/day9.txt")
-                      input output))
+      output (intcode/run-program (intcode/parse-file "2019/day9.txt")
+                      input)]
   (>!! input 2)
   (println (last (<!! (a/into [] output)))))
