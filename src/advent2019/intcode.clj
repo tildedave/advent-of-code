@@ -1,6 +1,7 @@
 (ns advent2019.intcode
   (:require [utils :as utils]
             [clojure.test :refer [deftest is run-tests testing]]
+            [clojure.core.match :refer [match]]
             [clojure.core.async :as a :refer [>!! <!! <!]]))
 
 (into {} (map-indexed vector [1 2 3 4]))
@@ -19,17 +20,23 @@
        (first)
        (parse-program)))
 
-(defn val-list [state arity param-modes]
-  (let [{:keys [program pc relative-base]} state
-        params (map #(get program % 0) (range (inc pc) (+ arity pc 1)))]
-    (map
-     (fn [[mode arg]]
-       (case mode
-         0 (get program arg 0)
-         1 arg
-         2 (get program (+ relative-base arg) 0)))
-                   ;; we add relative mode next
-     (map vector param-modes params))))
+;; (defn val-list [state arity param-modes]
+;;   (let [{:keys [program pc relative-base]} state
+;;         params (map #(get program % 0) (range (inc pc) (+ arity pc 1)))]
+;;     (map
+;;      (fn [[mode arg]]
+;;        (case mode
+;;          0 (get program arg 0)
+;;          1 arg
+;;          2 (get program (+ relative-base arg) 0)))
+;;                    ;; we add relative mode next
+;;      (map vector param-modes params))))
+
+(defn eval-param [{:keys [program relative-base]} [mode arg]]
+  (case mode
+    0 (get program arg 0)
+    1 arg
+    2 (get program (+ relative-base arg) 0)))
 
 (defn execute-op [op-f vlist output-register state]
   (-> state
@@ -42,14 +49,26 @@
 (def opcode-has-output? {1 true 2 true 3 true 7 true 8 true})
 
 (defn step-program [state]
-  (let [{:keys [program pc halted? input output]} state
+  (let [{:keys [program pc halted? input output relative-base]} state
         opcode (mod (program pc) 100)
         arity (get opcode-arity opcode 0)
         has-output? (get opcode-has-output? opcode false)
-        ;; TODO(davek):
-        ;; we need to handle the output register being in relative mode
-        output-register (if has-output? (program (+ pc arity 1)) -1)
-        vlist (val-list state arity (reverse (utils/to-digits (quot (program pc) 100) 3)))]
+        param-addrs (range
+                     (inc pc)
+                     (+ (inc pc) arity (if has-output? 1 0)))
+        params (map #(get program % 0) param-addrs)
+        mode-params (map
+                     vector
+                     (reverse (utils/to-digits (quot (program pc) 100) 3))
+                     params)
+        output-register (if has-output?
+                          (match (last mode-params)
+                            [0 addr] addr
+                            [1 _] (throw (Exception. "specified immediate for output argument"))
+                            [2 addr] (+ addr relative-base)))
+        vlist (map
+               (partial eval-param state)
+               (if has-output? (drop-last mode-params) mode-params))]
     (if halted?
       state
       (let [state (case opcode
