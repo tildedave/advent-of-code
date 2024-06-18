@@ -4,26 +4,17 @@
             [clojure.core.async :as a :refer [>!! <!! >! <!]]))
 
 (defn run-amplifier [program phase-sequence]
-  (let [inputs (for [_ (range 5)] (a/chan))
-        outputs (for [_ (range 5)] (a/chan))
-        output-to-input-map (into {} (map vector (drop-last outputs) (rest inputs)))]
-    (dotimes [n 5]
-      (a/go
-        (intcode/run-program program
-                             (nth inputs n)
-                             (nth outputs n)))
-      (<!! (a/go (>! (nth inputs n) (nth phase-sequence n)))))
-    (a/go-loop [listen-set (set (keys output-to-input-map))]
-      (if (empty? listen-set)
-        nil
-        (let [[v chan] (a/alts! listen-set)]
-          (if (nil? v)
-            (recur (disj listen-set chan))
-            (do
-              (>! (output-to-input-map chan) v)
-              (recur listen-set))))))
-    (>!! (first inputs) 0)
-    (<!! (last outputs))))
+  (let [system-input (a/chan)
+        system-output
+        (loop [n 0
+               input system-input]
+          (if (= n 5)
+            input
+            (let [next-input (intcode/run-program program input)]
+              (>!! input (nth phase-sequence n))
+              (recur (inc n) next-input))))]
+    (>!! system-input 0)
+    (last (<!! (a/into [] system-output)))))
 
 (run-amplifier "3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0"
                '(4 3 2 1 0))
@@ -41,38 +32,27 @@
 ;; changing intcode so that it closes the channels seems to have caused this
 ;; to infinite loop; let's figure out why (later)
 (defn run-amplifier-part2 [program phase-sequence]
-  (let [inputs (for [_ (range 5)] (a/chan))
-        outputs (for [_ (range 5)] (a/chan))
-        output-to-input-map (into {} (map vector (drop-last outputs) (rest inputs)))]
-    (dotimes [n 5]
-      (let [input (nth inputs n)
-            output (nth outputs n)
-            phase-number (nth phase-sequence n)]
-        (a/go (intcode/run-program program
-                                   input
-                                   output))
-        (<!! (a/go (>! input phase-number)))))
-    (a/go-loop [listen-set (set (keys output-to-input-map))]
-      (if (empty? listen-set)
-        nil
-        (let [[v chan] (a/alts! listen-set)]
-          (if (nil? v)
-            (recur (disj listen-set chan))
-            (do
-              (>! (output-to-input-map chan) v)
-              (recur listen-set))))))
-    (>!! (first inputs) 0)
-    (<!! (a/go-loop [prev-output nil]
-           (let [i (<! (last outputs))]
-             (if (nil? i)
-               prev-output
+  (let [system-input (a/chan)
+        system-output
+        (loop [n 0
+               input system-input]
+          (if (= n 5)
+            input
+            (let [next-input (intcode/run-program program input)]
+              (>!! input (nth phase-sequence n))
+              (recur (inc n) next-input))))]
+    (>!! system-input 0)
+    (<!! (a/go-loop [last-input nil]
+           (let [v (<! system-output)]
+             (if (nil? v)
+               last-input
                (do
-                 (>! (first inputs) i)
-                 (recur i))))))))
+                 (a/put! system-input v)
+                 (recur v))))))))
 
 (println
  (run-amplifier-part2 "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5"
-                     '(9 8 7 6 5)))
+                      '(9 8 7 6 5)))
 
 (defn max-amplifier-part2 [program]
   (->> (combo/permutations (range 5))

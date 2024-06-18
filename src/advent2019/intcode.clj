@@ -119,25 +119,25 @@
   ([program-or-string input output]
    (if (string? program-or-string)
      (run-program-internal (parse-program program-or-string)
-                  input output)
-     (let [res (->>
-                (-> program-or-string
-                    (assoc :input input)
-                    (assoc :output output)
-                    (halting-state)
-                    :program)
-                (sort-by first)
-                (mapv second))]
-       (a/close! input)
-       (a/close! output)
-       res))))
+                           input output)
+     (->>
+      (-> program-or-string
+          (assoc :input input)
+          (assoc :output output)
+          (halting-state)
+          :program)
+      (sort-by first)
+      (mapv second)))))
 
 (defn run-program
   ([program-or-string] (run-program program-or-string (a/chan)))
   ([program-or-string input]
    (let [output (a/chan)]
-     (do (a/go (run-program-internal program-or-string input output))
-         output))))
+     (a/go
+       (do
+         (run-program-internal program-or-string input output)
+         (a/close! output)))
+     output)))
 
 (run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
 
