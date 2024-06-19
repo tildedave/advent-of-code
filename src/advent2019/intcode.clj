@@ -139,6 +139,10 @@
          (a/close! output)))
      output)))
 
+(defn run-file
+  ([file] (run-file file (a/chan)))
+  ([file input] (run-program (parse-file file) input)))
+
 (run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
 
 (run-program-internal "1101,100,-1,4,0")
