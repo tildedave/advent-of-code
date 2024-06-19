@@ -93,6 +93,16 @@ will not be present in the new structure. "
            vv
            (mapv - uv (mapv (partial * q) vv))))))))
 
+(defn gcd [u v]
+  (last (euclid-extended u v)))
+
+;; lcm(u,v) = u * v / (u, v); we can just divide one of the  numerator factors
+;; by the gcd to avoid overflows.
+(defn lcm [u v]
+  (* (quot u (gcd u v)) v))
+
+(assert (= (gcd 40902 24140) 34))
+
 ;; 1.3.12 Course in Computational Algebraic Number Theory
 (defn crt-inductive [residues]
   (loop [[x m] (first residues)

@@ -56,3 +56,26 @@
 (answer "2019/day12-example.txt" 10)
 (answer "2019/day12-example2.txt" 100)
 (answer "2019/day12.txt" 1000)
+
+;; for part 2 the insight is that x/y/z are independent of each other and so
+;; can cycle.  then we can LCM the cycle lengths.
+
+(defn cycle-length [axis step-seq]
+  (reduce
+   (fn [seen [n moons]]
+     (let [state-hash (mapcat
+                       #(vector (axis %) ((axis-velocity axis) %))
+                       moons)]
+       (if (contains? seen state-hash)
+         (reduced (- n (seen state-hash)))
+         (assoc seen state-hash n))))
+   {}
+   (map-indexed vector step-seq)))
+
+(defn answer-part2 []
+  (let [step-seq (->> (utils/read-input "2019/day12.txt")
+                      (map parse-moon)
+                      (iterate step))]
+    (reduce utils/lcm (map #(cycle-length % step-seq) [:x :y :z]))))
+
+(time (println (answer-part2)))
