@@ -1,5 +1,6 @@
 (ns grid
-  (:require [clojure.data.priority-map :refer [priority-map]]))
+  (:require [utils :as utils]
+            [clojure.data.priority-map :refer [priority-map]]))
 
 (defn parse
   ([lines] (parse lines identity))
@@ -8,6 +9,12 @@
         (map seq)
         (map #(mapv sq-f %))
         (vec))))
+
+(defn parse-file
+  ([file] (parse-file file identity))
+  ([file sq-f] (-> file
+                    (utils/read-input)
+                   (parse sq-f))))
 
 (defn bounds [grid]
   [(count (first grid))
