@@ -1,6 +1,6 @@
 (ns advent2018.day20
   (:require [advent2020.day18 :refer [matching-paren]]
-            [grid :as grid]
+            [graph :as graph]
             [utils :as utils]))
 
 ;; so we use the regex to construct the map
@@ -142,7 +142,7 @@
 
 (defn answer [regex]
   (let [[_ door-map] (step-regex [[0 0] {}] (parse-door-regex regex))]
-    (->> (grid/dijkstra-search
+    (->> (graph/dijkstra-search
           [0 0]
           (neighbors door-map)
           (fn [& args] false))
@@ -162,7 +162,7 @@
 
 (defn answer-part2 [regex]
   (let [[_ door-map] (step-regex [[0 0] {}] (parse-door-regex regex))]
-    (->> (grid/dijkstra-search
+    (->> (graph/dijkstra-search
           [0 0]
           (neighbors door-map)
           (fn [& args] false))

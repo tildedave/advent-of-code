@@ -1,5 +1,6 @@
 (ns advent2018.day15
   (:require [grid :as grid]
+            [graph :as graph]
             [utils :as utils]
             [clojure.string :as string]))
 
@@ -39,7 +40,7 @@
   (let [agent-coords (:coords (agents current-agent-id))
         targets (target-coords agents current-agent-id)]
     (if (empty? (filter (partial grid/is-adjacent? agent-coords) targets))
-      (let [distances (grid/dijkstra-search
+      (let [distances (graph/dijkstra-search
                        agent-coords
                        neighbors
                        (fn [& _] false))
@@ -57,14 +58,14 @@
       [agent-coords 0])))
 
 (let [grid (grid/parse (utils/read-input "2018/day15-move-example.txt"))]
-  (grid/breadth-first-search
+  (graph/breadth-first-search
    [1 1]
    [3 1]
    (neighbors grid)
    (fn [& _] false)))
 
 (let [grid (grid/parse (utils/read-input "2018/day15-move-example.txt"))]
-  (grid/all-paths [1 1] [2 2] (neighbors grid) (fn [& args] false)))
+  (graph/all-paths [1 1] [2 2] (neighbors grid) (fn [& args] false)))
 
 (defn agent-move [[grid agents finished?] current-agent-id]
   (let [neighbors (neighbors grid)
@@ -78,8 +79,8 @@
                                   (if (= target current-square)
                                     current-square
                                     (do
-                                      (->> (grid/all-paths (get-in agents [current-agent-id :coords]) target neighbors
-                                                           (fn [_ d] (> d target-dist)))
+                                      (->> (graph/all-paths (get-in agents [current-agent-id :coords]) target neighbors
+                                                            (fn [_ d] (> d target-dist)))
                                            (sort-by second reading-order-compare)
             ;; first path is the "reading order first"
                                            (first)

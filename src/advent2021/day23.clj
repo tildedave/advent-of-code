@@ -1,6 +1,7 @@
 (ns advent2021.day23
   (:require [utils :as utils]
-            [grid :as grid]))
+            [grid :as grid]
+            [graph :as graph]))
 
 (set! *warn-on-reflection* true)
 
@@ -305,7 +306,7 @@
    (neighbors (parse-input "day23-example.txt")))))
 
 (defn answer-part1 [filename]
-  (grid/a*-search
+  (graph/a*-search
    (parse-input filename)
    (fn [state] (= (dissoc state :cost) (make-goal)))
    neighbors
@@ -319,7 +320,7 @@
 
 (defn answer-part2 [filename]
   (binding [part2? true]
-    (grid/a*-search
+    (graph/a*-search
      (parse-input filename)
      (fn [state] (= (dissoc state :cost) (make-goal)))
      neighbors

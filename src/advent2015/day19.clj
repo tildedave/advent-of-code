@@ -85,7 +85,7 @@
             (recur next n))))))
 
 ;; (defn answer-part2 [transforms dest-string]
-;;   (grid/a*-search
+;;   (graph/a*-search
 ;;    "e"
 ;;    #(= % dest-string)
 ;;    (partial all-transforms transforms)

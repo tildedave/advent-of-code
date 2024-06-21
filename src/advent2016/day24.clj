@@ -1,6 +1,7 @@
 (ns advent2016.day24
   (:require [utils :as utils]
             [grid :as grid]
+            [graph :as graph]
             [clojure.math.combinatorics :as combo]))
 
 ;; OK, so I think we can get all pairs shortest paths distances
@@ -22,7 +23,7 @@
   (let [numbered-coords (interesting-coords grid)]
    (->>
     (for [coord numbered-coords]
-      {coord (->> (grid/dijkstra-search
+      {coord (->> (graph/dijkstra-search
                    coord
                    #(grid/neighbors grid % grid/cardinal-directions (fn [ch] (= ch \#)))
                    (fn [_ _] false))

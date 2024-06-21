@@ -1,7 +1,7 @@
 (ns advent2016.day11
   (:require [utils :as utils]
             [clojure.set :as set]
-            [grid :as grid]))
+            [graph :as graph]))
 
 ;; so this is a good problem for A* search
 ;; state representation is {:elevator X, floor {:microchips :generators}}
@@ -137,7 +137,7 @@
 (state-hash (initial-state (utils/read-input "2016/day11-example.txt")))
 
 
-(grid/a*-search
+(graph/a*-search
  (initial-state (utils/read-input "2016/day11-example.txt"))
  is-goal?
  neighbors
@@ -147,7 +147,7 @@
 
 (defn answer-part1 []
   (first
-   (grid/a*-search
+   (graph/a*-search
     (initial-state (utils/read-input "2016/day11.txt"))
     is-goal?
     neighbors
@@ -162,7 +162,7 @@
 
 (defn answer-part2 []
   (first
-   (grid/a*-search
+   (graph/a*-search
    (-> (initial-state (utils/read-input "2016/day11.txt"))
        (update-in [1 :generators] #(conj % "elerium"))
        (update-in [1 :microchips] #(conj % "elerium"))

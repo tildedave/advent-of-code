@@ -1,6 +1,6 @@
 (ns advent2016.day17
   (:require [utils :as utils]
-            [grid :as grid]))
+            [graph :as graph]))
 
 
 ;; again we are doing A* search
@@ -35,7 +35,7 @@
 (def is-goal? (fn [[[x y] _]] (and (= x 3) (= y 3))))
 
 (defn answer [passcode]
-  (second (grid/a*-search
+  (second (graph/a*-search
            [[0 0] ""]
            is-goal?
            (neighbors passcode)

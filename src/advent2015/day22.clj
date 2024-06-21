@@ -1,6 +1,6 @@
 (ns advent2015.day22
   (:require [utils :as utils]
-            [grid :as grid]))
+            [graph :as graph]))
 
 (def ^:dynamic part2? false)
 
@@ -146,7 +146,7 @@
     (neighbor-states)
 )
 
-(first (grid/a*-search
+(first (graph/a*-search
  example1-state
  (fn [{:keys [result]}] (= result :boss-dead))
  neighbor-states
@@ -157,7 +157,7 @@
      (+ boss-hp hp)))
  (fn [_ {:keys [spent-mana]}] spent-mana)))
 
-(first (grid/a*-search
+(first (graph/a*-search
  example2-state
  (fn [{:keys [result]}] (= result :boss-dead))
  neighbor-states
@@ -174,7 +174,7 @@
 (starting-state "2015/day22.txt")
 
 (defn answer-part1 [filename]
-  (first (grid/a*-search
+  (first (graph/a*-search
    (starting-state filename)
    (fn [{:keys [result]}] (= result :boss-dead))
    neighbor-states

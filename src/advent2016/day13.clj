@@ -1,5 +1,5 @@
 (ns advent2016.day13
-  (:require [grid :as grid]
+  (:require [graph :as graph]
             [utils :as utils]))
 
 (defn is-wall? [puzzle-input]
@@ -36,7 +36,7 @@
     (+ (abs (- gx x)) (abs (- gy y)))))
 
 (defn answer [puzzle-input [gx gy]]
-  (first (grid/a*-search
+  (first (graph/a*-search
    [1 1]
    (fn [[x y]] (and (= x gx) (= y gy)))
    (neighbors (is-wall? puzzle-input))
@@ -55,7 +55,7 @@
 ;; unfortunately I coded it 99% correctly the first try.
 
 (count
- (grid/dijkstra-search
+ (graph/dijkstra-search
   [1 1]
   (neighbors (is-wall? (puzzle-input)))
   (fn [_ dist] (= dist 50))))

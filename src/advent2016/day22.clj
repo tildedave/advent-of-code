@@ -1,8 +1,7 @@
 (ns advent2016.day22
   (:require [utils :as utils]
             [clojure.math.combinatorics :as combo]
-            [clojure.set :as set]
-            [grid :as grid]))
+            [graph :as graph]))
 
 (.split #"\s+" "/dev/grid/node-x0-y0     91T   66T    25T   72%")
 
@@ -133,7 +132,7 @@
       (neighbors)))
 
 (let [filesystem (parse-filesystem "2016/day22-example.txt")]
-  (grid/a*-search
+  (graph/a*-search
    (initial-state filesystem)
    is-goal?
    (neighbors (adjacent-nodes filesystem) (can-copy? filesystem) (copy-into filesystem))
@@ -142,7 +141,7 @@
 
 (defn answer-part2 [filename]
   (let [filesystem (parse-filesystem filename)]
-    (first (grid/a*-search
+    (first (graph/a*-search
      (initial-state filesystem)
      is-goal?
      (neighbors (adjacent-nodes filesystem) (can-copy? filesystem) (copy-into filesystem))

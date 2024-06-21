@@ -1,6 +1,6 @@
 (ns advent2018.day22
   (:require [clojure.core.match :refer [match]]
-            [grid :as grid]))
+            [graph :as graph]))
 
 ;; so this is a series of mutually recursive functions
 ;; it would be wonderful to memoize them.
@@ -110,7 +110,7 @@
 
 (defn rescue-time [depth target]
   (let [region-type! (region-type! depth target)]
-    (grid/a*-search
+    (graph/a*-search
      {:position [0 0] :equipped :torch}
      (fn [{:keys [position equipped]}] (and (= position target)
                                             (= equipped :torch)))
