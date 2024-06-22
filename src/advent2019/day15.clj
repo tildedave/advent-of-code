@@ -48,14 +48,12 @@
 (path-to-direction-list '([0 0] [-1 0] [-1 -1] [0 -1]))
 
 (defn path-to [parents node]
-  (println "path to" node)
   (loop [result []
          node node]
     (if-let [next-node (parents node)]
       (recur (conj result node) next-node)
-      (do
-        (println "path is" (conj result node))
-        (conj result node)))))
+      ;; kind of funny, I had the same reverse issue in golang
+      (vec (reverse (conj result node))))))
 
 (defn path-between
   "We're at node1, we want to get to node2.
@@ -64,9 +62,7 @@
   [parents node1 node2]
   (let [path1 (path-to parents node1)
         path2 (path-to parents node2)
-        path2-elements (set path2)
-        _ (println path1)
-        _ (println path2)]
+        path2-elements (set path2)]
     (loop [path-backwards path1
            path []]
       (if-let [x (peek path-backwards)]
@@ -110,9 +106,10 @@
                        (do
                          (>!! input (direction-responses direction))
                          (let [square-contents (<!! output)]
-                     ;; we moved our position, so we need to move back
-                     ;; also check the distances and so forth.
+                           ;; we moved our position, so we need to move back
+                           ;; also check the distances and so forth.
                            (if (zero? square-contents)
+                             ;; we didn't move
                              [queue contents parents distances]
                              (do
                                (>!! input (direction-responses (reverse-direction direction)))
@@ -122,10 +119,15 @@
                                   (assoc contents v square-contents)
                                   (assoc parents v x)
                                   (assoc distances v (inc dist))]
-                                 [queue contents parents distances]
-                                 ))))))))
+                                 [queue contents parents distances]))))))))
                  [queue contents parents distances]
                  '(:north :south :east :west))]
             (recur x visited queue contents parents distances)))))))
 
-(robot-search)
+(let [[distances contents] (robot-search)]
+  (distances (->> contents
+       (filter (fn [[_ n]] (= n 2)))
+       (first)
+       (first))))
+
+;; so part2 is just flood fill on the contents map
