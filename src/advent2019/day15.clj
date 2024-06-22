@@ -2,7 +2,8 @@
   (:require [clojure.core.async :as a :refer [<!! >! <! >!!]]
             [advent2019.intcode :as intcode]
             [clojure.data.priority-map :refer [priority-map]]
-            [clojure.core.match :refer [match]]))
+            [clojure.core.match :refer [match]]
+            [graph :as graph]))
 
 ;; we need to implement A* or DFS or whatever to find
 ;; the oxygen system.
@@ -124,10 +125,32 @@
                  '(:north :south :east :west))]
             (recur x visited queue contents parents distances)))))))
 
-(let [[distances contents] (robot-search)]
-  (distances (->> contents
+(defn oxygen-room [contents]
+  (->> contents
        (filter (fn [[_ n]] (= n 2)))
        (first)
-       (first))))
+       (first)))
+
+(let [[distances contents] (robot-search)]
+  (distances (oxygen-room contents)))
 
 ;; so part2 is just flood fill on the contents map
+;; actually it could be seen as just BFS on the contents map.
+;; then max distance.
+;; OK, let's try that.
+
+(let [[_ contents] (robot-search)
+      [_ distances]
+      (graph/breadth-first-search
+   (oxygen-room contents)
+   (fn [coords]
+     (->>
+      (for [delta [[-1 0] [1 0] [0 1] [0 -1]]]
+       (mapv + coords delta))
+      (filter #(contains? contents %)))))]
+  (->> distances
+       (sort-by second >)
+       (first)
+       (second)))
+
+;; yes, that worked nicely.
