@@ -7,6 +7,8 @@
 
 (def read-input read-resource-lines)
 
+(def read-input-line #(first (read-resource-lines %)))
+
 (defn parse-int [str] (Integer/valueOf str))
 
 (defn quot-round-up [n m]

@@ -54,7 +54,7 @@
     (if-let [next-node (parents node)]
       (recur (conj result node) next-node)
       ;; kind of funny, I had the same reverse issue in golang
-      (vec (reverse (conj result node))))))
+      (vec (rseq (conj result node))))))
 
 (defn path-between
   "We're at node1, we want to get to node2.
