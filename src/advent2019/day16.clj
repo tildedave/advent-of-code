@@ -78,10 +78,10 @@
      [(initial-digits is) (dec (* (count is) 10000))]
      (iterate
       (fn [[prev-digits idx]]
-        [(digits is prev-digits idx) (dec idx)]))
+        [(digits is prev-digits (dec idx)) (dec idx)]))
      ;; I'm not certain why we need to tweak everything by 1,
      ;; I'd guess my indices are off by one.
-     (drop-while (fn [[_ idx]] (not (<= (dec offset) idx (+ offset 6)))))
+     (drop-while (fn [[_ idx]] (not (<= offset idx (+ offset 7)))))
      (take 8)
      (map first)
      (map last)
@@ -92,4 +92,4 @@
 (answer-part2 "03036732577212944063491565474664")
 (answer-part2 "02935109699940807407585447034323")
 (answer-part2 "03081770884921959731165446850517")
-(answer-part2 (utils/read-input-line "2019/day16.txt"))
+(time (answer-part2 (utils/read-input-line "2019/day16.txt")))
