@@ -57,37 +57,32 @@
 (count (parse-input "80871224585914546619083218645595"))
 (mod (dec (* 32 10000)) 32)
 
+;; can I make you lazy?
 (defn digits [input-signal prev-digits idx]
-  (loop [last-digit (nth input-signal (mod idx (count input-signal)))
-         prev-digits prev-digits
-         result []]
-    (if-let [x (first prev-digits)]
-      (let [next-digit (mod (+ last-digit x) 10)]
-        (recur
-         next-digit
-         (rest prev-digits)
-         (conj result next-digit)))
-      result)))
+  (letfn [(digit-seq [last-digit prev-digits]
+          (if-let [x (first prev-digits)]
+            (let [next-digit (mod (+ last-digit x) 10)]
+              (lazy-seq (cons next-digit (digit-seq next-digit (rest prev-digits)))))
+            '()))]
+    (digit-seq
+     (nth input-signal (mod idx (count input-signal)))
+     prev-digits)))
 
 (utils/parse-int (.substring "03036732577212944063491565474664" 0 7))
 
 (defn answer-part2 [line]
   (let [is (parse-input line)
         offset (utils/parse-int (.substring line 0 7))]
-    (->>
-     [(initial-digits is) (dec (* (count is) 10000))]
-     (iterate
-      (fn [[prev-digits idx]]
-        [(digits is prev-digits (dec idx)) (dec idx)]))
-     ;; I'm not certain why we need to tweak everything by 1,
-     ;; I'd guess my indices are off by one.
-     (drop-while (fn [[_ idx]] (not (<= offset idx (+ offset 7)))))
-     (take 8)
-     (map first)
-     (map last)
-     (reverse)
-     (string/join)
-     )))
+    (letfn [(digit-seq
+              [n prev-digits]
+              (if (< n offset) '()
+                  (let [next-digits (digits is prev-digits n)]
+                    (if (<= offset n (+ offset 7))
+                      (lazy-seq (cons (last next-digits) (digit-seq (dec n) next-digits)))
+                      (lazy-seq (digit-seq (dec n) next-digits))))))]
+     (->> (digit-seq (dec (* (count is) 10000)) (initial-digits is))
+          reverse
+          string/join))))
 
 (answer-part2 "03036732577212944063491565474664")
 (answer-part2 "02935109699940807407585447034323")
