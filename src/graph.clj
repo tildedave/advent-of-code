@@ -130,3 +130,36 @@
              (graph x))]
         (recur queue deps (conj result x)))
         result))))
+
+(defn adjacency-edges [adjancency]
+  (reduce
+   (fn [acc k]
+     (reduce
+      (fn [acc v]
+        (conj acc [k v]))
+      acc
+      (adjancency k)))
+   []
+   (keys adjancency)))
+
+(defn all-pairs-shortest-paths [adjacency]
+  (let [initial-distances (->> (keys adjacency)
+                               (into {} (map #(vector [% %] 0)))
+                               (merge (into {} (map #(vector % 1) (adjacency-edges adjacency)))))
+        initial-prev (->> (keys adjacency)
+                          (into {} (map #(vector [% %] %)))
+                          (merge (into {} (map (fn [[u v]] (vector [u v] u)) (adjacency-edges adjacency)))))]
+    (reduce
+     (fn [[distances prev] [k i j]]
+       (let [dist-i-j (get distances [i j] Integer/MAX_VALUE)
+             dist-k-j (get distances [k j] Integer/MAX_VALUE)
+             dist-i-k (get distances [i k] Integer/MAX_VALUE)]
+         (if (> dist-i-j (+ dist-i-k dist-k-j))
+           [(assoc distances [i j] (+ dist-i-k dist-k-j))
+            (assoc prev [i j] (prev [k j]))]
+           [distances prev])))
+     [initial-distances initial-prev]
+     (for [k (keys adjacency)
+           i (keys adjacency)
+           j (keys adjacency)]
+       [k i j]))))

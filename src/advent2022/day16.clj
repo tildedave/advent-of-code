@@ -1,6 +1,7 @@
 (ns advent2022.day16
   (:require [utils :as utils]
             [clojure.set :as set]
+            [graph :as graph]
             [clojure.data.priority-map :refer [priority-map]]))
 
 ;; I guess we start with floyd warshall, eliminate the 00 flow nodes, and
@@ -26,42 +27,7 @@
 (def adjacency-matrix (first (reduce parse-line [{} {}] lines)))
 (def flows (second (reduce parse-line [{} {}] lines)))
 
-(defn adjacency-edges [adjancency]
-  (reduce
-   (fn [acc k]
-     (reduce
-      (fn [acc v]
-        (conj acc [k v]))
-      acc
-      (adjancency k)))
-   []
-   (keys adjancency)))
-(adjacency-edges adjacency-matrix)
-
-(defn all-pairs-shortest-paths [adjacency]
-  (let [initial-distances (->> (keys adjacency)
-                               (into {} (map #(vector [% %] 0)))
-                               (merge (into {} (map #(vector % 1) (adjacency-edges adjacency)))))
-        initial-prev (->> (keys adjacency)
-                          (into {} (map #(vector [% %] %)))
-                          (merge (into {} (map (fn [[u v]] (vector [u v] u)) (adjacency-edges adjacency)))))]
-    (reduce
-     (fn [[distances prev] [k i j]]
-       (let [dist-i-j (get distances [i j] Integer/MAX_VALUE)
-             dist-k-j (get distances [k j] Integer/MAX_VALUE)
-             dist-i-k (get distances [i k] Integer/MAX_VALUE)]
-         (if (> dist-i-j (+ dist-i-k dist-k-j))
-           [(assoc distances [i j] (+ dist-i-k dist-k-j))
-            (assoc prev [i j] (prev [k j]))]
-           [distances prev])))
-     [initial-distances initial-prev]
-     (for [k (keys adjacency)
-           i (keys adjacency)
-           j (keys adjacency)]
-       [k i j]))))
-
-
-(def prev (second (all-pairs-shortest-paths adjacency-matrix)))
+(def prev (second (graph/all-pairs-shortest-paths adjacency-matrix)))
 (defn get-path [prev u v]
   (if
    (not (contains? prev [u v]))
