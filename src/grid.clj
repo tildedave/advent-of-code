@@ -24,6 +24,9 @@
       (>= y (count grid))
       (< x 0) (>= x (count (first grid)))))
 
+(defn in-bounds? [grid [x y]]
+  (not (out-of-bounds? grid [x y])))
+
 (def cardinal-directions [[-1 0] [1 0] [0 -1] [0 1]])
 (def ordinal-directions [[-1 -1] [-1 1] [1 -1] [1 1]])
 (def all-directions (concat cardinal-directions ordinal-directions))
