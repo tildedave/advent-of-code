@@ -108,7 +108,6 @@
    [[x y] (start-position grid)
     dir :up
     result []]
-    (println [x y] dir)
     (if-let [[x y] (move grid [x y] dir)]
       (recur [x y] dir (conj result 1))
       (if-let [turn-direction (turn grid [x y] dir)]
@@ -124,7 +123,104 @@
                     (count c))))
        (string/join ",")))
 
-(robot-instructions (grid/parse example-grid2))
+(robot-instructions (grid/parse (robot-grid)))
 
 ;; final thing we need to do is combine it into sub-instructions
 ;; that seems kinda annoying, I'll do it tomorrow.
+
+(.split #",?R,8,R,8,?"
+        "R,8,R,8,R,4,R,4,R,8,L,6,L,2,R,4,R,4,R,8,R,8,R,8,L,6,L,2"
+        )
+
+(.split (re-pattern (format ",?%s,?" "R,4,L,12,L,8,R,4"))
+        "R,4,L,12,L,8,R,4,L,8,R,10,R,10,R,6,R,4,L,12,L,8,R,4,R,4,R,10,L,12,R,4,L,12,L,8,R,4,L,8,R,10,R,10,R,6,R,4,L,12,L,8,R,4,R,4,R,10,L,12,L,8,R,10,R,10,R,6,R,4,R,10,L,12")
+
+;; this approach will work.
+;; split based on first prefix.  then for all strings < 20, try splitting on that,
+;; if final result as a set is singleton, we're done.
+
+(defn split-instruction [^String s prefix]
+  (.split (re-pattern (format ",?%s,?" prefix)) s))
+
+(defn try-split [^String s prefix]
+  (let [parts (remove (partial = "") (split-instruction s prefix))
+        candidates (set (filter #(<= (count %) 20) parts))]
+    (for [candidate candidates]
+      (let [remaining (set (mapcat #(split-instruction % candidate) parts))]
+        (if (and (= (count remaining) 1)
+                 (<= (count (first remaining)) 20))
+          [prefix candidate (first remaining)]
+          nil)))))
+
+(defn valid-prefixes [^String s]
+  ;; all strings starting a 0 and ending < 20 so that the final thing isn't a
+  ;; comma
+  (->> (range 20 0 -1)
+       (map #(.substring s 0 %))
+       (remove #(= (last %) \,))))
+
+(defn compress-instructions [^String s]
+  (->> (valid-prefixes s)
+       (mapcat (partial try-split s))
+       (remove nil?)
+       (map (fn [[a b c]]
+              [(-> s
+                   (.replaceAll a "A")
+                   (.replaceAll b "B")
+                   (.replaceAll c "C"))
+               a b c]))
+       (filter (fn [[s & _]] (<= (count s) 20)))))
+
+;; OK so we have everything.  we now put it together.
+
+(map int "A,B,A,C,A,B,A,C,B,C")
+
+(defn send-instructions! [chan instructions]
+    (<!! (a/onto-chan! chan (map int instructions) false))
+    (>!! chan 10))
+
+(char 46)
+
+(defn read-until-newline [chan]
+  (a/go-loop [result []]
+    (let [ch (<! chan)]
+      (cond
+        (= ch 10) (string/join (map char result))
+        (> ch 256) ch
+        (nil? ch) nil
+        :else (recur (conj result ch))))))
+
+(string/join (map char [46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 35 35 35 35 35 35 35 35 35 35 35 46 46 46 46 46 46]))
+
+(defn answer-part2 []
+  (let [[main a b c] (->> (robot-grid)
+                          (grid/parse)
+                          (robot-instructions)
+                          (compress-instructions)
+                          (first))
+        input (a/chan)
+        program (assoc-in (intcode/parse-file "2019/day17.txt")
+                          [:program 0] 2)
+        output (intcode/run-program program input)]
+    (<!! (a/go-loop []
+           (let [next (<! (read-until-newline output))]
+             (if (int? next)
+               next
+               (do
+                 (case next
+                 "Main:"
+                   (send-instructions! input main)
+                 "Function A:"
+                   (send-instructions! input a)
+                 "Function B:"
+                   (send-instructions! input b)
+                 "Function C:"
+                   (send-instructions! input c)
+                 "Continuous video feed?"
+                   (do
+                     (>! input (int \n))
+                     (>! input 10))
+                 nil)
+                 (recur))))))))
+
+(println (answer-part2))
