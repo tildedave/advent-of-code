@@ -20,9 +20,10 @@
    (count grid)])
 
 (defn out-of-bounds? [grid [x y]]
-  (or (< y 0)
-      (>= y (count grid))
-      (< x 0) (>= x (count (first grid)))))
+  (nil? (grid/at grid [x y])))
+  ;; (or (< y 0)
+  ;;     (>= y (count grid))
+  ;;     (< x 0) (>= x (count (first grid)))))
 
 (defn in-bounds? [grid [x y]]
   (not (out-of-bounds? grid [x y])))
