@@ -51,7 +51,7 @@
           :else [nx ny]))))))
 
 (defn coords [grid]
-  (let [xmax (count (first grid))
+  (let [xmax (reduce max (map count grid))
         ymax (count grid)]
     (for [x (range 0 xmax)
           y (range 0 ymax)]
