@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/tildedave/advent-of-code-2019/day25"
+	"github.com/tildedave/advent-of-code-2019/day22"
 )
 
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
@@ -22,11 +22,11 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	f, err := os.Open("./inputs/day25.txt")
+	f, err := os.Open("./inputs/day22.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
 
-	day25.Run(f, false)
+	day22.Run(f, true)
 }

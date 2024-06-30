@@ -153,3 +153,29 @@ will not be present in the new structure. "
   (if (zero? left)
     []
     (conj (to-digits (quot n 10) (dec left)) (mod n 10))))
+
+(defn mod-mult [a b p]
+  (cond
+    (< a 0) (mod-mult (+ a p) b p)
+    (< b 0) (mod-mult a (+ b p) p)
+    :else (loop [res 0
+                 a a
+                 b b]
+            (if (= b 0) res
+                (recur
+                 (if (= (mod b 2) 1) (mod (+ res a) p) res)
+                 (if (zero? b) a (mod (+ a a) p))
+                 (bit-shift-right b 1))))))
+
+(defn mod-exp [m n p]
+  (loop [pow 1
+         m m
+         n n]
+    (if (= n 0) pow
+        (recur
+         (if (= (mod n 2) 1) (mod-mult pow m p) pow)
+         (mod-mult m m p)
+         (bit-shift-right n 1)))))
+
+(defn mod-inverse [m p]
+  (mod-exp m (- p 2) p))
