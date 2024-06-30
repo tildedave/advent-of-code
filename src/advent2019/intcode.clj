@@ -2,7 +2,8 @@
   (:require [utils :as utils]
             [clojure.test :refer [deftest is run-tests testing]]
             [clojure.core.match :refer [match]]
-            [clojure.core.async :as a :refer [>!! <!! <!]]))
+            [clojure.core.async :as a :refer [>!! <!! <!]]
+            [clojure.string :as string]))
 
 (into {} (map-indexed vector [1 2 3 4]))
 
@@ -19,18 +20,6 @@
   (->> (utils/read-input filename)
        (first)
        (parse-program)))
-
-;; (defn val-list [state arity param-modes]
-;;   (let [{:keys [program pc relative-base]} state
-;;         params (map #(get program % 0) (range (inc pc) (+ arity pc 1)))]
-;;     (map
-;;      (fn [[mode arg]]
-;;        (case mode
-;;          0 (get program arg 0)
-;;          1 arg
-;;          2 (get program (+ relative-base arg) 0)))
-;;                    ;; we add relative mode next
-;;      (map vector param-modes params))))
 
 (defn eval-param [{:keys [program relative-base]} [mode arg]]
   (case mode
@@ -72,8 +61,8 @@
     (if halted?
       state
       (let [state (case opcode
-                    1 (execute-op + vlist output-register state)
-                    2 (execute-op * vlist output-register state)
+                    1 (execute-op +' vlist output-register state)
+                    2 (execute-op *' vlist output-register state)
                     3 (let [i (<!! input)]
                         (-> state
                             (assoc-in [:program output-register] i)))
@@ -219,3 +208,19 @@
     (is (= 1125899906842624 (<!! (run-program "104,1125899906842624,99"))))))
 
 ;; (run-tests 'advent2019.intcode)
+
+;; these are just utilities but helpful to have here so I don't keep copy/pasting
+
+(defn send-string! [chan s]
+  (a/onto-chan! chan (conj (mapv int s) 10) false))
+
+(char 46)
+
+(defn read-until-newline! [chan]
+  (a/go-loop [result []]
+    (let [ch (<! chan)]
+      (cond
+        (= ch 10) (string/join (map char result))
+        (> ch 256) ch
+        (nil? ch) nil
+        :else (recur (conj result ch))))))

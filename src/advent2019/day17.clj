@@ -175,21 +175,6 @@
 
 (map int "A,B,A,C,A,B,A,C,B,C")
 
-(defn send-instructions! [chan instructions]
-    (<!! (a/onto-chan! chan (map int instructions) false))
-    (>!! chan 10))
-
-(char 46)
-
-(defn read-until-newline [chan]
-  (a/go-loop [result []]
-    (let [ch (<! chan)]
-      (cond
-        (= ch 10) (string/join (map char result))
-        (> ch 256) ch
-        (nil? ch) nil
-        :else (recur (conj result ch))))))
-
 (string/join (map char [46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 46 35 35 35 35 35 35 35 35 35 35 35 46 46 46 46 46 46]))
 
 (defn answer-part2 []
@@ -203,19 +188,19 @@
                           [:program 0] 2)
         output (intcode/run-program program input)]
     (<!! (a/go-loop []
-           (let [next (<! (read-until-newline output))]
+           (let [next (<! (intcode/read-until-newline! output))]
              (if (int? next)
                next
                (do
                  (case next
                  "Main:"
-                   (send-instructions! input main)
+                   (intcode/send-string! input main)
                  "Function A:"
-                   (send-instructions! input a)
+                   (intcode/send-string! input a)
                  "Function B:"
-                   (send-instructions! input b)
+                   (intcode/send-string! input b)
                  "Function C:"
-                   (send-instructions! input c)
+                   (intcode/send-string! input c)
                  "Continuous video feed?"
                    (do
                      (>! input (int \n))
