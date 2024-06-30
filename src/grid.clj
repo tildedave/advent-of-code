@@ -19,8 +19,11 @@
   [(count (first grid))
    (count grid)])
 
+(defn at [grid [x y]]
+  (get-in grid [y x]))
+
 (defn out-of-bounds? [grid [x y]]
-  (nil? (grid/at grid [x y])))
+  (nil? (at grid [x y])))
   ;; (or (< y 0)
   ;;     (>= y (count grid))
   ;;     (< x 0) (>= x (count (first grid)))))
@@ -34,9 +37,6 @@
 
 (defn add [[x y] [dx dy]]
   [(+ x dx) (+ y dy)])
-
-(defn at [grid [x y]]
-  (get-in grid [y x]))
 
 (defn neighbors
   ([grid [x y]] (neighbors grid [x y] cardinal-directions))
