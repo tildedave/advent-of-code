@@ -6,11 +6,6 @@
 ;; solution.  so we just need to implement it in clojure which
 ;; should be easy.
 
-(conj (mapv int "NOT J T") 10)
-
-(defn send-string [chan s]
-  (a/onto-chan! chan (conj (mapv int s) 10) false))
-
 (def part1-program
    '("NOT J T"
    "AND T J"
@@ -45,15 +40,6 @@
              (recur (rest program)))
          nil)))
     (last (<!! (a/into [] output)))))
-    ;; (loop []
-    ;; ;; (print "loop")
-    ;;   (if-let [x (<!! output)]
-    ;;     (if (> x 256)
-    ;;       x
-    ;;       (do
-    ;;         (print (char x))
-    ;;         (recur)))
-    ;;     (throw (Exception. "Did not get final result"))))))
 
 (println (run-springbot part1-program))
 (println (run-springbot part2-program))
