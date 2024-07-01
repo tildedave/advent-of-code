@@ -38,7 +38,7 @@
 (def opcode-has-output? {1 true 2 true 3 true 7 true 8 true})
 
 (defn step-program [state]
-  (let [{:keys [program pc halted? input output relative-base]} state
+  (let [{:keys [program pc halted? input output relative-base default-input non-blocking-output?]} state
         opcode (mod (program pc) 100)
         arity (get opcode-arity opcode 0)
         has-output? (get opcode-has-output? opcode false)
@@ -63,11 +63,15 @@
       (let [state (case opcode
                     1 (execute-op +' vlist output-register state)
                     2 (execute-op *' vlist output-register state)
-                    3 (let [i (<!! input)]
+                    3 (let [i (if (nil? default-input)
+                                (<!! input)
+                                (first (a/alts!! [input] :default default-input)))]
                         (-> state
                             (assoc-in [:program output-register] i)))
                     4 (do
-                        (>!! output (first vlist))
+                        (if non-blocking-output?
+                          (a/put! output (first vlist))
+                          (>!! output (first vlist)))
                         state)
                     5 (if (not= (first vlist) 0)
                         (-> state
@@ -207,7 +211,7 @@
     (is (= 1219070632396864 (<!! (run-program "1102,34915192,34915192,7,4,7,99,0"))))
     (is (= 1125899906842624 (<!! (run-program "104,1125899906842624,99"))))))
 
-;; (run-tests 'advent2019.intcode)
+(run-tests 'advent2019.intcode)
 
 ;; these are just utilities but helpful to have here so I don't keep copy/pasting
 
