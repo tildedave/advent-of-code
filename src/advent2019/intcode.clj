@@ -66,11 +66,12 @@
                     3 (let [i (if (nil? default-input)
                                 (<!! input)
                                 (first (a/alts!! [input] :default default-input)))]
-                            ;; _ (if (nil? default-input) nil (println "sent a" default-input "to input"))]
                         (-> state
                             (assoc-in [:program output-register] i)))
                     4 (do
+                        ;; (.println  *err* (format "sending output %d" (first vlist)))
                         (>!! output (first vlist))
+                        ;; (.println *err* (format "sent output %d" (first vlist)))
                         state)
                     5 (if (not= (first vlist) 0)
                         (-> state
@@ -95,7 +96,13 @@
                        :relative-base
                        (partial + (first vlist)))
                     99 (assoc state :halted? true)
-                    (throw (Exception. (format "Invalid opcode: %d" opcode))))]
+                    (throw
+                     (Exception.
+                      (format
+                       "Invalid opcode: %d; PC was %d, program was %s"
+                       opcode
+                       pc
+                       (string/join "," (->> program (sort-by first) (map second)))))))]
         (if (:jumped? state)
           (dissoc state :jumped?)
           (update state :pc (partial + 1 arity (if has-output? 1 0))))))))
@@ -125,7 +132,7 @@
   ([program-or-string] (run-program program-or-string (a/chan) (a/chan)))
   ([program-or-string input] (run-program program-or-string input (a/chan)))
   ([program-or-string input output]
-   (a/go
+   (a/thread
      (do
        (run-program-internal program-or-string input output)
        (a/close! output)))
@@ -232,4 +239,4 @@
       (>!! input 600)
       (time (is (= 29296 (<!! output))))))
 
-(run-tests 'advent2019.intcode)
+;; (run-tests 'advent2019.intcode)
