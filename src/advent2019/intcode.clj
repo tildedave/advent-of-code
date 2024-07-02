@@ -123,14 +123,14 @@
       (mapv second)))))
 
 (defn run-program
-  ([program-or-string] (run-program program-or-string (a/chan)))
-  ([program-or-string input]
-   (let [output (a/chan)]
-     (a/go
-       (do
-         (run-program-internal program-or-string input output)
-         (a/close! output)))
-     output)))
+  ([program-or-string] (run-program program-or-string (a/chan) (a/chan)))
+  ([program-or-string input] (run-program program-or-string input (a/chan)))
+  ([program-or-string input output]
+   (a/go
+     (do
+       (run-program-internal program-or-string input output)
+       (a/close! output)))
+   output))
 
 (defn run-file
   ([file] (run-file file (a/chan)))
