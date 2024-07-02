@@ -38,7 +38,7 @@
 (def opcode-has-output? {1 true 2 true 3 true 7 true 8 true})
 
 (defn step-program [state]
-  (let [{:keys [program pc halted? input output relative-base default-input non-blocking-output?]} state
+  (let [{:keys [program pc halted? input output relative-base default-input]} state
         opcode (mod (program pc) 100)
         arity (get opcode-arity opcode 0)
         has-output? (get opcode-has-output? opcode false)
@@ -66,12 +66,11 @@
                     3 (let [i (if (nil? default-input)
                                 (<!! input)
                                 (first (a/alts!! [input] :default default-input)))]
+                            ;; _ (if (nil? default-input) nil (println "sent a" default-input "to input"))]
                         (-> state
                             (assoc-in [:program output-register] i)))
                     4 (do
-                        (if non-blocking-output?
-                          (a/put! output (first vlist))
-                          (>!! output (first vlist)))
+                        (>!! output (first vlist))
                         state)
                     5 (if (not= (first vlist) 0)
                         (-> state
@@ -175,7 +174,7 @@
     output))
 
 (<!! (run-with-input "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99"
-                       1))
+                     1))
 
 (deftest day5-input-output
   (let [eq-8 "3,9,8,9,10,9,4,9,99,-1,8"
@@ -211,8 +210,6 @@
     (is (= 1219070632396864 (<!! (run-program "1102,34915192,34915192,7,4,7,99,0"))))
     (is (= 1125899906842624 (<!! (run-program "104,1125899906842624,99"))))))
 
-(run-tests 'advent2019.intcode)
-
 ;; these are just utilities but helpful to have here so I don't keep copy/pasting
 
 (defn send-string! [chan s]
@@ -228,3 +225,11 @@
         (> ch 256) ch
         (nil? ch) nil
         :else (recur (conj result ch))))))
+
+(deftest benchmarking
+  (let [input (a/chan)
+        output (run-program "3,100,1007,100,2,7,1105,-1,87,1007,100,1,14,1105,-1,27,101,-2,100,100,101,1,101,101,1105,1,9,101,105,101,105,101,2,104,104,101,1,102,102,1,102,102,103,101,1,103,103,7,102,101,52,1106,-1,87,101,105,102,59,1005,-1,65,1,103,104,104,101,105,102,83,1,103,83,83,7,83,105,78,1106,-1,35,1101,0,1,-1,1105,1,69,4,104,99" input)]
+      (>!! input 100000)
+      (time (is (= 454396537 (<!! output))))))
+
+(run-tests 'advent2019.intcode)

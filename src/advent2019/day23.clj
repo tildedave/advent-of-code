@@ -6,16 +6,16 @@
   (->> (range 50)
        (map
         (fn [n]
-          (let [input (a/chan 255)
-                output (a/chan 255)
+          (let [input (a/chan)
+                output (a/chan)
                 _ (intcode/run-program program input output)
                 _ (println "booting" n)]
             (a/go-loop []
               (if-let [dest (<! output)]
-                (let [_ (println (format "[%d] received %d" n dest))
-                      x (<! output)
-                      y (<! output)]
-                  (>! fan-input {:dest dest :x x :y y})
+                (let [x (<! output)
+                      y (<! output)
+                      _ (println (format "[%d] received (%d, %d) from %d" n x y dest))]
+                  (>! fan-input {:dest dest :x x :y y :from n})
                   (recur))
                 nil))
             (>!! input n)
