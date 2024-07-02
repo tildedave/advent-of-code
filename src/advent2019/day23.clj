@@ -14,7 +14,7 @@
               (if-let [dest (<! output)]
                 (let [x (<! output)
                       y (<! output)
-                      _ (println (format "[%d] received (%d, %d) from %d" n x y dest))]
+                      _ (println (format "[%d] sending (%d, %d) to %d" n x y dest))]
                   (>! fan-input {:dest dest :x x :y y :from n})
                   (recur))
                 nil))
