@@ -2,7 +2,7 @@
   (:require [utils :as utils]
             [clojure.test :refer [deftest is run-tests testing]]
             [clojure.core.match :refer [match]]
-            [clojure.core.async :as a :refer [>!! <!! <!]]
+            [clojure.core.async :as a :refer [>!! <!! <! >!]]
             [clojure.string :as string]))
 
 (into {} (map-indexed vector [1 2 3 4]))
@@ -37,114 +37,135 @@
 (def opcode-arity {1 2 2 2 3 0 4 1 5 2 6 2 7 2 8 2 9 1 99 0})
 (def opcode-has-output? {1 true 2 true 3 true 7 true 8 true})
 
-(defn step-program [state]
-  (let [{:keys [program pc halted? input output relative-base default-input]} state
-        opcode (mod (program pc) 100)
-        arity (get opcode-arity opcode 0)
-        has-output? (get opcode-has-output? opcode false)
-        param-addrs (range
-                     (inc pc)
-                     (+ (inc pc) arity (if has-output? 1 0)))
-        params (map #(get program % 0) param-addrs)
-        mode-params (map
-                     vector
-                     (reverse (utils/to-digits (quot (program pc) 100) 3))
-                     params)
-        output-register (if has-output?
-                          (match (last mode-params)
-                            [0 addr] addr
-                            [1 _] (throw (Exception. "specified immediate for output argument"))
-                            [2 addr] (+ addr relative-base)))
-        vlist (map
-               (partial eval-param state)
-               (if has-output? (drop-last mode-params) mode-params))]
-    (if halted?
-      state
-      (let [state (case opcode
-                    1 (execute-op +' vlist output-register state)
-                    2 (execute-op *' vlist output-register state)
-                    3 (let [i (if (nil? default-input)
-                                (<!! input)
-                                (first (a/alts!! [input] :default default-input)))]
-                        (-> state
-                            (assoc-in [:program output-register] i)))
-                    4 (do
-                        ;; (.println  *err* (format "sending output %d" (first vlist)))
-                        (>!! output (first vlist))
-                        ;; (.println *err* (format "sent output %d" (first vlist)))
-                        state)
-                    5 (if (not= (first vlist) 0)
-                        (-> state
-                            (assoc :pc (second vlist))
-                            (assoc :jumped? true))
-                        state)
-                    6 (if (zero? (first vlist))
-                        (-> state
-                            (assoc :pc (second vlist))
-                            (assoc :jumped? true))
-                        state)
-                    7 (assoc-in
-                       state
-                       [:program output-register]
-                       (if (< (first vlist) (second vlist)) 1 0))
-                    8 (assoc-in
-                       state
-                       [:program output-register]
-                       (if (= (first vlist) (second vlist)) 1 0))
-                    9 (update
-                       state
-                       :relative-base
-                       (partial + (first vlist)))
-                    99 (assoc state :halted? true)
-                    (throw
-                     (Exception.
-                      (format
-                       "Invalid opcode: %d; PC was %d, program was %s"
-                       opcode
-                       pc
-                       (string/join "," (->> program (sort-by first) (map second)))))))]
-        (if (:jumped? state)
-          (dissoc state :jumped?)
-          (update state :pc (partial + 1 arity (if has-output? 1 0))))))))
-
-(defn halting-state [program]
-  (if (:halted? program)
-    program
-    (recur (step-program program))))
-
-(defn run-program-internal
-  ([program-or-string]
-   (run-program-internal program-or-string (a/chan) (a/chan)))
-  ([program-or-string input output]
-   (if (string? program-or-string)
-     (run-program-internal (parse-program program-or-string)
-                           input output)
-     (->>
-      (-> program-or-string
-          (assoc :input input)
-          (assoc :output output)
-          (halting-state)
-          :program)
-      (sort-by first)
-      (mapv second)))))
-
 (defn run-program
+;; (defn run-program
+;;   ([program-or-string] (run-program program-or-string (a/chan) (a/chan)))
+;;   ([program-or-string input] (run-program program-or-string input (a/chan)))
+;;   ([program-or-string input output]
+;;    (a/thread
+;;      (do
+;;        (run-program-internal program-or-string input output)
+;;        (a/close! output)))
+;;    output))
   ([program-or-string] (run-program program-or-string (a/chan) (a/chan)))
   ([program-or-string input] (run-program program-or-string input (a/chan)))
   ([program-or-string input output]
-   (a/thread
+   (if (string? program-or-string)
+     (run-program (parse-program program-or-string) input output)
      (do
-       (run-program-internal program-or-string input output)
-       (a/close! output)))
-   output))
+       (a/go-loop [state (-> program-or-string
+                             (assoc :input input)
+                             (assoc :output output))]
+         (if (:halted? state)
+           (a/close! output)
+           (let [{:keys [program pc halted? input output relative-base default-input]} state
+                 opcode (if halted? 99 (mod (program pc) 100))
+                 arity (get opcode-arity opcode 0)
+                 has-output? (get opcode-has-output? opcode false)
+                 param-addrs (range
+                              (inc pc)
+                              (+ (inc pc) arity (if has-output? 1 0)))
+                 params (map #(get program % 0) param-addrs)
+                 mode-params (map
+                              vector
+                              (reverse (utils/to-digits (quot (program pc) 100) 3))
+                              params)
+                 output-register (if has-output?
+                                   (match (last mode-params)
+                                     [0 addr] addr
+                                     [1 _] (throw (Exception. "specified immediate for output argument"))
+                                     [2 addr] (+ addr relative-base))
+                                   nil)
+                 vlist (map
+                        (partial eval-param state)
+                        (if has-output? (drop-last mode-params) mode-params))]
+             (recur
+              (let [state (case opcode
+                            1 (execute-op +' vlist output-register state)
+                            2 (execute-op *' vlist output-register state)
+                            3 (let [i (if (nil? default-input)
+                                        (<! input)
+                                        (first (a/alts! [input] :default default-input)))]
+                                (-> state
+                                    (assoc-in [:program output-register] i)))
+                            4 (do
+                                ;; (.println  *err* (format "sending output %d" (first vlist)))
+                                (>! output (first vlist))
+                                ;; (.println *err* (format "sent output %d" (first vlist)))
+                                state)
+                            5 (if (not= (first vlist) 0)
+                                (-> state
+                                    (assoc :pc (second vlist))
+                                    (assoc :jumped? true))
+                                state)
+                            6 (if (zero? (first vlist))
+                                (-> state
+                                    (assoc :pc (second vlist))
+                                    (assoc :jumped? true))
+                                state)
+                            7 (assoc-in
+                               state
+                               [:program output-register]
+                               (if (< (first vlist) (second vlist)) 1 0))
+                            8 (assoc-in
+                               state
+                               [:program output-register]
+                               (if (= (first vlist) (second vlist)) 1 0))
+                            9 (update
+                               state
+                               :relative-base
+                               (partial + (first vlist)))
+                            99 (assoc state :halted? true)
+                            (throw
+                             (Exception.
+                              (format
+                               "Invalid opcode: %d; PC was %d, program was %s"
+                               opcode
+                               pc
+                               (string/join "," (->> program (sort-by first) (map second)))))))]
+                (if (:jumped? state)
+                  (dissoc state :jumped?)
+                  (update state :pc (partial + 1 arity (if has-output? 1 0)))))))))
+       output))))
+
+;; (defn halting-state [program]
+;;   (if (:halted? program)
+;;     program
+;;     (recur (step-program program))))
+
+;; (defn run-program-internal
+;;   ([program-or-string]
+;;    (run-program-internal program-or-string (a/chan) (a/chan)))
+;;   ([program-or-string input output]
+;;    (if (string? program-or-string)
+;;      (run-program-internal (parse-program program-or-string)
+;;                            input output)
+;;      (->>
+;;       (-> program-or-string
+;;           (assoc :input input)
+;;           (assoc :output output)
+;;           (halting-state)
+;;           :program)
+;;       (sort-by first)
+;;       (mapv second)))))
+
+;; (defn run-program
+;;   ([program-or-string] (run-program program-or-string (a/chan) (a/chan)))
+;;   ([program-or-string input] (run-program program-or-string input (a/chan)))
+;;   ([program-or-string input output]
+;;    (a/thread
+;;      (do
+;;        (run-program-internal program-or-string input output)
+;;        (a/close! output)))
+;;    output))
 
 (defn run-file
   ([file] (run-file file (a/chan)))
   ([file input] (run-program (parse-file file) input)))
 
-(run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
+;; (run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
 
-(run-program-internal "1101,100,-1,4,0")
+;; (run-program-internal "1101,100,-1,4,0")
 
 /
 ;; works
@@ -156,23 +177,23 @@
 ;;   (a/close! input)
 ;;   (a/close! output))
 
-(deftest day2
-  (is (= (run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
-         [3500 9 10 70 2 3 11 0 99 30 40 50]))
-  (is (= (run-program-internal "1,0,0,0,99")
-         [2 0 0 0 99]))
-  (is (= (run-program-internal "2,3,0,3,99")
-         [2 3 0 6 99]))
-  (is (= (run-program-internal "2,4,4,5,99,0")
-         [2 4 4 5 99 9801]))
-  (is (= (run-program-internal "1,1,1,4,99,5,6,0,99")
-         [30 1 1 4 2 5 6 0 99])))
+;; (deftest day2
+;;   (is (= (run-program-internal "1,9,10,3,2,3,11,0,99,30,40,50")
+;;          [3500 9 10 70 2 3 11 0 99 30 40 50]))
+;;   (is (= (run-program-internal "1,0,0,0,99")
+;;          [2 0 0 0 99]))
+;;   (is (= (run-program-internal "2,3,0,3,99")
+;;          [2 3 0 6 99]))
+;;   (is (= (run-program-internal "2,4,4,5,99,0")
+;;          [2 4 4 5 99 9801]))
+;;   (is (= (run-program-internal "1,1,1,4,99,5,6,0,99")
+;;          [30 1 1 4 2 5 6 0 99])))
 
-(deftest day5
-  (is (= (run-program-internal "1101,100,-1,4,0")
-         [1101 100 -1 4 99])
-      (= (run-program-internal "1002,4,3,4,33")
-         [1002, 4, 3, 4, 99])))
+;; (deftest day5
+;;   (is (= (run-program-internal "1101,100,-1,4,0")
+;;          [1101 100 -1 4 99])
+;;       (= (run-program-internal "1002,4,3,4,33")
+;;          [1002, 4, 3, 4, 99])))
 
 (defn run-with-input [program-or-string input-val]
   (let [input (a/chan)
@@ -239,4 +260,4 @@
       (>!! input 600)
       (time (is (= 29296 (<!! output))))))
 
-;; (run-tests 'advent2019.intcode)
+(run-tests 'advent2019.intcode)

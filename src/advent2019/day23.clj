@@ -30,7 +30,7 @@
                     (map
                      (fn [n]
                        (let [input (a/chan 1024)
-                             output (a/chan 1024)]
+                             output (a/chan)]
                          {n {:input input :output output}})))
                     (reduce merge {}))]
     (let [output-to-n (->> system
@@ -39,12 +39,14 @@
                            (reduce merge {}))]
       (a/go-loop
        []
-        (let [[dest ch] (a/alts! (keys output-to-n))
+        (let [_ (println "waiting")
+              [dest ch] (a/alts! (keys output-to-n))
               x (<! ch)
-              y (<! ch)
-              _ (println dest x y)]
+              y (<! ch)]
           (if (= dest 255)
-            (>! answer [x y])
+            (do
+              (println "sending answer")
+              (>! answer [x y]))
             (let [input (:input (system dest))]
               (println (format "[%d] sending (%d, %d) to %d" (output-to-n ch) x y dest))
               (>! input x)
