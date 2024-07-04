@@ -58,7 +58,7 @@
                              (assoc :output output))]
          (if (:halted? state)
            (a/close! output)
-           (let [{:keys [program pc halted? input output relative-base default-input]} state
+           (let [{:keys [program program-id pc halted? input output relative-base default-input channel-debug?]} state
                  opcode (if halted? 99 (mod (program pc) 100))
                  arity (get opcode-arity opcode 0)
                  has-output? (get opcode-has-output? opcode false)
@@ -83,15 +83,17 @@
               (let [state (case opcode
                             1 (execute-op +' vlist output-register state)
                             2 (execute-op *' vlist output-register state)
-                            3 (let [i (if (nil? default-input)
+                            3 (let [_ (if channel-debug? (.println *err* (format "[%s] reading from input" program-id)) nil)
+                                    i (if (nil? default-input)
                                         (<! input)
                                         (first (a/alts! [input] :default default-input)))]
+                                (if channel-debug? (.println *err* (format "[%s] received %d" program-id i)) nil)
                                 (-> state
                                     (assoc-in [:program output-register] i)))
                             4 (do
-                                ;; (.println  *err* (format "sending output %d" (first vlist)))
+                                (if channel-debug? (.println *err* (format "[%s] sending %d to output" program-id (first vlist))) nil)
                                 (>! output (first vlist))
-                                ;; (.println *err* (format "sent output %d" (first vlist)))
+                                (if channel-debug? (.println *err* (format "[%s] sent %d to output" program-id (first vlist))) nil)
                                 state)
                             5 (if (not= (first vlist) 0)
                                 (-> state
@@ -127,37 +129,6 @@
                   (dissoc state :jumped?)
                   (update state :pc (partial + 1 arity (if has-output? 1 0)))))))))
        output))))
-
-;; (defn halting-state [program]
-;;   (if (:halted? program)
-;;     program
-;;     (recur (step-program program))))
-
-;; (defn run-program-internal
-;;   ([program-or-string]
-;;    (run-program-internal program-or-string (a/chan) (a/chan)))
-;;   ([program-or-string input output]
-;;    (if (string? program-or-string)
-;;      (run-program-internal (parse-program program-or-string)
-;;                            input output)
-;;      (->>
-;;       (-> program-or-string
-;;           (assoc :input input)
-;;           (assoc :output output)
-;;           (halting-state)
-;;           :program)
-;;       (sort-by first)
-;;       (mapv second)))))
-
-;; (defn run-program
-;;   ([program-or-string] (run-program program-or-string (a/chan) (a/chan)))
-;;   ([program-or-string input] (run-program program-or-string input (a/chan)))
-;;   ([program-or-string input output]
-;;    (a/thread
-;;      (do
-;;        (run-program-internal program-or-string input output)
-;;        (a/close! output)))
-;;    output))
 
 (defn run-file
   ([file] (run-file file (a/chan)))

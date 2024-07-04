@@ -2,26 +2,6 @@
   (:require [advent2019.intcode :as intcode]
             [clojure.core.async :as a :refer [<!! >! <! >!!]]))
 
-;; (defn boot-system [system]
-;;                 _ (intcode/run-program program input output)]
-;;             (a/go-loop []
-;;               (if-let [dest (<! output)]
-;;                 (let [x (<! output)
-;;                       y (<! output)
-;;                       _ (println (format "[%d] sending (%d, %d) to %d" n x y dest))]
-;;                   (>! fan-input {:dest dest :x x :y y :from n})
-;;                   (recur))
-;;                 nil))
-;;             (>!! input n)
-;;             {n {:input input :output output}})))
-;;        (reduce merge {})))
-
-(defn boot-system [program system]
-  (doseq [[n {:keys [input output]}] system]
-    (println "starting" n)
-    (intcode/run-program program input output)
-    (>!! input n)))
-
 (defn boot-nic []
   (let [answer (a/chan)
         program (-> (intcode/parse-file "2019/day23.txt")
@@ -30,7 +10,7 @@
                     (map
                      (fn [n]
                        (let [input (a/chan 1024)
-                             output (a/chan)]
+                             output (a/chan 1)]
                          {n {:input input :output output}})))
                     (reduce merge {}))]
     (let [output-to-n (->> system
@@ -48,7 +28,7 @@
               (println "sending answer")
               (>! answer [x y]))
             (let [input (:input (system dest))]
-              (println (format "[%d] sending (%d, %d) to %d" (output-to-n ch) x y dest))
+              (.println *err* (format "[%d] sending (%d, %d) to %d" (output-to-n ch) x y dest))
               (>! input x)
               (>! input y)
               (recur))))))
@@ -58,7 +38,7 @@
                           (reduce merge {}))]
       (doseq [{:keys [input output]} (vals system)]
         (>!! input (input-to-n input))
-        (intcode/run-program program input output)))
+        (intcode/run-program (assoc program :program-id (input-to-n input)) input output)))
     ;; we'll fan out for everything.
     (println "system booted")
     (<!! answer)))
