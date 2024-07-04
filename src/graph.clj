@@ -12,28 +12,30 @@
   ([start is-goal? neighbors heuristic distance state-hash]
    (a*-search start is-goal? neighbors heuristic distance state-hash (fn [& _] false)))
   ([start is-goal? neighbors heuristic distance state-hash should-cutoff?]
-   (loop [[goal-score open-set nodes]
+   (loop [[goal-score open-set came-from nodes]
           [{(state-hash start) 0}
            (priority-map start 0)
+           {}
            0]]
      (if-let [[current _] (peek open-set)]
        (cond
          (is-goal? current) [(goal-score (state-hash current)) current nodes]
          (> nodes 1000000) (throw (Exception. "too many nodes"))
-         (should-cutoff? current goal-score)
+         (should-cutoff? current goal-score came-from)
          (recur [goal-score (pop open-set) (inc nodes)])
          :else (recur
                 (reduce
-                 (fn [[goal-score open-set nodes] neighbor]
+                 (fn [[goal-score open-set came-from nodes] neighbor]
                    (let [n-distance (distance current neighbor)
                          n-new-score (+ (goal-score (state-hash current)) n-distance)
                          n-score (get goal-score (state-hash neighbor) Integer/MAX_VALUE)]
                      (if (< n-new-score n-score)
                        [(assoc goal-score (state-hash neighbor) n-new-score)
                         (assoc open-set neighbor (+ n-new-score (heuristic neighbor)))
+                        (assoc came-from neighbor current)
                         nodes]
-                       [goal-score open-set nodes])))
-                 [goal-score (pop open-set) (inc nodes)]
+                       [goal-score open-set came-from nodes])))
+                 [goal-score (pop open-set) came-from (inc nodes)]
                  (neighbors current))))
        (throw (Exception. "could not reach goal"))))))
 
