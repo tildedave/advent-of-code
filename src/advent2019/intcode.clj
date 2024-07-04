@@ -86,7 +86,7 @@
                             3 (let [_ (if channel-debug? (.println *err* (format "[%s] reading from input" program-id)) nil)
                                     i (if (nil? default-input)
                                         (<! input)
-                                        (first (a/alts! [input] :default default-input)))]
+                                        (or (first (a/alts! [input (a/timeout 100)])) default-input))]
                                 (if channel-debug? (.println *err* (format "[%s] received %d" program-id i)) nil)
                                 (-> state
                                     (assoc-in [:program output-register] i)))

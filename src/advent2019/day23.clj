@@ -5,12 +5,14 @@
 (defn boot-nic []
   (let [answer (a/chan)
         program (-> (intcode/parse-file "2019/day23.txt")
-                    (assoc :default-input -1))
+                    (assoc :default-input -1)
+                    ;; (assoc :channel-debug? true)
+                    )
         system (->> (range 50)
                     (map
                      (fn [n]
                        (let [input (a/chan 1024)
-                             output (a/chan 1)]
+                             output (a/chan)]
                          {n {:input input :output output}})))
                     (reduce merge {}))]
     (let [output-to-n (->> system
