@@ -212,6 +212,7 @@
 ;; these are just utilities but helpful to have here so I don't keep copy/pasting
 
 (defn send-string! [chan s]
+  (println ">> sending" s)
   (a/onto-chan! chan (conj (mapv int s) 10) false))
 
 (char 46)
