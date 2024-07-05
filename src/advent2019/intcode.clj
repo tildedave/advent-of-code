@@ -221,9 +221,8 @@
   (a/go-loop [result []]
     (let [ch (<! chan)]
       (cond
-        (= ch 10) (string/join (map char result))
+        (or (nil? ch) (= ch 10)) (string/join (map char result))
         (> ch 256) ch
-        (nil? ch) nil
         :else (recur (conj result ch))))))
 
 (deftest benchmarking
