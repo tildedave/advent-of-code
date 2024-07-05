@@ -1,11 +1,10 @@
 (ns advent2019.day25
-  (:require [advent2019.intcode :as intcode :refer [read-until-newline! send-string!]]
-            [advent2019.robot :as robot :refer [path-between path-to path-to-direction-list]]
+  (:require [advent2019.intcode :as intcode :refer [send-string!]]
+            [advent2019.robot :as robot :refer [path-between]]
             [clojure.core.async :as a :refer [go-loop <!! >! <! >!!]]
             [clojure.string :as string]
             [clojure.set :as set]
             [utils :as utils]
-            [graph :as graph]
             [clojure.data.priority-map :refer [priority-map]]
             [clojure.math.combinatorics :as combo]))
 
@@ -123,6 +122,7 @@
     :east :west
     :west :east))
 
+(first (shuffle #{1  2  3}))
 (doseq [x (combo/subsets (seq #{1 2 3 4}))]
   (println (set x)))
 
@@ -148,22 +148,44 @@
         (do
           ;; OK so now we go to the security checkpoint and brute force it.
           (walk-to! input output parents direction-between current-room "security-checkpoint")
-          ;; now we brute force it.
-          (doseq [items-to-have (combo/subsets (seq inventory))]
-            (let [_ (println "items to have" items-to-have)
-                  items-to-have (set items-to-have)
-                  _ (println "items-to-have" items-to-have)
-                  _ (println "inventory" inventory)
-                  items-to-drop (set/difference (set inventory) items-to-have)]
-              (doseq [take-item (seq items-to-have)]
-                (<!! (send-string! input (format "take %s" take-item)))
-                (<!! (take-until-command! output)))
-              (doseq [drop-item (seq items-to-drop)]
-                (<!! (send-string! input (format "drop %s" drop-item)))
-                (<!! (take-until-command! output)))
-              (println "trying" items-to-have items-to-drop)
-              (<!! (send-string! input "east"))
-              (println (<!! (take-until-command! output))))))
+          (let [all-possibilities (map set (combo/subsets (seq inventory)))]
+            (loop [remaining-possibilities (shuffle all-possibilities)
+                   current-inventory (set inventory)]
+              (println (count remaining-possibilities) "possibilities remain")
+              (let [items-to-have (set (first remaining-possibilities))]
+                (println "current inventory" current-inventory "vs" items-to-have)
+                (doseq [take-item (seq (set/difference items-to-have current-inventory))]
+                  (<!! (send-string! input (format "take %s" take-item)))
+                  (<!! (take-until-command! output))
+                (doseq [drop-item (seq (set/difference current-inventory items-to-have))]
+                    (<!! (send-string! input (format "drop %s" drop-item)))
+                    (<!! (take-until-command! output))))
+                (<!! (send-string! input "east"))
+                (let [result (string/join "\n" (<!! (take-until-command! output)))
+                      _ (println result)]
+                  (if-let [match (re-find #"You should be able to get in by typing (\d+) on the keypad" result)]
+                    (utils/parse-int (second match))
+                    (cond
+                      ;; we need to drop stuff to succeed
+                      (re-find #"lighter" result)
+                      (recur (->> (rest remaining-possibilities)
+                                  (remove #(set/subset? items-to-have %)))
+                             items-to-have)
+                      ;; we need to take stuff to succeed
+                      (re-find #"heavier" result)
+                      (recur (->> (rest remaining-possibilities)
+                                  (remove #(set/subset? % items-to-have)))
+                             items-to-have)
+                      :else (throw (Exception. (format "could not understand door result: %s" result))))))))))
+        ;;   (doseq [items-to-have ]
+        ;;     (let [_ (println "items to have" items-to-have)
+        ;;           items-to-have (set items-to-have)
+        ;;           _ (println "items-to-have" items-to-have)
+        ;;           _ (println "inventory" inventory)
+
+        ;;       (println "trying" items-to-have items-to-drop)
+        ;;
+        ;;       (println (<!! (take-until-command! output))))))
         (let [[next-room dist] (peek queue)
               queue (pop queue)]
           ;; walk from our current room to the next-room.
@@ -221,79 +243,4 @@
                  descriptions
                  (set/union inventory (items-to-take description))))))))))
 
-
-
-(solve-maze)
-;; (interactive-solve)
-
-    ;; we are in a new room.  we read the room.
-    ;; we remember its description.
-    ;; we mark it as explored
-    ;; we see which places it goes.  (and we filter out the death ways eventually)
-    ;; we pick up any items that are here.
-    ;; we choose a next location, and move there.
-    ;; we then recur.
-    ;; at a certain point we'll add parameters for the final gate.
-
-;;       coords-to-description (atom {})
-;;       current-state (atom {:coords [0 0] :inventory #{}})]
-;;   (graph/a*-search
-;;    @current-state
-;;    (fn [& _] false)
-;;    (fn [state]
-;;      (let [neighbors (->> (:coords state)
-;;           (@coords-to-description)
-;;           (utils/split-by "Doors here lead:")
-;;           (second)
-;;           (map (fn [s] (case s
-;;                          "- north" :north
-;;                          "- south" :south
-;;                          "- east" :east
-;;                          "- west" :west
-;;                          nil)))
-;;           (remove nil?)
-;;           (map
-;;            (fn [direction]
-;;              (-> state
-;;                  (update :coords #(mapv + % (case direction
-;;                                               :north [0 -1]
-;;                                               :south [0 1]
-;;                                               :east [-1 0]
-;;                                               :west [1 0])))))))]
-;;        neighbors))
-;;    (fn [& _] 5) ;; heuristic
-;;    (fn [& _] 1) ;; distance
-;;    identity
-;;    (fn [current goal-score came-from]
-;;      (let [{:keys [coords]} current
-;;            full-path (path-to-direction-list (map :coords (path-between came-from @current-state current)))]
-;;        (println "next state" current "current location" @current-state)
-;;        (loop [path-to-execute full-path
-;;               walking-position (:coords @current-state)]
-;;          (if-let [x (first path-to-execute)]
-;;            (do
-;;             ;;  (println "moving in direction" (name x))
-;;              (<!! (send-string! input (name x)))
-;;              (let [next-position (robot/move-in-direction walking-position x)
-;;                    position-lines (<!! (take-until-command! output))]
-;;                (if (= position-lines ["You can't go that way."])
-;;                  (throw (Exception.
-;;                          (format
-;;                           "Error in path finding.  Going from %s to %s, path was %s"
-;;                           @current-state
-;;                           current
-;;                           (string/join " " full-path))))
-;;                  nil)
-;;             ;;    (println "moved" (name x))
-;;                (swap! coords-to-description
-;;                       #(assoc % next-position position-lines))
-;;                (println (string/join "\n" (@coords-to-description next-position)))
-;;                (recur
-;;                 (rest path-to-execute)
-;;                 next-position)))
-;;            (reset! current-state (assoc @current-state :coords walking-position))))
-;;        (if (and (= coords [0 0]) (not (contains? @coords-to-description [0 0])))
-;;          ;; initial bootstrap, this is dumb
-;;          (reset! coords-to-description {[0 0] (<!! (take-until-command! output))})
-;;          nil)
-;;          false))))
+(println "maze result is" (solve-maze))
