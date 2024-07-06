@@ -141,8 +141,6 @@
       queue (priority-map "hull-breach" 0)
       ;; parents is the node before another node that has the minimum distance.
       current-room "hull-breach"
-      ;; other stuff that is useful
-      descriptions {}
       inventory #{}]
       (if (empty? queue)
         (do
@@ -177,31 +175,16 @@
                     (cond
                       ;; we need to drop stuff to succeed
                       (re-find #"lighter" result)
-                      (do
-                        (println "eliminating" (->> (rest remaining-possibilities)
-                                                    (filter #(set/subset? items-to-have %))))
-                        (recur (->> (rest remaining-possibilities)
-                                    (remove #(set/subset? items-to-have %)))
-                               items-to-have))
+                      (recur (->> (rest remaining-possibilities)
+                                  (remove #(set/subset? items-to-have %)))
+                             items-to-have)
                       ;; we need to take stuff to succeed
                       (re-find #"heavier" result)
-                      (do
-                        (println "eliminating" (->> (rest remaining-possibilities)
-                                                    (filter #(set/subset? % items-to-have))))
-                        (recur (->> (rest remaining-possibilities)
-                                    (remove #(set/subset? % items-to-have)))
-                               items-to-have))
+                      (recur (->> (rest remaining-possibilities)
+                                  (remove #(set/subset? % items-to-have)))
+                             items-to-have)
                       :else (throw (Exception. (format "could not understand door result: %s" result))))))))))
-        ;;   (doseq [items-to-have ]
-        ;;     (let [_ (println "items to have" items-to-have)
-        ;;           items-to-have (set items-to-have)
-        ;;           _ (println "items-to-have" items-to-have)
-        ;;           _ (println "inventory" inventory)
-
-        ;;       (println "trying" items-to-have items-to-drop)
-        ;;
-        ;;       (println (<!! (take-until-command! output))))))
-        (let [[next-room dist] (peek queue)
+        (let [[next-room _] (peek queue)
               queue (pop queue)]
           ;; walk from our current room to the next-room.
           ;; we don't want to read the description of the last room.
@@ -212,8 +195,7 @@
             ;; otherwise, read the direction of the current room.
             (let [current-room next-room
                   visited (conj visited current-room)
-                  description (<!! (take-until-command! output))
-                  descriptions (assoc descriptions current-room description)]
+                  description (<!! (take-until-command! output))]
               (doseq [item (items-to-take description)]
                 (<!! (send-string! input (format "take %s" item)))
                 (println "result of taking item" (<!! (take-until-command! output))))
@@ -255,7 +237,6 @@
                  direction-between
                  queue
                  current-room
-                 descriptions
                  (set/union inventory (items-to-take description))))))))))
 
 (println "maze result is" (solve-maze))
