@@ -152,14 +152,23 @@
             (loop [remaining-possibilities (shuffle all-possibilities)
                    current-inventory (set inventory)]
               (println (count remaining-possibilities) "possibilities remain")
+              (<!! (send-string! input "inv"))
+              (do
+                (let [actual-inventory (<!! (take-until-command! output))
+                      computed-inventory (->> actual-inventory
+                                              (filter (fn [s] (.startsWith s "- ")))
+                                              (map (fn [s] (.substring s 2)))
+                                              (set))]
+                  (println current-inventory "vs" computed-inventory)
+                  (assert (= current-inventory computed-inventory))))
               (let [items-to-have (set (first remaining-possibilities))]
                 (println "current inventory" current-inventory "vs" items-to-have)
                 (doseq [take-item (seq (set/difference items-to-have current-inventory))]
                   (<!! (send-string! input (format "take %s" take-item)))
-                  (<!! (take-until-command! output))
+                  (<!! (take-until-command! output)))
                 (doseq [drop-item (seq (set/difference current-inventory items-to-have))]
-                    (<!! (send-string! input (format "drop %s" drop-item)))
-                    (<!! (take-until-command! output))))
+                  (<!! (send-string! input (format "drop %s" drop-item)))
+                  (<!! (take-until-command! output)))
                 (<!! (send-string! input "east"))
                 (let [result (string/join "\n" (<!! (take-until-command! output)))
                       _ (println result)]
@@ -168,14 +177,20 @@
                     (cond
                       ;; we need to drop stuff to succeed
                       (re-find #"lighter" result)
-                      (recur (->> (rest remaining-possibilities)
-                                  (remove #(set/subset? items-to-have %)))
-                             items-to-have)
+                      (do
+                        (println "eliminating" (->> (rest remaining-possibilities)
+                                                    (filter #(set/subset? items-to-have %))))
+                        (recur (->> (rest remaining-possibilities)
+                                    (remove #(set/subset? items-to-have %)))
+                               items-to-have))
                       ;; we need to take stuff to succeed
                       (re-find #"heavier" result)
-                      (recur (->> (rest remaining-possibilities)
-                                  (remove #(set/subset? % items-to-have)))
-                             items-to-have)
+                      (do
+                        (println "eliminating" (->> (rest remaining-possibilities)
+                                                    (filter #(set/subset? % items-to-have))))
+                        (recur (->> (rest remaining-possibilities)
+                                    (remove #(set/subset? % items-to-have)))
+                               items-to-have))
                       :else (throw (Exception. (format "could not understand door result: %s" result))))))))))
         ;;   (doseq [items-to-have ]
         ;;     (let [_ (println "items to have" items-to-have)
