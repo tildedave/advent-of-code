@@ -2,14 +2,12 @@
   (:require [utils :as utils]
             [clojure.set :as set]))
 
-(def parse-number-list #(map utils/parse-int (.split #"\s+" %)))
-
 (defn parse-card [line]
   (let [[_ card-str winning-num-list card-num-list]
         (re-matches #"^Card\s+(\d+):\s+((?:(?:\d+)\s+)+)\|\s+((?:(?:\d+)\s*)+)$" line)]
     {:number (utils/parse-int card-str)
-     :winning-numbers (set (parse-number-list winning-num-list))
-     :card-numbers (set (parse-number-list card-num-list))}))
+     :winning-numbers (set (utils/parse-number-list winning-num-list))
+     :card-numbers (set (utils/parse-number-list card-num-list))}))
 
 (parse-card "Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53")
 

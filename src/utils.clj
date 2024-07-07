@@ -21,6 +21,8 @@
     (Integer/valueOf str)
     (catch IllegalArgumentException _ str)))
 
+(def parse-number-list #(map parse-long (.split #"\s+" %)))
+
 (defn xor [b1 b2]
   (case [b1 b2]
     [true false] true
