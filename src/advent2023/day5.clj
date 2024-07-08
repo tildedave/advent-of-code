@@ -147,44 +147,37 @@
 (defn map-interval [interval ranges]
   ;; so the interval is turned into a list of mapped intervals and a list of
   ;; remaining intervals
-  (->> ranges
-       (reduce
-        (fn [[mapped-intervals remaining-intervals] mapping-range]
-          (loop
-           [intervals remaining-intervals
-            mapped-intervals mapped-intervals
-            unmapped-intervals []]
-            (if-let [interval (first intervals)]
-              (let [[mapped-interval unmapped-intervals]
-                    (apply-map-to-interval interval mapping-range)]
-                (if (nil? mapped-interval)
-                  (recur
-                   (rest intervals)
-                   mapped-intervals
-                   (conj unmapped-intervals interval))
-                  (recur
-                   (reduce
-                    conj
-                    (rest intervals)
-                    unmapped-intervals)
-                   (conj mapped-intervals mapped-interval)
-                   unmapped-intervals)))
-              [mapped-intervals unmapped-intervals])))
-        [[] [interval]])
-       (reduce concat)
-       (remove (fn [[x y]] (= x y)))
-       (sort-by first)
-       (reduce
-        (fn [[all prev] current]
-          (cond
-            (nil? prev) [all current]
-            (= (second prev) (first current))
-            [all [(first prev) (second current)]]
-            :else [(conj all prev) current]))
-        [[] nil])
-       ((fn [[all current]] (conj all current)))))
+  (loop
+   [intervals [interval]
+    mapped-intervals []
+    unmapped-intervals []]
+    (if-let [interval (first intervals)]
+      (if-let [overlapping-interval (->> ranges
+                                         (filter #(intervals/overlap? (second %) interval))
+                                         (first))]
+        (let [[mapped-portion unmapped-portions] (apply-map-to-interval interval overlapping-interval)]
+          (recur
+           (reduce conj (rest intervals) unmapped-portions)
+           (conj mapped-intervals mapped-portion)
+           unmapped-intervals))
+        (recur
+         (rest intervals)
+         mapped-intervals
+         (conj unmapped-intervals interval)))
+      (->> (concat mapped-intervals unmapped-intervals)
+           (remove (fn [[x y]] (= x y)))
+           (sort-by first)
+           (reduce
+            (fn [[all prev] current]
+              (cond
+                (nil? prev) [all current]
+                (= (second prev) (first current))
+                [all [(first prev) (second current)]]
+                :else [(conj all prev) current]))
+            [[] nil])
+           ((fn [[all current]] (conj all current)))))))
 
-(map-interval [0 100] (get-in (parse-almanac example-almanac) [:maps "seed" :ranges]))
+(map-interval [0 70] (get-in (parse-almanac example-almanac) [:maps "seed" :ranges]))
 
 (defn seed-ranges [almanac]
   (map (fn [[start length]] [start (+ start length)]) (partition 2 (:seeds almanac))))
