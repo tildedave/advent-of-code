@@ -2,6 +2,8 @@
   (:require [clojure.core.match :refer [match]]
             [utils :as utils]))
 
+(def ^:dynamic part2? false)
+
 (def hand-strength {:five-of-a-kind 6
                     :four-of-a-kind 5
                     :full-house 4
@@ -11,28 +13,44 @@
                     :high-card 0})
 
 (def hand-type
-  (memoize (fn [hand]
-  (match
-   (as-> (seq hand) s
-           (group-by identity s)
-           (update-vals s count)
-           (map second s)
-           (sort > s)
-           (take 2 s)
-           (vec s))
-    [5] :five-of-a-kind
-    [4 _] :four-of-a-kind
-    [3 2] :full-house
-    [3 _] :three-of-a-kind
-    [2 2] :two-pair
-    [2 _] :one-pair
-    _ :high-card))))
-;;   (let [by-chars (update-vals (group-by identity (seq hand))]
+  (fn [hand]
+    (let [frequencies (as-> (seq hand) s
+                        (group-by identity s)
+                        (update-vals s count))
+          frequencies (if part2?
+                        (let [num-jokers (get frequencies \J 0)
+                              next-most-popular (->> (dissoc frequencies \J)
+                                                     (sort-by second >)
+                                                     (first)
+                                                     (first))]
+                          (if (nil? next-most-popular)
+                             ;; there is an all-joker hand in the input.
+                            {\J 5}
+                            (-> frequencies
+                                (dissoc \J)
+                                (update next-most-popular (partial + num-jokers)))))
+                        frequencies)]
+      (match
+       (->> frequencies
+            (map second)
+            (sort >)
+            (take 2)
+            (vec))
+        [5 & _] :five-of-a-kind
+        [4 & _] :four-of-a-kind
+        [3 2] :full-house
+        [3 & _] :three-of-a-kind
+        [2 2] :two-pair
+        [2 & _] :one-pair
+        _ :high-card))))
 
 (hand-type "JJJJJ")
 
-(def card-strength
-  {\A 14 \K 13 \Q 12 \J 11, \T 10 \9 9 \8 8 \7 7 \6 6 \5 5 \4 4 \3 3 \2 2})
+(defn card-strength [ch]
+  (let [m {\A 14 \K 13 \Q 12 \J 11, \T 10 \9 9 \8 8 \7 7 \6 6 \5 5 \4 4 \3 3 \2 2}]
+    (if part2?
+      (get (dissoc m \J) ch)
+      (get m ch))))
 
 (defn hand-compare [hand1 hand2]
   (case
@@ -77,3 +95,10 @@
 ;; correct
 (answer-part1 example)
 (answer-part1 (utils/read-input "2023/day7.txt"))
+
+(assert (binding [part2? true]
+          (= :four-of-a-kind (hand-type "QJJQ2"))))
+
+;; correct
+(binding [part2? true] (answer-part1 (utils/read-input "2023/day7.txt")))
+(binding [part2? true] (answer-part1 example))
