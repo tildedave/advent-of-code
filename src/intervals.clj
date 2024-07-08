@@ -15,7 +15,8 @@
     [(min lo1 lo2) (max hi1 hi2)]
     (throw (Exception. "asked to merge two non-overlapping intervals"))))
 
-;; OK RBT time seems to have worked.
+(defn contained? [[lo1 hi1] [lo2 hi2]]
+  (= (interval-merge [lo1 hi1] [lo2 hi2]) [lo2 hi2]))
 
 (defn interval-compare [i1 i2]
   (cond
@@ -38,3 +39,12 @@
                (into [(reduce interval-merge x (q 0))])
                (into (q -1))))))
       result)))
+
+(defn interval-merge-in [intervals r]
+  (loop [merge-in r
+         intervals intervals]
+    (let [[x] (filter (partial overlap? merge-in) intervals)]
+      (if (nil? x)
+        (conj intervals merge-in)
+        (recur (interval-merge x merge-in)
+               (filter #(not= x %) intervals))))))

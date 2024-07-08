@@ -102,6 +102,93 @@
 (answer-part1 (parse-almanac example-almanac))
 (answer-part1 (parse-almanac (utils/read-input "2023/day5.txt")))
 
-;; OK for part 2 we need to go backwards and keep track of the intervals
-;; or something.
+;; OK for part 2 we need to keep track of the intervals or something.
+;; one way to do this would be to just expand seed-destination so that
+;; it operates on an interval instead of a single number.
 
+(intervals/contained? [3 4] [2 5])
+
+(defn apply-map-to-interval [[start end] [[dstart dend] [sstart send]]]
+;; 4 possibilities.
+;; clips left (split off part to the left as unmapped)
+;; clips right (split off part to the right as unmapped)
+;; map totally contains the interval, in which case we map it all
+;; interval totally contains the map, in which case we map the section
+;; and clip the sides.
+  (let [[mapped-interval unmapped-portions]
+        (if (intervals/overlap? [start end] [sstart send])
+    ;; OK we can assume the intervals match now
+          (cond
+      ;; case 1, clips left  (assumed end >= sstart)
+      ;; might get into some off by 1s with the end.
+            (and (< start sstart) (<= end send))
+            [[sstart (min end send)] [[start sstart]]]
+      ;; case 2, clips right
+            (and (< start send) (<= send end))
+            [[start send] [[send end]]]
+      ;; case 3, range we're mapping is completely contained
+            (and (>= start sstart) (<= end send))
+            [[start end] []]
+      ;; case 4, range we're mapping completely contains the map
+            (and (< start sstart) (> end send))
+            [[sstart send] [start sstart] [send end]]
+            :else (throw (Exception. "did not fall into one of my cases")))
+    ;; ELSE for intervals/overlap?
+          [nil [[start end]]])]
+        (if-let [[mstart mend] mapped-interval]
+          (let [offset (- mstart sstart)
+                length (- mend mstart)]
+            [[(+ dstart offset)
+              (+ dstart offset length)] unmapped-portions])
+          [nil unmapped-portions])))
+
+(defn map-interval [interval ranges]
+  ;; so the interval is turned into a list of mapped intervals and a list of
+  ;; remaining intervals
+  (->> ranges
+       (reduce
+        (fn [[mapped-intervals remaining-intervals] mapping-range]
+          (let [map-results
+                (for [interval remaining-intervals]
+             ;; I'm not sure this is correct in the presence of generated intervals
+             ;; that might intersect another interval in the list?  I guess it will
+             ;; be fine since that interval would have been affected that other
+             ;; interval.
+                  (apply-map-to-interval interval mapping-range))]
+            [(reduce conj mapped-intervals (remove nil? (map first map-results)))
+             (reduce concat (map second map-results))]))
+        [[] [interval]])
+       (reduce concat)))
+
+(map-interval [0 100] (get-in (parse-almanac example-almanac) [:maps "seed" :ranges]))
+
+(defn seed-ranges [almanac]
+  (map (fn [[start length]] [start (+ start length)]) (partition 2 (:seeds almanac))))
+
+(seed-ranges (parse-almanac example-almanac))
+
+(defn seed-range-destination [parsed-almanac seed-range]
+  (loop [ranges [seed-range]
+         type "seed"]
+    (if (= type "location")
+      ranges
+      (let [current-ranges (get-in parsed-almanac [:maps type :ranges])]
+        (recur
+         (mapcat
+          #(map-interval % current-ranges)
+          ranges)
+         (get-in parsed-almanac [:maps type :dest]))))))
+
+(defn answer-part2 [parsed-almanac]
+  (->> parsed-almanac
+       (seed-ranges)
+       (map (partial seed-range-destination parsed-almanac))
+      ;;  (map #(->> %
+      ;;             (map first)
+      ;;             (reduce min)))
+      ;;  (reduce min)
+  ))
+
+(answer-part2 (parse-almanac example-almanac))
+;; wrong wrong wrong
+(answer-part2 (parse-almanac (utils/read-input "2023/day5.txt")))
