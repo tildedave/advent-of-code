@@ -224,5 +224,4 @@
   (->> (range 55 (+ 55 13))
        (map (partial seed-destination parsed-almanac))
        (sort)))
-;; wrong wrong wrong
 (answer-part2 (parse-almanac (utils/read-input "2023/day5.txt")))
