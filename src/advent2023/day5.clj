@@ -115,28 +115,32 @@
 ;; map totally contains the interval, in which case we map it all
 ;; interval totally contains the map, in which case we map the section
 ;; and clip the sides.
-  (let [[[mstart mend] unmapped-portions]
+  (let [{:keys [mapped unmapped]}
     ;; OK we can assume the intervals match now
-         (cond
+        (cond
       ;; case 1, clips left  (assumed end >= sstart)
       ;; might get into some off by 1s with the end.
-           (and (< start sstart) (<= end send))
-           [[sstart (min end send)] [[start sstart]]]
+          (and (< start sstart) (<= end send))
+          {:mapped [sstart (min end send)]
+           :unmapped [[start sstart]]}
       ;; case 2, clips right
-           (and (< start send) (<= send end))
-           [[start send] [[send end]]]
+          (and (<= sstart start) (< start send) (<= send end))
+          {:mapped [start send]
+           :unmapped [[send end]]}
       ;; case 3, range we're mapping is completely contained
-           (<= sstart start end send)
-           [[start end] []]
+          (<= sstart start end send)
+          {:mapped [start end]
+           :unmapped []}
       ;; case 4, range we're mapping completely contains the map
-           (< start sstart send end)
-           [[sstart send] [start sstart] [send end]]
-           :else (throw (Exception. "did not fall into one of my cases")))
-    ;; ELSE for intervals/overlap? - intervals don't overlap
+          (< start sstart send end)
+          {:mapped [sstart send]
+           :unmapped [[start sstart] [send end]]}
+          :else (throw (Exception. "did not fall into one of my cases")))
+        [mstart mend] mapped
         offset (- mstart sstart)
         length (- mend mstart)]
-      [[(+ dstart offset)
-        (+ dstart offset length)] unmapped-portions]))
+    [[(+ dstart offset)
+      (+ dstart offset length)] unmapped]))
 
 (defn interval-length [[x y]] (- y x))
 
@@ -174,7 +178,7 @@
     [[] nil])
    ((fn [[all current]] (conj all current)))))
 
-(map-interval [0 70] (get-in (parse-almanac example-almanac) [:maps "seed" :ranges]))
+(map-interval [0 70] [[[50 52] [52 54]]])
 
 (defn seed-ranges [almanac]
   (map (fn [[start length]] [start (+ start length)]) (partition 2 (:seeds almanac))))
