@@ -150,6 +150,8 @@ func day5(f *os.File) {
 				break
 			}
 
+			fmt.Println(currentEntity, currentEntityRanges)
+
 			// alignment portion
 			var alignedRanges []entityRange
 			iterRanges := make([]entityRange, len(currentEntityRanges))
@@ -212,6 +214,7 @@ func day5(f *os.File) {
 			}
 
 			if currentEntity == "location" && nextEntity == "" {
+				fmt.Println("final")
 				// What's our smallest number?
 				// It will be the smallest start of the remaining
 				for _, r := range nextRanges {

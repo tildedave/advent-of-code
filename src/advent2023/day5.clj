@@ -42,10 +42,10 @@
     "39 0 15"
     ""
     "fertilizer-to-water map:"
-    "49 53 8"
-    "0 11 42"
-    "42 0 7"
-    "57 7 4"
+    "49 53 8"  ;; [53 61] -> [49 57]
+    "0 11 42"  ;; [11 53] -> [0 42]
+    "42 0 7"   ;; [0 7]   -> [42 49]
+    "57 7 4"   ;; [7 11]  -> [57 61]
     ""
     "water-to-light map:"
     "88 18 7"
@@ -88,7 +88,7 @@
                                      (first))]
            (if (nil? matched-interval)
              num
-             (let [[[dest-start dest-end] [source-start source-end]] matched-interval]
+             (let [[[dest-start _] [source-start _]] matched-interval]
                (+ (- num source-start) dest-start))))
            (get-in parsed-almanac [:maps type :dest]))))))
 
@@ -127,20 +127,22 @@
             (and (< start send) (<= send end))
             [[start send] [[send end]]]
       ;; case 3, range we're mapping is completely contained
-            (and (>= start sstart) (<= end send))
+            (<= sstart start end send)
             [[start end] []]
       ;; case 4, range we're mapping completely contains the map
-            (and (< start sstart) (> end send))
+            (< start sstart send end)
             [[sstart send] [start sstart] [send end]]
             :else (throw (Exception. "did not fall into one of my cases")))
-    ;; ELSE for intervals/overlap?
+    ;; ELSE for intervals/overlap? - intervals don't overlap
           [nil [[start end]]])]
-        (if-let [[mstart mend] mapped-interval]
-          (let [offset (- mstart sstart)
-                length (- mend mstart)]
-            [[(+ dstart offset)
-              (+ dstart offset length)] unmapped-portions])
-          [nil unmapped-portions])))
+    (if-let [[mstart mend] mapped-interval]
+      (let [offset (- mstart sstart)
+            length (- mend mstart)]
+        [[(+ dstart offset)
+          (+ dstart offset length)] unmapped-portions])
+      [nil unmapped-portions])))
+
+(defn interval-length [[x y]] (- y x))
 
 (defn map-interval [interval ranges]
   ;; so the interval is turned into a list of mapped intervals and a list of
@@ -148,17 +150,39 @@
   (->> ranges
        (reduce
         (fn [[mapped-intervals remaining-intervals] mapping-range]
-          (let [map-results
-                (for [interval remaining-intervals]
-             ;; I'm not sure this is correct in the presence of generated intervals
-             ;; that might intersect another interval in the list?  I guess it will
-             ;; be fine since that interval would have been affected that other
-             ;; interval.
-                  (apply-map-to-interval interval mapping-range))]
-            [(reduce conj mapped-intervals (remove nil? (map first map-results)))
-             (reduce concat (map second map-results))]))
+          (loop
+           [intervals remaining-intervals
+            mapped-intervals mapped-intervals
+            unmapped-intervals []]
+            (if-let [interval (first intervals)]
+              (let [[mapped-interval unmapped-intervals]
+                    (apply-map-to-interval interval mapping-range)]
+                (if (nil? mapped-interval)
+                  (recur
+                   (rest intervals)
+                   mapped-intervals
+                   (conj unmapped-intervals interval))
+                  (recur
+                   (reduce
+                    conj
+                    (rest intervals)
+                    unmapped-intervals)
+                   (conj mapped-intervals mapped-interval)
+                   unmapped-intervals)))
+              [mapped-intervals unmapped-intervals])))
         [[] [interval]])
-       (reduce concat)))
+       (reduce concat)
+       (remove (fn [[x y]] (= x y)))
+       (sort-by first)
+       (reduce
+        (fn [[all prev] current]
+          (cond
+            (nil? prev) [all current]
+            (= (second prev) (first current))
+            [all [(first prev) (second current)]]
+            :else [(conj all prev) current]))
+        [[] nil])
+       ((fn [[all current]] (conj all current)))))
 
 (map-interval [0 100] (get-in (parse-almanac example-almanac) [:maps "seed" :ranges]))
 
@@ -179,16 +203,32 @@
           ranges)
          (get-in parsed-almanac [:maps type :dest]))))))
 
+;; this is right
+;; I guess that doesn't mean too much as it will only handle the
+;; "seed is contained" case.
+(let [parsed-almanac (parse-almanac (utils/read-input "2023/day5.txt"))]
+  (->>
+   (for [seed (:seeds parsed-almanac)]
+    (seed-range-destination parsed-almanac [seed (inc seed)]))
+   (map first)
+   (map first)
+   (reduce min)))
+
 (defn answer-part2 [parsed-almanac]
   (->> parsed-almanac
        (seed-ranges)
        (map (partial seed-range-destination parsed-almanac))
-      ;;  (map #(->> %
-      ;;             (map first)
-      ;;             (reduce min)))
-      ;;  (reduce min)
+       (map #(->> %
+                  (map first)
+                  (reduce min)))
+       (reduce min)
   ))
 
 (answer-part2 (parse-almanac example-almanac))
+
+(let [parsed-almanac (parse-almanac example-almanac)]
+  (->> (range 55 (+ 55 13))
+       (map (partial seed-destination parsed-almanac))
+       (sort)))
 ;; wrong wrong wrong
 (answer-part2 (parse-almanac (utils/read-input "2023/day5.txt")))
