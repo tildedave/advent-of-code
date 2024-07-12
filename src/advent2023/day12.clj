@@ -32,29 +32,39 @@
       (= (count s) n) ;; don't need to look at n + 1th
       (not= (.charAt s n) \#))))))
 
-(defn num-arrangements [record group-sizes]
-  ;; so this needs to be recursive, but we will probably need to memoize.
-  (if (empty? record)
-    (if (empty? group-sizes)
-      1
-      0)
-    (case (.charAt record 0)
-      \# (if-let [s (first group-sizes)]
-             (if (can-force-contiguous? record s)
-               (num-arrangements
-                (subs record (min (inc s) (count record)))
-                (rest group-sizes))
-               0)
-           0)
-      \. (num-arrangements (subs record 1) group-sizes)
-      \? ;; either we choose 0 or 1
-      (+
-       (num-arrangements (str "." (subs record 1)) group-sizes)
-       (num-arrangements (str "#" (subs record 1)) group-sizes)))))
+;; memoized via monad, sort of bleh
+;; I don't like either of the memoization strategies that I'm familiar with.
+(defn num-arrangements [memory record group-sizes]
+  (if
+    (contains? memory [record group-sizes])
+    [memory (memory [record group-sizes])]
+    (let [[memory result]
+          (if (empty? record)
+            (if (empty? group-sizes)
+              [memory 1]
+              [memory 0])
+            (case (.charAt record 0)
+              \# (if-let [s (first group-sizes)]
+                   (if (can-force-contiguous? record s)
+                     (num-arrangements
+                      memory
+                      (subs record (min (inc s) (count record)))
+                      (rest group-sizes))
+                     [memory 0])
+                   [memory 0])
+              \. (num-arrangements memory (subs record 1) group-sizes)
+              \? ;; either we choose 0 or 1
+              (let [[memory1 result1]
+                    (num-arrangements memory (str "." (subs record 1)) group-sizes)
+                    [memory2 result2]
+                     (num-arrangements memory1 (str "#" (subs record 1)) group-sizes)]
+                [memory2 (+ result1 result2)])))]
+      [(assoc memory [record group-sizes] result) result])))
 
 (defn total-arrangements [lines]
   (->> (map parse-conditions lines)
-       (map (partial apply num-arrangements))
+       (map (partial apply num-arrangements {}))
+       (map second)
        (reduce +)))
 
 (total-arrangements '("???.### 1,1,3"
@@ -72,7 +82,7 @@
   (flatten (repeat 5 num-list))])
 
 (defn arrangements-part2 [s]
-  (->> s (parse-conditions) (unfold) (apply num-arrangements)))
+  (->> s (parse-conditions) (unfold) (apply num-arrangements {}) (second)))
 
 (defn total-arrangements-part2 [lines]
   (->> lines
@@ -80,11 +90,13 @@
        (reduce +)))
 
 ;; correct, but slow
-(time
- (total-arrangements-part2
+(total-arrangements-part2
 '("???.### 1,1,3"
   ".??..??...?##. 1,1,3"
   "?#?#?#?#?#?#?#? 1,3,1,6"
   "????.#...#... 4,1,1"
   "????.######..#####. 1,6,5"
-  "?###???????? 3,2,1")))
+  "?###???????? 3,2,1"))
+
+;; correct \o/
+(total-arrangements-part2 (utils/read-input "2023/day12.txt"))
