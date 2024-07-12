@@ -34,37 +34,33 @@
 
 ;; memoized via monad, sort of bleh
 ;; I don't like either of the memoization strategies that I'm familiar with.
-(defn num-arrangements [memory record group-sizes]
-  (if
-    (contains? memory [record group-sizes])
-    [memory (memory [record group-sizes])]
-    (let [[memory result]
-          (if (empty? record)
-            (if (empty? group-sizes)
-              [memory 1]
-              [memory 0])
-            (case (.charAt record 0)
-              \# (if-let [s (first group-sizes)]
-                   (if (can-force-contiguous? record s)
-                     (num-arrangements
-                      memory
-                      (subs record (min (inc s) (count record)))
-                      (rest group-sizes))
-                     [memory 0])
-                   [memory 0])
-              \. (num-arrangements memory (subs record 1) group-sizes)
-              \? ;; either we choose 0 or 1
-              (let [[memory1 result1]
-                    (num-arrangements memory (str "." (subs record 1)) group-sizes)
-                    [memory2 result2]
-                     (num-arrangements memory1 (str "#" (subs record 1)) group-sizes)]
-                [memory2 (+ result1 result2)])))]
-      [(assoc memory [record group-sizes] result) result])))
+(def num-arrangements
+  (let [_num-arrangements
+        (fn [mem-num-arrangements record group-sizes]
+          (let [rec (partial mem-num-arrangements mem-num-arrangements)]
+            (if (empty? record)
+              (if (empty? group-sizes)
+                1
+                0)
+              (case (.charAt record 0)
+                \# (if-let [s (first group-sizes)]
+                     (if (can-force-contiguous? record s)
+                       (rec
+                        (subs record (min (inc s) (count record)))
+                        (rest group-sizes))
+                       0)
+                     0)
+                \. (rec (subs record 1) group-sizes)
+                \? ;; either we choose 0 or 1
+                (+
+                 (rec (str "." (subs record 1)) group-sizes)
+                 (rec (str "#" (subs record 1)) group-sizes))))))
+        mem-num-arranagements (memoize _num-arrangements)]
+          (partial mem-num-arranagements mem-num-arranagements)))
 
 (defn total-arrangements [lines]
   (->> (map parse-conditions lines)
-       (map (partial apply num-arrangements {}))
-       (map second)
+       (map (partial apply num-arrangements))
        (reduce +)))
 
 (total-arrangements '("???.### 1,1,3"
@@ -82,14 +78,14 @@
   (flatten (repeat 5 num-list))])
 
 (defn arrangements-part2 [s]
-  (->> s (parse-conditions) (unfold) (apply num-arrangements {}) (second)))
+  (->> s (parse-conditions) (unfold) (apply num-arrangements)))
 
 (defn total-arrangements-part2 [lines]
   (->> lines
        (map arrangements-part2)
        (reduce +)))
 
-;; correct, but slow
+;; correct
 (total-arrangements-part2
 '("???.### 1,1,3"
   ".??..??...?##. 1,1,3"
@@ -99,4 +95,4 @@
   "?###???????? 3,2,1"))
 
 ;; correct \o/
-(total-arrangements-part2 (utils/read-input "2023/day12.txt"))
+(time (total-arrangements-part2 (utils/read-input "2023/day12.txt")))
