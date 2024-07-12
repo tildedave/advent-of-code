@@ -21,7 +21,9 @@
     (Integer/valueOf str)
     (catch IllegalArgumentException _ str)))
 
-(def parse-number-list #(map parse-long (.split #"\s+" %)))
+(defn parse-number-list
+  ([line] (parse-number-list line #"\s+"))
+  ([line ^java.util.regex.Pattern pattern] (map parse-long (.split pattern line))))
 
 (defn xor [b1 b2]
   (case [b1 b2]
