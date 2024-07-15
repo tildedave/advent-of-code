@@ -72,6 +72,8 @@
                                (subvec v (inc n))))]
     (and
      (= (count res) 1)
+     ;; this is just a simple test for "is a power of 2"
+     ;; n & (n - 1) == 0
      (zero? (bit-and (first res) (dec (first res)))))))
 
 (defn note-score [summary]
