@@ -28,41 +28,28 @@
 ;; individually and then put them back in
 ;; we'll just implement a basic slide function.
 
+(defn slide [v]
+  (loop [v v
+         x 0]
+    (if-let [h (get v x)]
+      (case h
+        \# (recur v (inc x))
+        \O (recur v (inc x))
+        \. ;; walk forward to find y
+        (if-let [y (->> (range (inc x) (count v))
+                        (drop-while #(= (get v %) \.))
+                        (first))]
+          (case (get v y)
+            \# (recur v (inc y))
+            \O (recur
+                (-> v
+                    (assoc x \O)
+                    (assoc y \.))
+                (inc x)))
+          v))
+      v)))
 
-;; this looks right
-;; seems like I should be able to be more efficient with the catting.
-(defn slide [seq]
-  (if-let [x (first seq)]
-    (case x
-      (\# \O) (lazy-seq (cons x (slide (rest seq))))
-      \.
-      ;; OK, question is, do we hit a # before we hit a \O.
-      (let [[spaces non-spaces] (split-with (partial = \.) (rest seq))]
-        (if-let [y (first non-spaces)]
-          (case y
-            \#
-            ;; no change in our sequence, skip everything to the #
-            ;; and continue
-            (lazy-cat
-             '(\.)
-             spaces
-             (slide non-spaces))
-            \O
-            ;; slide this one forward to the current space, recur on
-            ;; spaces concat non-spaces
-            ;; this could be made more efficient I guess.
-            (lazy-cat
-             '(\O)
-             (slide
-              (concat
-               (cons \. spaces)
-               (rest non-spaces)))))
-          seq)))
-    '()))
-
-(slide (seq "#O#...O...O..#..O..#"))
-
-  )
+(slide (vec (seq "#O#...O...O..#..O..#")))
 
 
 (defn slide-direction [grid direction]
