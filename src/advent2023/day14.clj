@@ -97,12 +97,12 @@
          (replace-row grid y (rseq (slide (vec (rseq (get-row grid y)))))))
        grid
        (range 0 ymax))
-       :down
-       (reduce
-        (fn [grid x]
-          (replace-column grid x (rseq (slide (vec (rseq (get-column grid x)))))))
-        grid
-        (range 0 xmax)))))
+      :down
+      (reduce
+       (fn [grid x]
+         (replace-column grid x (rseq (slide (vec (rseq (get-column grid x)))))))
+       grid
+       (range 0 xmax)))))
 
 (slide-direction (grid/parse example-grid) :left)
 
@@ -116,3 +116,44 @@
 
 ;; correct
 (total-load (slide-direction (grid/parse (utils/read-input "2023/day14.txt")) :up))
+
+;; OK so apparently there is a cycle at some point.
+
+(defn perform-cycle [grid]
+  (-> grid
+      (slide-direction :up)
+      (slide-direction :left)
+      (slide-direction :down)
+      (slide-direction :right)))
+
+(nth (iterate perform-cycle (grid/parse example-grid)) 3)
+
+(defn find-cycle [grid]
+  (->> grid
+       (iterate perform-cycle)
+       (map-indexed vector)
+       (reduce (fn [acc [n curr-grid]]
+                 (if (contains? acc curr-grid)
+                   (do
+                     (println "cycle starting at" (acc curr-grid) "going to" n)
+                     (reduced [(acc curr-grid) n]))
+                   (assoc acc curr-grid n)))
+               {})))
+
+(find-cycle (grid/parse example-grid))
+;; so cycle has length 7, e.g. look up load for state 100000000 - 3 % 7
+
+(defn answer-part2 [grid]
+  (let [[cycle-start cycle-end] (find-cycle grid)
+        cycle-length (- cycle-end cycle-start)]
+    (total-load
+     (nth
+     (iterate perform-cycle grid)
+     (+ cycle-start (mod (- 100000000 cycle-start) cycle-length))))))
+
+(total-load (grid/parse example-grid))
+
+;; this is wrong for some reason?
+(answer-part2 (grid/parse example-grid))
+;; correct
+(answer-part2 (grid/parse (utils/read-input "2023/day14.txt")))
