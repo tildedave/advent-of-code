@@ -1,5 +1,6 @@
 (ns advent2023.day14
-  (:require [grid :as grid]))
+  (:require [grid :as grid]
+            [utils :as utils]))
 
 ;; I did some horrible bitmasking for golang but I'm not doing that now.
 ;; we will just have the lil rocks go as far as they'll go.
@@ -51,48 +52,67 @@
 
 (slide (vec (seq "#O#...O...O..#..O..#")))
 
+(defn get-row [grid y]
+  (grid y))
+
+(defn get-column [grid x]
+  (let [[_ ymax] (grid/bounds grid)]
+    (mapv (partial grid/at grid) (for [y (range 0 ymax)] [x y]))))
+
+(get-column (grid/parse example-grid) 0)
+
+;; rows are just updating the grid's structure as it exists now, so it's easy
+(defn replace-row [grid y new-row]
+  (assoc grid y (vec new-row)))
+
+;; columns are a bit annoying, but a nice thing here is that this takes
+;; sequences
+(defn replace-column  [grid x new-column]
+  (let [[_ ymax] (grid/bounds grid)]
+    (reduce (fn [grid [[nx ny] new-ch]]
+              (assoc-in grid [ny nx] new-ch))
+            grid
+            (map vector
+                 (for [y (range 0 ymax)] [x y])
+                 new-column))))
 
 (defn slide-direction [grid direction]
-  (let [[xmax ymax] (grid/bounds grid)
-        rows (rows grid)
-        columns (columns grid)]
-    (->>
-     (case direction
-       :up
-       (for [x (range 0 xmax)]
-          ;; these are the coordinates, it seems they show up sorted
-          ;; we do need to manually sort since certain directions involve
-          ;; approaching from a different direction
-          ;; e.g. going down requires sorting by >
-         (->> (columns x)
-              (sort-by second)))
+  (let [[xmax ymax] (grid/bounds grid)]
+    (case direction
+      :up
+      (reduce
+       (fn [grid x]
+         (replace-column grid x (slide (get-column grid x))))
+       grid
+       (range 0 xmax))
+      :left
+      (reduce
+       (fn [grid y]
+         (replace-row grid y (slide (get-row grid y))))
+       grid
+       (range 0 ymax))
+      :right
+      (reduce
+       (fn [grid y]
+         (replace-row grid y (rseq (slide (vec (rseq (get-row grid y)))))))
+       grid
+       (range 0 ymax))
        :down
-       (for [x (range 0 xmax)]
-         (->> (columns x)
-              (sort-by second >)))
-       (throw (Exception. "not implemented")))
-     (map (fn [coords]
-            (loop
-             [coords coords
-              result {}]
-              (if-let [x (first coords)]
-                (case (grid/at grid x)
-                  \O (recur (rest coords) result) ;; no change for this one, go to the next
-                  \# (recur (rest coords) result) ;; also no change
-                  \. ;; two possibilities: there is a next rock and there is no next rock
-                  (let [find-rock-coords (drop-while #(= (grid/at grid %) \.) (rest coords))]
-                    (if-let [y (first find-rock-coords)]
-                      (case (grid/at grid y)
-                        \O (recur (rest coords) (assoc result y x))
-                        \# (recur (rest coords) result))
-                      result))
-                  (throw (Exception. (format "unrecognized %s %s" (str (grid/at grid x)) x))))
-                result))))
-     (reduce merge {})
-    ;;  (reduce
-    ;;   (fn [grid [[old new]]]
-    ;;     (grid/assoc ))
-    ;;   grid))))
-    )))
+       (reduce
+        (fn [grid x]
+          (replace-column grid x (rseq (slide (vec (rseq (get-column grid x)))))))
+        grid
+        (range 0 xmax)))))
 
-(slide-direction (grid/parse example-grid) :up)
+(slide-direction (grid/parse example-grid) :left)
+
+(defn total-load [grid]
+  (let [[_ ymax] (grid/bounds grid)]
+    (->> grid
+         (map-indexed
+          (fn [n row]
+            (* (- ymax n) (count (filter (partial = \O) row)))))
+         (reduce +))))
+
+;; correct
+(total-load (slide-direction (grid/parse (utils/read-input "2023/day14.txt")) :up))
