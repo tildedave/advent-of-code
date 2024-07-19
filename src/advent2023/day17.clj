@@ -93,7 +93,7 @@
     "999999999991"))
 
 ;; part2
-(let [grid (parse-heat-grid unfortunate-example)
+(let [grid (parse-heat-grid (utils/read-input "2023/day17.txt"))
       bottom-corner (mapv dec (grid/bounds grid))]
   (->>
    (graph/dijkstra-search
