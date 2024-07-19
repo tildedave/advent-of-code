@@ -11,7 +11,7 @@
        (rest)
        ((fn [[dir num-str hex-string hex-direction]]
               [dir
-               (utils/parse-int num-str)
+               (parse-long num-str)
                (case hex-direction
                  "0" "R"
                  "1" "D"
@@ -60,7 +60,8 @@
 ;; first we zip
 (defn shoelace-formula [coords]
   (let [l (count coords)]
-    (->>
+    (/
+     (->>
      (range 0 l)
      (map
       (fn [n]
@@ -70,11 +71,8 @@
       (fn [[[x1 y1] [x2 y2]]]
         (- (* x1 y2) (* x2 y1))
         ))
-     (reduce +)
-     (* 0.5)
-     (int)
-     )
-    ))
+     (reduce +))
+     2)))
 
 ;; correct
 (let [instructions (map parse-instruction (utils/read-input "2023/day18.txt"))
