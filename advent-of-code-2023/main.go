@@ -6,11 +6,11 @@ import (
 )
 
 func main() {
-	f, err := os.Open("./day5-example.txt")
+	f, err := os.Open("./day19-example.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
 
-	day5(f)
+	day19(f)
 }

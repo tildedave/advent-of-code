@@ -105,7 +105,9 @@
      :lt :gt
      :gt :lt)
    attr
-   num])
+   (case comp
+     :gt (inc num)
+     :lt (dec num))])
 
 (defn path-neighbors [workflows current-path]
   (let [last-node (last current-path)]
@@ -142,7 +144,8 @@
    {:x [1 4000] :m [1 4000] :a [1 4000] :s [1 4000]}
    (map #(assoc % 1 (keyword (% 1))) (filter vector? path))))
 
-(let [{:keys [workflows]} (parse-input example-input)]
+;; part 2
+(let [{:keys [workflows]} (parse-input (utils/read-input "2023/day19.txt"))]
   (->>
    (graph/breadth-first-search
     ["in"]
