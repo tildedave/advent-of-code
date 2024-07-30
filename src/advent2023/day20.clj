@@ -33,17 +33,17 @@
                "%" :flip-flop
                "&" :conjunction
                (if (= source "broadcaster") :broadcaster
-                  (throw (Exception. "Unable to determine type"))))}]))
+                   (throw (Exception. "Unable to determine type"))))}]))
 
 (defn parse-machine [lines]
   (let [[out-connections in-connections register-types]
         (->> (map parse-line lines)
-       (reduce
-        (fn [[acc-out-connections acc-in-connections acc-types]
-                [out-connections in-connections types]]
-          [(merge acc-out-connections out-connections)
-           (merge-with set/union acc-in-connections in-connections)
-           (merge acc-types types)])))]
+             (reduce
+              (fn [[acc-out-connections acc-in-connections acc-types]
+                   [out-connections in-connections types]]
+                [(merge acc-out-connections out-connections)
+                 (merge-with set/union acc-in-connections in-connections)
+                 (merge acc-types types)])))]
     {:out-connections out-connections
      :conjunctions
      (->> (keys out-connections)
@@ -67,59 +67,81 @@
 (defn send-pulse [machine]
   (let [{:keys [out-connections flip-flops
                 conjunctions register-types]} machine]
-  (loop [queue [["broadcaster" "button" :low]]
-         flip-flops flip-flops
-         conjunctions conjunctions
-         pulse-count {}]
-    (if (empty? queue)
+    (loop [queue [["broadcaster" "button" :low]]
+           flip-flops flip-flops
+           conjunctions conjunctions
+           all-signals []]
+      (if (empty? queue)
       ;; TODO: add count of signals or something
-      (-> machine
-          (assoc :flip-flops flip-flops)
-          (assoc :conjunctions conjunctions)
-          (assoc :pulse-count pulse-count))
-      (let [[pulse-dest pulse-from pulse-strength] (first queue)
-            queue (subvec queue 1)
-            pulse-count (update pulse-count pulse-strength (fnil inc 0))]
-        (case (register-types pulse-dest)
-          :broadcaster
-          (recur
-           (into queue (map #(vector % pulse-dest pulse-strength) (out-connections pulse-dest)))
-           flip-flops
-           conjunctions
-           pulse-count)
-          :flip-flop
-          (case pulse-strength
-            :high ;; nothing
-            (recur queue flip-flops conjunctions pulse-count)
-            :low
+        (-> machine
+            (assoc :flip-flops flip-flops)
+            (assoc :conjunctions conjunctions)
+            (assoc :all-signals all-signals))
+        (let [[pulse-dest pulse-from pulse-strength] (first queue)
+              queue (subvec queue 1)
+              all-signals (conj all-signals [pulse-dest pulse-from pulse-strength])]
+          (case (register-types pulse-dest)
+            :broadcaster
             (recur
-             (into queue (map #(vector % pulse-dest (invert-pulse (flip-flops pulse-dest))) (out-connections pulse-dest)))
-             (update flip-flops pulse-dest invert-pulse)
-             conjunctions
-             pulse-count))
-          :conjunction
-          (let [next-conjunctions (assoc-in conjunctions [pulse-dest pulse-from] pulse-strength)
-                signal (if (every? (partial = :high) (vals (next-conjunctions pulse-dest)))
-                         :low
-                         :high)]
-            (recur
-             (into queue (map #(vector % pulse-dest signal) (out-connections pulse-dest)))
+             (into queue (map #(vector % pulse-dest pulse-strength) (out-connections pulse-dest)))
              flip-flops
-             next-conjunctions
-             pulse-count))
-          (recur queue flip-flops conjunctions pulse-count)
-          ))))))
+             conjunctions
+             all-signals)
+            :flip-flop
+            (case pulse-strength
+              :high ;; nothing
+              (recur queue flip-flops conjunctions all-signals)
+              :low
+              (recur
+               (into queue (map #(vector % pulse-dest (invert-pulse (flip-flops pulse-dest))) (out-connections pulse-dest)))
+               (update flip-flops pulse-dest invert-pulse)
+               conjunctions
+               all-signals))
+            :conjunction
+            (let [next-conjunctions (assoc-in conjunctions [pulse-dest pulse-from] pulse-strength)
+                  signal (if (every? (partial = :high) (vals (next-conjunctions pulse-dest)))
+                           :low
+                           :high)]
+              (recur
+               (into queue (map #(vector % pulse-dest signal) (out-connections pulse-dest)))
+               flip-flops
+               next-conjunctions
+               all-signals))
+            (recur queue flip-flops conjunctions all-signals)))))))
 
 (send-pulse (parse-machine example2))
 
-(defn total-presses [lines num-presses]
-  (->> (map :pulse-count (iterate send-pulse (parse-machine lines)))
+(defn total-signals [lines num-presses]
+  (->> (map :all-signals (iterate send-pulse (parse-machine lines)))
        (rest)
        (take num-presses)
+       (map #(as-> % m
+                  (group-by (fn [[_ _ pulse-strength]] pulse-strength) m)
+                  (update-vals m count)))
        (reduce (partial merge-with +))
        (vals)
        (reduce *)))
 
-
 ;; correct
-(total-presses (utils/read-input "2023/day20.txt") 1000)
+(total-signals (utils/read-input "2023/day20.txt") 1000)
+
+;; OK so my machine has four important registers, all need to be
+;; HIGH to work.
+;; tr, dr, nh, xm
+
+(defn cycles [lines]
+  (->> (iterate send-pulse (parse-machine lines))
+       (take 10000)
+       (map :dh-signals)
+       (map-indexed
+        (fn [n l] [n (filter (fn [[pulse-dest _ pulse-strength]]
+                               (and (= pulse-dest "dh")
+                               (= pulse-strength :high))) l)]))
+       (remove (fn [[n l]] (empty? l)))
+       (take 4)
+       (map first)
+       (reduce utils/lcm)
+       ))
+
+;; part 2 answer
+(cycles (utils/read-input "2023/day20.txt"))
