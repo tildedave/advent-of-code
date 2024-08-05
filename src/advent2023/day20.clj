@@ -132,7 +132,7 @@
 (defn cycles [lines]
   (->> (iterate send-pulse (parse-machine lines))
        (take 10000)
-       (map :dh-signals)
+       (map :all-signals)
        (map-indexed
         (fn [n l] [n (filter (fn [[pulse-dest _ pulse-strength]]
                                (and (= pulse-dest "dh")
