@@ -30,6 +30,8 @@
 (defn neighbors [grid [x y]]
   (grid/neighbors grid [x y] grid/cardinal-directions #(= % \#)))
 
+(def ^:dynamic part2? false)
+
 (defn intersections [grid]
   (->> (grid/coords grid)
        (filter
@@ -50,14 +52,11 @@
        (remove #(let [[cx cy] (mapv + [x y] %)]
                   (or (grid/out-of-bounds? grid [cx cy])
                       (= (grid/at grid [cx cy]) \#))))
-       (filter #(= (mapv + %
-                   (mapv (fn [x] (- x))
-                         (symbol-direction (grid/at grid (mapv + % [x y])))))
-                   [0 0]))))
-
-(valid-directions
- (grid/parse example-lines)
- [5 13])
+       (filter #(or part2?
+                    (= (mapv + %
+                             (mapv (fn [x] (- x))
+                                   (symbol-direction (grid/at grid (mapv + % [x y])))))
+                       [0 0])))))
 
 (intersections (grid/parse example-lines))
 
@@ -89,11 +88,12 @@
                  (->> (valid-directions grid node)
                       (map (partial walk grid node))
                       (filter (fn [[neighbor _]] (contains? intersection-set neighbor)))
-                      ((fn ([[neighbor cost]] {neighbor cost})))
+                      (map (fn ([[neighbor cost]] {neighbor cost})))
                       (reduce into {}))}))
          (reduce into {}))))
 
 (connection-graph (grid/parse example-lines))
+(binding [part2? true] (connection-graph (grid/parse example-lines)))
 
 (defn start-position [grid]
   (->>
@@ -118,7 +118,9 @@
 ;; seems like I did longest path for 2016 day 17 using a roughly similar
 ;; approach.  I didn't do any cutoffs for that one.
 
-(defn find-longest-path [grid]
+(defn find-longest-path
+  ([grid] (find-longest-path grid 100000))
+  ([grid cutoff]
   (let [[start-intersection start-dist] (walk grid (start-position grid) [0 1])
         [end-intersection end-dist] (walk grid (end-position grid) [0 -1])
         graph (connection-graph grid)
@@ -128,12 +130,12 @@
      [best-so-far -1
       queue [[start-intersection 0 (bit-set 0 (node-to-bitset-idx start-intersection))]]
       n 0]
-      (if (> n 10000)
+      (if (> n cutoff)
         :fail
         (if (empty? queue)
           (+ best-so-far start-dist end-dist)
           (let [[x cost seen] (first queue)
-              queue (rest queue)]
+                queue (rest queue)]
           (if (= x end-intersection)
             (recur
              (max best-so-far cost)
@@ -150,8 +152,13 @@
               queue
               (graph x))
              (inc n)
-             ))))))))
+             )))))))))
 
 (find-longest-path (grid/parse example-lines))
 ;; correct
 (find-longest-path (grid/parse-file "2023/day23.txt"))
+
+
+(binding [part2? true] (find-longest-path (grid/parse example-lines)))
+;; brute force enumeration works \o/
+(binding [part2? true] (find-longest-path (grid/parse-file "2023/day23.txt") Integer/MAX_VALUE))
