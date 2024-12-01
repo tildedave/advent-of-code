@@ -59,3 +59,20 @@
  [5 13])
 
 (intersections (grid/parse example-lines))
+
+;; (first (set '(1 3 5)))
+
+(defn walk [grid [x y] dir]
+  (loop [[x y] (mapv + [x y] dir)
+         dir dir]
+    ;; (println [x y] dir)
+    (let [next-coord (mapv + [x y] dir)
+          neighbor-coords (set (neighbors grid next-coord))]
+      (if (> (count neighbor-coords) 2)
+       ;; we're done
+        [x y]
+        (recur
+         next-coord
+         (mapv - (first (disj neighbor-coords [x y])) next-coord))))))
+
+(walk (grid/parse example-lines) [3 5] [1 0])
