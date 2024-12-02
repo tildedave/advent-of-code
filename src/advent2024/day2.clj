@@ -38,18 +38,33 @@
      (filter is-safe?)
      (count))
 
+;; a much sillier way to do part 2 is to, for any unsafe list,
+;; excise members one by one
+
 (defn is-safe-part2? [num-list]
-  (and (differences-ok? num-list 1) (or (is-monotonic? num-list <) (is-monotonic? num-list >))))
+  (if
+   (is-safe? num-list)
+    true
+    (reduce
+     (fn [acc n]
+       (if (is-safe? (into (subvec num-list 0 n) (subvec num-list (inc n))))
+         (reduced true)
+         acc))
+     false
+     (range (count num-list)))))
 
 (assert (is-safe-part2? [7 6 4 2 1]))
 (assert (not (is-safe-part2? [1 2 7 8 9])))
 (assert (not (is-safe-part2? [9 7 6 2 1])))
 (assert (is-safe-part2? [1 3 2 4 5]))
-(assert (not (is-safe-part2? [8 6 4 4 1])))
+(assert (is-safe-part2? [8 6 4 4 1]))
 (assert  (is-safe-part2? [1 3 6 7 9]))
 
-;; part 1
+;; part 2
 (->> (utils/read-input "2024/day2.txt")
      (map utils/parse-number-list)
-     (filter is-safe?)
+     (map #(into [] %))
+     (filter is-safe-part2?)
      (count))
+
+;; OK I must do this in a single loop now
