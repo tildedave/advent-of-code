@@ -1,5 +1,6 @@
 (ns advent2023.day24
-  (:require [utils :as utils]))
+  (:require [utils :as utils]
+            [clojure.math.combinatorics :as combo]))
 
 (def example-lines
   '("19, 13, 30 @ -2,  1, -2"
@@ -12,7 +13,7 @@
   (->> line
        (re-matches #"^(-?\d+),\s*(-?\d+),\s*(-?\d+)\s*@\s*(-?\d+),\s*(-?\d+),\s*(-?\d+)$")
        (rest)
-       (mapv utils/parse-int)
+       (mapv parse-long)
        ((fn [[px py pz vx vy vz]] [[px py pz] [vx vy vz]]))))
 
 (map parse-line example-lines)
@@ -50,29 +51,43 @@
   [[(+ (* x11 y) (* x12 z))]
    [(+ (* x21 y) (* x22 z))]])
 
-(defn collision-time [[[px1 py1 _] [vx1 vy1 _]] [[px2 py2 _] [vx2 vy2 _]]]
-  (let [tx (/ (- px1 px2) (- vx2 vx1))
-        ty (/ (- py1 py2) (- vy2 vy1))
-        det (+ (* (- vx1) vy2) (* vy1 vx2))
-        _ (println [[vx1 (- vx2)] [vy1 (- vy2)]])
-        m [[vx1 (- vx2)] [vy1 (- vy2)]]
-        inv-matrix [[(* (/ 1 det) (- vy2)) (* (/ 1 det) vx2)]
-                    [(* (/ 1 det) (- vy1)) (* (/ 1 det) vx1)]]
-        _ (println (matrix-mult m inv-matrix))
+(defn collision-spot [[[px1 py1 _] [vx1 vy1 _]] [[px2 py2 _] [vx2 vy2 _]]]
+  (let [det (+ (* (- vx1) vy2) (* vy1 vx2))]
+    (if (= det 0)
+      nil
+      (let [m [[vx1 (- vx2)] [vy1 (- vy2)]]
+            inv-matrix [[(* (/ 1 det) (- vy2)) (* (/ 1 det) vx2)]
+                        [(* (/ 1 det) (- vy1)) (* (/ 1 det) vx1)]]
         ;; OK this is the correct inverse matrix, tx ty are just multiplying
-        _ (println (matrix-vector-mult inv-matrix [[(- px2 px1)] [(- py2 py1)]]))
-        _ (println "det" inv-matrix)
-        _ (println "beep" (- py1 py2))
-        _ (println "beep" (- vy2 vy1))
-        _ (println (+ px1 (* tx vx1)))
-        _ (println (+ px2 (* tx vx2)))
-        _ (println (+ py1 (* ty vy1)))
-        _ (println (+ py2 (* ty vy2)))
-        _ (println tx ty)]
-    (if (= tx ty)
-      tx
-      nil)))
+            [[t1] [t2]] (matrix-vector-mult inv-matrix [[(- px2 px1)] [(- py2 py1)]])]
+        (if (and (> t1 0) (> t2 0))
+          (mapv float (mapv + [px1 py1] [(* t1 vx1) (* t1 vy1)]))
+          nil)))))
 
-(collision-time
+(defn collision-in-bounds? [[[xmin xmax] [ymin ymax]] particle1 particle2]
+  (let [spot (collision-spot particle1 particle2)]
+    (if (nil? spot)
+      false
+      (let [[x y] spot]
+        (and (<= xmin x xmax) (<= ymin y ymax))))))
+
+;; example answer
+(as-> example-lines v
+     (map parse-line v)
+  (combo/combinations v 2)
+  (filter #(apply (partial collision-in-bounds? [[7 27] [7 27]]) %) v)
+  (count v))
+
+(collision-spot
  (parse-line "19, 13, 30 @ -2, 1, -2")
  (parse-line "18, 19, 22 @ -1, -1, -2"))
+
+(collision-spot
+ (parse-line "18, 19, 22 @ -1, -1, -2")
+ (parse-line "20, 25, 34 @ -2, -2, -4"))
+
+(as-> (utils/read-input "2023/day24.txt") v
+  (map parse-line v)
+  (combo/combinations v 2)
+  (filter #(apply (partial collision-in-bounds? [[200000000000000 400000000000000] [200000000000000 400000000000000]]) %) v)
+  (count v))
