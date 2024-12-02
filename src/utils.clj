@@ -38,6 +38,7 @@
 
 (defn sml-partition
   "SML's List.partition, which I find myself reaching for."
+  ;; group-by does this and doesn't require a util import
   ([f s] (sml-partition f s (list) (list)))
   ([f s true-list false-list]
    (loop [s s
