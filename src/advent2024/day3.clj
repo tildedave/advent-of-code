@@ -1,5 +1,6 @@
 (ns advent2024.day3
-  (:require [utils :as utils]))
+  (:require [utils :as utils]
+            [clojure.java.io :as io]))
 
 (def example-line "xmul(2,4)%&mul[3,7]!@^do_not_mul(5,5)+mul(32,64]then(mul(11,8)mul(8,5))")
 
@@ -32,6 +33,6 @@
 
 (total-line-part2 example-line-part2)
 
-(->> (utils/read-input "2024/day3.txt")
-     (reduce total-line-part2 [:do 0])
+(->> (slurp (io/reader (io/resource "2024/day3.txt")))
+     (total-line-part2 [:do 0])
      (second))
