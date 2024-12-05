@@ -1,6 +1,9 @@
 (ns advent2023.day24
   (:require [utils :as utils]
-            [clojure.math.combinatorics :as combo]))
+            [clojure.math.combinatorics :as combo]
+            [clojure.core.matrix :as m]))
+
+(m/set-current-implementation :vectorz)
 
 (def example-lines
   '("19, 13, 30 @ -2,  1, -2"
@@ -43,23 +46,14 @@
 ;; so this is the collision time
 ;; then we check if, at that collision time, we're in the desired range
 
-(defn matrix-mult [[[x11 x12] [x21 x22]] [[y11 y12] [y21 y22]]]
-  [[(+ (* x11 y11) (* x12 y21)) (+ (* x11 y12) (* x12 y22))]
-   [(+ (* x21 y11) (* x22 y21)) (+ (* x21 y12) (* x22 y22))]])
-
-(defn matrix-vector-mult [[[x11 x12] [x21 x22]] [[y] [z]]]
-  [[(+ (* x11 y) (* x12 z))]
-   [(+ (* x21 y) (* x22 z))]])
-
 (defn collision-spot [[[px1 py1 _] [vx1 vy1 _]] [[px2 py2 _] [vx2 vy2 _]]]
-  (let [det (+ (* (- vx1) vy2) (* vy1 vx2))]
-    (if (= det 0)
+  (let [m [[vx1 (- vx2)] [vy1 (- vy2)]]
+        det (m/det m)]
+    (if (zero? det)
       nil
-      (let [m [[vx1 (- vx2)] [vy1 (- vy2)]]
-            inv-matrix [[(* (/ 1 det) (- vy2)) (* (/ 1 det) vx2)]
-                        [(* (/ 1 det) (- vy1)) (* (/ 1 det) vx1)]]
+      (let [inv-matrix (m/inverse m)
         ;; OK this is the correct inverse matrix, tx ty are just multiplying
-            [[t1] [t2]] (matrix-vector-mult inv-matrix [[(- px2 px1)] [(- py2 py1)]])]
+            [[t1] [t2]] (m/mmul inv-matrix [[(- px2 px1)] [(- py2 py1)]])]
         (if (and (> t1 0) (> t2 0))
           (mapv float (mapv + [px1 py1] [(* t1 vx1) (* t1 vy1)]))
           nil)))))
@@ -91,3 +85,7 @@
   (combo/combinations v 2)
   (filter #(apply (partial collision-in-bounds? [[200000000000000 400000000000000] [200000000000000 400000000000000]]) %) v)
   (count v))
+
+;; we will adapt https://www.reddit.com/r/adventofcode/comments/18pnycy/comment/kepu26z/
+;; I did a brute force range solution for my Golang approach.
+
