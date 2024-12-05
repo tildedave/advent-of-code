@@ -66,3 +66,16 @@
 
 (answer-part1 example-lines)
 (answer-part1 (utils/read-input "2024/day5.txt"))
+
+(defn answer-part2 [lines]
+  (let [[ordering-lines number-lines] (utils/split-by "" lines)
+        orderings (parse-orderings ordering-lines)]
+    (->> number-lines
+         (map parse-line)
+         (remove #(= % (sort-line orderings %)))
+         (map (partial sort-line orderings))
+         (map middle)
+         (reduce +))))
+
+(answer-part2 example-lines)
+(answer-part2 (utils/read-input "2024/day5.txt"))
