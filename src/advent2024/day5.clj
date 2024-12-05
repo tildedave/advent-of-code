@@ -35,11 +35,11 @@
 
 (defn parse-orderings [lines]
   (->> lines
-       (map (fn [s] (->> s (.split #"\|") (map utils/parse-int) ((fn [[x y]] {x #{y}})))))
+       (map (fn [s] (->> s (.split #"\|") (map parse-long) ((fn [[x y]] {x #{y}})))))
        (apply merge-with set/union)))
 
 (defn parse-line [line]
-  (map utils/parse-int (.split #"," line)))
+  (map parse-long (.split #"," line)))
 
 (defn sort-line [orderings num-list]
     (->> num-list (sort (fn [n1 n2]
