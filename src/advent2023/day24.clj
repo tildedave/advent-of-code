@@ -67,7 +67,7 @@
 
 ;; example answer
 (as-> example-lines v
-     (map parse-line v)
+  (map parse-line v)
   (combo/combinations v 2)
   (filter #(apply (partial collision-in-bounds? [[7 27] [7 27]]) %) v)
   (count v))
@@ -88,4 +88,8 @@
 
 ;; we will adapt https://www.reddit.com/r/adventofcode/comments/18pnycy/comment/kepu26z/
 ;; I did a brute force range solution for my Golang approach.
+;; for every i, p0 + t[i]*v0 == p[i] + t[i]*v[i]
+;; so (p0 - p[i]) x (v0 - v[i]) == 0.
+;; (p0 - p[i]) x v0 - (p0 - p[i]) x v[i] = 0
+;; p0 x v0 - p[i] x v0 - p[0] x v[i] + p[i] x v[i] = 0
 

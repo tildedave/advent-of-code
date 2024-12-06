@@ -38,19 +38,39 @@
     [gx gy] (starting-position grid)
     seen #{}]
     (let [guard-dir (grid/at grid [gx gy])
-          next-pos (mapv + [gx gy] (orientation-to-offset (grid/at grid [gx gy])))]
+        ;;   _ (println [gx gy] guard-dir "I seen!")
+        ;;   _ (println seen)
+          next-pos (mapv + [gx gy] (orientation-to-offset guard-dir))]
       (cond
-        (grid/out-of-bounds? grid next-pos) (conj seen [gx gy])
+        (contains? seen [[gx gy] guard-dir]) (throw (ex-info "infinite loop" {}))
+        (grid/out-of-bounds? grid next-pos) (conj seen [[gx gy] guard-dir])
         (= (grid/at grid next-pos) \#)
         (recur
          (assoc-in grid [gy gx] (turn-right guard-dir))
          [gx gy]
-         seen)
+         (conj seen [[gx gy] guard-dir]))
         :else (recur
-         (-> grid
-             (assoc-in [gy gx] \.)
-             (assoc-in (into [] (reverse next-pos)) guard-dir))
-         next-pos
-         (conj seen [gx gy]))))))
+               (-> grid
+                   (assoc-in [gy gx] \.)
+                   (assoc-in (into [] (reverse next-pos)) guard-dir))
+               next-pos
+               (conj seen [[gx gy] guard-dir]))))))
 
-(count (walk (grid/parse-file "2024/day6.txt")))
+;; part 1
+(println (count (set (map first (walk (grid/parse-file "2024/day6.txt"))))))
+
+;; (println (walk (assoc-in (grid/parse-file "2024/day6.txt") [11 48] \#)))
+
+;; part 2
+(defn count-obstructions [grid]
+  (->> (set (map first (walk grid)))
+       (filter #(= (grid/at grid %) \.))
+       (filter #(try
+                  (do
+                    (walk (assoc-in grid (into [] (reverse %)) \#))
+                    false)
+                  (catch clojure.lang.ExceptionInfo e
+                    true)))))
+
+(println (count-obstructions (grid/parse example-input)))
+(println (count (count-obstructions (grid/parse-file "2024/day6.txt"))))
