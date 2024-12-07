@@ -38,15 +38,12 @@
     (cond
       (< num 0) false
       (= l 1) (= (first num-list) num)
-      :else (let [multiply?
-            (if (zero? (mod num final))
-              (can-reach-brute-force-part2? (subvec num-list 0 (dec l)) (quot num final))
-              false)
-            concat?
-            (if (ends-with-str? num final)
-              (can-reach-brute-force-part2? (subvec num-list 0 (dec l)) (strip-num-suffix num final))
-              false)]
-        (or multiply? concat? (recur (subvec num-list 0 (dec l)) (- num final)))))))
+      :else
+      (or (when (zero? (mod num final))
+            (can-reach-brute-force-part2? (subvec num-list 0 (dec l)) (quot num final)))
+          (when (ends-with-str? num final)
+            (can-reach-brute-force-part2? (subvec num-list 0 (dec l)) (strip-num-suffix num final)))
+          (recur (subvec num-list 0 (dec l)) (- num final))))))
 
 (defn parse-line [s]
   (->> (re-matches #"(\d+):((?: \d+)+)" s)
@@ -87,4 +84,6 @@
 (->> (map parse-line (utils/read-input "2024/day7.txt"))
      (filter (fn [[num num-list]] (can-reach-brute-force-part2? num-list num)))
      (map first)
-     (reduce +))
+     (reduce +)
+     (time))
+;; 19ms
