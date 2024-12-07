@@ -73,4 +73,4 @@
                     true)))))
 
 (println (count-obstructions (grid/parse example-input)))
-(println (count (count-obstructions (grid/parse-file "2024/day6.txt"))))
+(time (println (count (count-obstructions (grid/parse-file "2024/day6.txt")))))
