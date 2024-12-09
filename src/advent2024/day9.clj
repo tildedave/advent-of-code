@@ -19,14 +19,14 @@
        (not even?)
        (if even? (inc idx) idx)
        (conj result (repeat (first num-seq)
-                            (if even? idx \.))))))
+                            (if even? idx \.)))))))
 
 ;; then to compcat we'll use two pointers, one from the end, and one from the
 ;; beginning
 
 (expand-disk-format "12345")
 
-(defn compact-expanded-disk [disk-list]
+(defn compact-part1 [disk-list]
   (let [walk-right (fn [disk-list n] (->> (range n (count disk-list)) (filter #(= (nth disk-list %) \.)) (first)))
         walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
     (loop [left (walk-right disk-list 0)
@@ -43,8 +43,8 @@
            (walk-left next-result right)
            next-result))))))
 
-(compact-expanded-disk (expand-disk-format 12345))
-(compact-expanded-disk (expand-disk-format 2333133121414131402))
+(compact-part1 (expand-disk-format "12345"))
+(compact-part1 (expand-disk-format "2333133121414131402"))
 
 (defn checksum [disk-list]
   (->>
@@ -52,8 +52,63 @@
    (map (fn [[n x]] (* n (if (= x \.) 0 x))))
    (reduce +)))
 
-(checksum (compact-expanded-disk (expand-disk-format "2333133121414131402")))
+(checksum (compact-part1 (expand-disk-format "2333133121414131402")))
 
 (expand-disk-format (first (utils/read-input "2024/day9.txt")))
 
-(checksum (compact-expanded-disk (expand-disk-format (first (utils/read-input "2024/day9.txt")))))
+(checksum (compact-part1 (expand-disk-format (first (utils/read-input "2024/day9.txt")))))
+
+;; a different rep would make this easier, something not naive
+;; let's just stick with the same rep, as dumb as this is, the updates will be
+;; a bit easier
+;; this is essentially selection sort.  list size is 20k.  should be fine
+;; I suppose can memoize the blocks we find and invalidate them.
+
+(defn find-start-of-block [disk-list n]
+  (let [start (nth disk-list n)
+        result (->> (range n 0 -1)
+                    (drop-while #(= (nth disk-list %) start))
+                    (first))]
+    (if (nil? result) nil (inc result))))
+
+(defn find-free-block [disk-list upper n]
+  ;; here's where we can memoize maybe
+  ;; can add upper bound easily
+  (loop [start 0]
+    (let [next-free-block
+          (->> (range start upper)
+               (drop-while #(not= (nth disk-list %) \.))
+               (take-while #(= (nth disk-list %) \.)))]
+      (cond
+        (empty? next-free-block) nil
+        (>= (count next-free-block) n) (first next-free-block)
+        :else (recur (inc (last next-free-block)))))))
+
+(defn compact-part2 [disk-list]
+  (let [walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
+    (loop
+     [disk-list disk-list
+      right (walk-left disk-list (dec (count disk-list)))]
+      (if-let [block-start (find-start-of-block disk-list right)]
+        (let [_ (assert (not= (get disk-list block-start) \.))
+              size-needed (- (inc right) block-start)
+              start-free-block (find-free-block disk-list right size-needed)]
+          (if (nil? start-free-block)
+            (recur disk-list (walk-left disk-list (dec block-start)))
+            (let [free-positions (range start-free-block (+ start-free-block size-needed))
+                  move-positions (range block-start (inc right))
+                  _ (assert (= (count free-positions) (count move-positions)))
+                  next-disk-list (reduce
+                                  (fn [disk-list [to from]]
+                                    (-> disk-list
+                                        (assoc to (get disk-list from))
+                                        (assoc from (get disk-list to))))
+                                  disk-list
+                                  (map vector free-positions move-positions))]
+              (recur
+               next-disk-list
+               (walk-left next-disk-list block-start)))))
+        disk-list))))
+
+(println (checksum (compact-part2 (expand-disk-format "2333133121414131402"))))
+(println (checksum (compact-part2 (expand-disk-format (first (utils/read-input "2024/day9.txt"))))))
