@@ -71,10 +71,10 @@
                     (first))]
     (if (nil? result) nil (inc result))))
 
-(defn find-free-block [disk-list upper n]
+(defn find-free-block [disk-list lower upper n]
   ;; here's where we can memoize maybe
   ;; can add upper bound easily
-  (loop [start 0]
+  (loop [start lower]
     (let [next-free-block
           (->> (range start upper)
                (drop-while #(not= (nth disk-list %) \.))
@@ -85,16 +85,21 @@
         :else (recur (inc (last next-free-block)))))))
 
 (defn compact-part2 [disk-list]
-  (let [walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
+  (let [walk-right (fn [disk-list n] (->> (range n (count disk-list)) (filter #(= (nth disk-list %) \.)) (first)))
+        walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
     (loop
      [disk-list disk-list
+      left (walk-right disk-list 0)
       right (walk-left disk-list (dec (count disk-list)))]
       (if-let [block-start (find-start-of-block disk-list right)]
         (let [_ (assert (not= (get disk-list block-start) \.))
               size-needed (- (inc right) block-start)
-              start-free-block (find-free-block disk-list right size-needed)]
+              start-free-block (find-free-block disk-list left right size-needed)]
           (if (nil? start-free-block)
-            (recur disk-list (walk-left disk-list (dec block-start)))
+            (recur
+             disk-list
+             left
+             (walk-left disk-list (dec block-start)))
             (let [free-positions (range start-free-block (+ start-free-block size-needed))
                   move-positions (range block-start (inc right))
                   _ (assert (= (count free-positions) (count move-positions)))
@@ -107,8 +112,9 @@
                                   (map vector free-positions move-positions))]
               (recur
                next-disk-list
+               (walk-right next-disk-list left)
                (walk-left next-disk-list block-start)))))
         disk-list))))
 
-(println (checksum (compact-part2 (expand-disk-format "2333133121414131402"))))
-(println (checksum (compact-part2 (expand-disk-format (first (utils/read-input "2024/day9.txt"))))))
+(time (checksum (compact-part2 (expand-disk-format "2333133121414131402"))))
+(time (checksum (compact-part2 (expand-disk-format (first (utils/read-input "2024/day9.txt"))))))
