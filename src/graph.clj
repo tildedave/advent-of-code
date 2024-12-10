@@ -90,7 +90,9 @@
 
 ;; idea from
 ;; https://stackoverflow.com/questions/14144071/finding-all-the-shortest-paths-between-two-nodes-in-unweighted-undirected-graph
-(defn all-paths [source dest neighbors should-cutoff?]
+(defn all-paths
+  ([source dest neighbors] (all-paths source dest neighbors (fn [& args] false)))
+  ([source dest neighbors should-cutoff?]
   (let [[parent distances _] (breadth-first-search source dest neighbors should-cutoff?)]
     ;; we have a "current path", which generates multiple other paths
     (letfn [(paths-back [path-so-far]
@@ -110,7 +112,7 @@
                            (map (partial conj path-so-far))
                            (map paths-back)
                            (apply concat)))))))]
-      (paths-back [dest]))))
+      (paths-back [dest])))))
 
 ;; queue is going to be the resulting order
 ;; graph is a map from a node to its dependencies.
