@@ -1,14 +1,14 @@
 (ns advent2024.day9
   (:require
-    [utils :as utils]))
+   [utils :as utils]))
 
 ;; we'll use a naive approach and see if that gets us into trouble
 
 (defn expand-disk-format [number-as-string]
   (loop
    [num-seq (->> number-as-string
-       (seq)
-       (map Character/getNumericValue))
+                 (seq)
+                 (map Character/getNumericValue))
     even? true
     idx 0
     result []]
@@ -85,34 +85,45 @@
         :else (recur (inc (last next-free-block)))))))
 
 (defn compact-part2 [disk-list]
-  (let [walk-right (fn [disk-list n] (->> (range n (count disk-list)) (filter #(= (nth disk-list %) \.)) (first)))
-        walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
+  (let [walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
     (loop
      [disk-list disk-list
-      left (walk-right disk-list 0)
+      next-block-of-length (->> (range 1 10)
+                                (map (fn [n] {n (find-free-block disk-list 0 (count disk-list) n)}))
+                                (reduce into {}))
       right (walk-left disk-list (dec (count disk-list)))]
       (if-let [block-start (find-start-of-block disk-list right)]
-        (let [_ (assert (not= (get disk-list block-start) \.))
-              size-needed (- (inc right) block-start)
-              start-free-block (find-free-block disk-list left right size-needed)]
-          (if (nil? start-free-block)
+        (let [size-needed (- (inc right) block-start)
+              start-free-block (next-block-of-length size-needed)]
+          (if (or (nil? start-free-block) (> start-free-block right))
             (recur
              disk-list
-             left
+             next-block-of-length
              (walk-left disk-list (dec block-start)))
             (let [free-positions (range start-free-block (+ start-free-block size-needed))
                   move-positions (range block-start (inc right))
-                  _ (assert (= (count free-positions) (count move-positions)))
                   next-disk-list (reduce
                                   (fn [disk-list [to from]]
                                     (-> disk-list
                                         (assoc to (get disk-list from))
                                         (assoc from (get disk-list to))))
                                   disk-list
-                                  (map vector free-positions move-positions))]
+                                  (map vector free-positions move-positions))
+                  next-next-block-of-length
+                  (reduce
+                   (fn [acc n]
+                     (if-let [k (acc n)]
+                       (assoc acc n
+                              (find-free-block next-disk-list k block-start n))
+                       (assoc acc n
+                              (find-free-block next-disk-list start-free-block (count next-disk-list) n))))
+                   next-block-of-length
+                   ;; only size-needed and up, plus if it intersects a block of existing size
+                ;;    (range size-needed 1 10)
+                   (range 1 10))]
               (recur
                next-disk-list
-               (walk-right next-disk-list left)
+               next-next-block-of-length
                (walk-left next-disk-list block-start)))))
         disk-list))))
 
