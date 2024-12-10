@@ -1,7 +1,6 @@
 (ns advent2024.day10
   (:require
-   [grid :as grid]
-   [graph :as graph]))
+   [grid :as grid]))
 
 (def example-grid
   '("89010123"
@@ -26,12 +25,30 @@
   (->> (grid/coords grid)
        (filter #(= (num-at grid %) 0))))
 
+(defn paths-from [grid trailhead]
+  (loop
+   [queue [[trailhead]]
+    paths #{}]
+    (if-let [current-path (first queue)]
+      (let [curr (peek current-path)
+            queue (rest queue)]
+        (if (= (num-at grid curr) 9)
+          (recur queue (conj paths current-path))
+          (recur
+           (reduce
+            (fn [queue neighbor]
+              (conj queue (conj current-path neighbor)))
+            queue
+            (uphill-neighbors grid curr))
+           paths)))
+      paths)))
+
+(paths-from (grid/parse example-grid) [2 0])
+
 (defn reachable-peaks [grid trailhead]
-  (let [[reachable & _] (graph/breadth-first-search
-                         trailhead
-                         (partial uphill-neighbors grid))]
-    (->> (keys reachable)
-         (filter #(= (num-at grid %) 9)))))
+  (->> (paths-from grid trailhead)
+       (map last)
+       (set)))
 
 (defn score-pt1 [grid trailhead]
   (count (reachable-peaks grid trailhead)))
@@ -42,6 +59,7 @@
 (score-pt1
  (grid/parse example-grid)
  [0 0])
+
 (def grid2 '("10..9.."
              "2...8.."
              "3...7.."
@@ -60,35 +78,8 @@
        (map (partial score-pt1 grid))
        (reduce +)))
 
-(defn downhill-neighbors [grid curr]
-  (let [val-at (num-at grid curr)]
-    (->> (grid/neighbors grid curr)
-         (filter #(= (- (num-at grid %) val-at) -1)))))
-
-;; we can't use graph/all-paths due it not being symmetric
-;; I guess we'll just do something similar in our own code
 (defn score-pt2 [grid trailhead]
-  (let [peaks (reachable-peaks grid trailhead)]
-    (->>
-     (for [p peaks]
-       (loop
-        [queue [[p]]
-         paths #{}]
-         (if-let [current-path (first queue)]
-           (let [curr (peek current-path)
-                 queue (rest queue)]
-             (if (= trailhead curr)
-               (recur queue (conj paths current-path))
-               (recur
-                (reduce
-                 (fn [queue neighbor]
-                   (conj queue (conj current-path neighbor)))
-                 queue
-                 (downhill-neighbors grid curr))
-                paths)))
-           paths)))
-     (map count)
-     (reduce +))))
+  (count (paths-from grid trailhead)))
 
 (def example-pt2
   '(".....0."
@@ -119,6 +110,3 @@
   (->> (trailheads grid)
        (map (partial score-pt2 grid))
        (reduce +)))
-
-(let [grid (grid/parse example-grid)]
-  (score-pt2 grid [4 0]))
