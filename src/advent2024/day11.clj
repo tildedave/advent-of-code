@@ -36,7 +36,7 @@
      (utils/parse-number-list)
      (vec)
      (iterate blink)
-     (drop 35)
+     (drop 25)
      (first)
      (count))
 
@@ -54,7 +54,6 @@
        :else (update acc (* num 2024) (fnil + 0) count)))
    {}
    stone-count))
-
 
 (->> (utils/read-input "2024/day11.txt")
      (first)
