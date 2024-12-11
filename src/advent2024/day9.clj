@@ -2,6 +2,8 @@
   (:require
    [utils :as utils]))
 
+(set! *warn-on-reflection* true)
+
 ;; we'll use a naive approach and see if that gets us into trouble
 
 (defn expand-disk-format [number-as-string]
@@ -27,8 +29,8 @@
 (expand-disk-format "12345")
 
 (defn compact-part1 [disk-list]
-  (let [walk-right (fn [disk-list n] (->> (range n (count disk-list)) (filter #(= (nth disk-list %) \.)) (first)))
-        walk-left (fn [disk-list n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
+  (let [walk-right (fn [disk-list ^long n] (->> (range n (count disk-list)) (filter #(= (nth disk-list %) \.)) (first)))
+        walk-left (fn [disk-list ^long n] (->> (range n 0 -1) (filter #(not= (nth disk-list %) \.)) (first)))]
     (loop [left (walk-right disk-list 0)
            right (walk-left disk-list (dec (count disk-list)))
            result disk-list]
@@ -64,7 +66,7 @@
 ;; this is essentially selection sort.  list size is 20k.  should be fine
 ;; I suppose can memoize the blocks we find and invalidate them.
 
-(defn find-start-of-block [disk-list n]
+(defn find-start-of-block [disk-list ^long n]
   (let [start (nth disk-list n)
         result (->> (range n 0 -1)
                     (drop-while #(= (nth disk-list %) start))
@@ -118,8 +120,6 @@
                        (assoc acc n
                               (find-free-block next-disk-list start-free-block (count next-disk-list) n))))
                    next-block-of-length
-                   ;; only size-needed and up, plus if it intersects a block of existing size
-                ;;    (range size-needed 1 10)
                    (range 1 10))]
               (recur
                next-disk-list
