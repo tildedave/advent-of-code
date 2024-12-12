@@ -137,6 +137,29 @@
 (assert (= (answer-part1 example-plot) 140))
 (answer-part1 (utils/read-input "2024/day12.txt"))
 
+(defn possible-moves [direction]
+  (case direction
+    :right [{:next [3 0] :direction :right}
+            {:next [1 1] :direction  :down}
+            {:next [2 2] :direction  :down}
+            {:next [1 -1] :direction :up}
+            {:next [2 -2] :direction :up}]
+    :up [{:next [0 -3] :direction :up}
+         {:next [1 -1] :direction :right}
+         {:next [2 -2] :direction :right}
+         {:next [-1 -1] :direction :left}
+         {:next [-2 -2] :direction :left}]
+    :left [{:next [-3 0] :direction :left}
+           {:next [-1 -1] :direction  :up}
+           {:next [-2 -2] :direction  :up}
+           {:next [-1 1] :direction :down}
+           {:next [-2 2] :direction :down}]
+    :down [{:next [0 3] :direction :down}
+           {:next [-1 1] :direction  :left}
+           {:next [-2 2] :direction  :left}
+           {:next [1 1] :direction :right}
+           {:next [2 2] :direction :right}]))
+
 ;; expanded region makes the side counting fairly easy I think
 ;; we'll walk right / up.  only one option should be available
 (defn number-of-sides [grid region-set]
@@ -149,40 +172,23 @@
       (if-let [x (first side-coords)]
         (let [[seen new-sides]
               (loop [cl x
-                     prev nil
+                     direction (case (expanded-region x)
+                                 \- :right
+                                 \| :up)
                      num-sides 0
                      seen #{}]
                 (if (contains? seen cl)
                   [seen num-sides]
-                ;; otherwise we try north south east west
-                  (if-let [straight-side
-                           (->>
-                            (for [dir
-                                  (case (expanded-region cl)
-                                               ;; both of these have different concepts of "straight"
-                                    \- [[-3 0] [3 0]]
-                                    \| [[0 3] [0 -3]])]
-                              dir)
-                            (map (partial mapv + cl))
-                            (remove (partial = prev))
-                            (filter (partial contains? side-coords))
-                            (first))]
-                    (recur straight-side cl num-sides (conj seen cl))
-                  ;; must change direction
-                    (if-let [new-side (->>
-                                       (for [dir [[-1 1] [1 -1] [1 1] [-1 -1]
-                                                  [-2 2] [2 -2] [2 2] [-2 -2]]]
-                                         dir)
-                                       (map (partial mapv + cl))
-                                       (remove (partial = prev))
-                                       (filter (partial contains? side-coords))
-                                       (first))]
-                      (recur new-side cl (inc num-sides) (conj seen cl))
-                      (do
-                        (println cl seen num-sides)
-                        (println (set/difference side-coords seen))
-                        (println expanded-region)
-                        (assert false "Should never have gotten here"))))))]
+                  (if-let [next-move (->> (possible-moves direction)
+                                          (map (fn [m] (update m :next #(mapv + cl %))))
+                                          (filter (fn [m] (contains? side-coords (:next m))))
+                                          (first))]
+                    (recur
+                     (:next next-move)
+                     (:direction next-move)
+                     (if (= (:direction next-move) direction) num-sides (inc num-sides))
+                     (conj seen cl))
+                    (assert false "could not find continuation"))))]
           (recur (set/difference side-coords seen) (+ new-sides total-sides)))
         total-sides))))
 
@@ -218,3 +224,6 @@
 (assert (= (answer-part2 xo-plot) 436))
 ;; everything right but this one errors
 (answer-part2 (utils/read-input "2024/day12.txt"))
+
+(let [grid (grid/parse-file "2024/day12.txt")]
+  (number-of-sides grid (first (filter #(contains? % [46 77]) (region-fill grid)))))
