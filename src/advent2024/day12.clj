@@ -16,6 +16,13 @@
     "BBCC"
     "EEEC"))
 
+(def xo-plot
+  '("OOOOO"
+    "OXOXO"
+    "OOOOO"
+    "OXOXO"
+    "OOOOO"))
+
 (grid/parse example-plot) set
 
 (defn region-fill [grid]
@@ -78,12 +85,14 @@
    {}
    region-set))
 
+(defn is-side? [ch]
+  (or (= ch \-) (= ch \|)))
+
 (defn perimeter [grid region-set]
   (->> (expand-region grid region-set)
        (vals)
-       (filter #(or (= % \-) (= % \|)))
+       (filter is-side?)
        (count)))
-
 
 (let [grid (grid/parse example-plot)]
   (->> (region-fill grid)
@@ -127,3 +136,85 @@
 (assert (= (answer-part1 larger-region) 1930))
 (assert (= (answer-part1 example-plot) 140))
 (answer-part1 (utils/read-input "2024/day12.txt"))
+
+;; expanded region makes the side counting fairly easy I think
+;; we'll walk right / up.  only one option should be available
+(defn number-of-sides [grid region-set]
+  (let [expanded-region (expand-region grid region-set)]
+    (loop [side-coords (->> expanded-region
+                            (filter (fn [[_ ch]] (is-side? ch)))
+                            (map first)
+                            (set))
+           total-sides 0]
+      (if-let [x (first side-coords)]
+        (let [[seen new-sides]
+              (loop [cl x
+                     prev nil
+                     num-sides 0
+                     seen #{}]
+                (if (contains? seen cl)
+                  [seen num-sides]
+                ;; otherwise we try north south east west
+                  (if-let [straight-side
+                           (->>
+                            (for [dir
+                                  (case (expanded-region cl)
+                                               ;; both of these have different concepts of "straight"
+                                    \- [[-3 0] [3 0]]
+                                    \| [[0 3] [0 -3]])]
+                              dir)
+                            (map (partial mapv + cl))
+                            (remove (partial = prev))
+                            (filter (partial contains? side-coords))
+                            (first))]
+                    (recur straight-side cl num-sides (conj seen cl))
+                  ;; must change direction
+                    (if-let [new-side (->>
+                                       (for [dir [[-1 1] [1 -1] [1 1] [-1 -1]
+                                                  [-2 2] [2 -2] [2 2] [-2 -2]]]
+                                         dir)
+                                       (map (partial mapv + cl))
+                                       (remove (partial = prev))
+                                       (filter (partial contains? side-coords))
+                                       (first))]
+                      (recur new-side cl (inc num-sides) (conj seen cl))
+                      (do
+                        (println cl seen num-sides)
+                        (println (set/difference side-coords seen))
+                        (println expanded-region)
+                        (assert false "Should never have gotten here"))))))]
+          (recur (set/difference side-coords seen) (+ new-sides total-sides)))
+        total-sides))))
+
+(let [grid (grid/parse example-plot)]
+  (println (number-of-sides grid (first (filter #(contains? % [2 1]) (region-fill grid))))))
+
+(defn answer-part2 [lines]
+  (let [grid (grid/parse lines)]
+    (->> (region-fill grid)
+         (map (fn [region]
+                (* (count region) (number-of-sides grid region))))
+         (reduce +))))
+
+(def e-map
+  '("EEEEE"
+    "EXXXX"
+    "EEEEE"
+    "EXXXX"
+    "EEEEE"))
+
+(def tricky-map
+  '("AAAAAA"
+    "AAABBA"
+    "AAABBA"
+    "ABBAAA"
+    "ABBAAA"
+    "AAAAAA"))
+
+(assert (= (answer-part2 example-plot) 80))
+(assert (= (answer-part2 larger-region) 1206))
+(assert (= (answer-part2 tricky-map) 368))
+(assert (= (answer-part2 e-map) 236))
+(assert (= (answer-part2 xo-plot) 436))
+;; everything right but this one errors
+(answer-part2 (utils/read-input "2024/day12.txt"))
