@@ -123,7 +123,7 @@ will not be present in the new structure. "
         (let [[x' m'] (first residues)
               [u v d] (euclid-extended m m')
               ;; *' "auto-promotes" to bigint
-              [x m] [(+ (*' u m x') (*' v m' x)) (* m m')]]
+              [x m] [(+ (*' u m x') (*' v m' x)) (*' m m')]]
           (assert (= d 1))
           (recur [(mod x m) m] (rest residues))))))
 
