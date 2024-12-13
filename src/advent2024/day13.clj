@@ -82,7 +82,7 @@
 ;; (also it could be that our residues compute an answer that doesn't work,
 ;; still gotta check that)
 
-(def first-n-primes '(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67))  ;;71 73 79 83 89 97 101 103 107 109 113 127 131 137 139 149 151 157 163 167 173 179 181 191 193 197 199 211 223 227 229 233 239 241 251 257 263 269 271))
+(def first-n-primes '(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97 101 103 107 109 113 127 131 137 139 149 151 157 163 167 173 179 181 191 193 197 199 211 223 227 229 233 239 241 251 257 263 269 271))
 (defn system-mod-p [p [[x1 x2 a] [y1 y2 b]]]
   [[(mod x1 p) (mod x2 p) (mod a p)]
    [(mod y1 p) (mod y2 p) (mod b p)]])
@@ -110,11 +110,6 @@
          (remove #(or (nil? (first (first %)))
                       (nil? (first (second %)))))))
 
-(residues
- (parse-buttons '("Button A: X+26, Y+66"
-                  "Button B: X+67, Y+21"
-                  "Prize: X=10000000012748, Y=10000000012176")))
-
 (defn num-tokens-p2 [button-system]
   (let  [[[x1 x2 x] [y1 y2 y]] button-system
          residues (residues button-system)]
@@ -134,15 +129,3 @@
      (map parse-buttons)
      (map num-tokens-p2)
      (reduce +)))
-
-;; 88998053895996 is too low
-
-(num-tokens-p2)
-;; (defn residues [[x1 y1 a b] p]
-;;   [(mod x1 p) (mod a p)]
-;;   [(mod y1 p) (mod b p)])
-
-;; must solve residues separately
-
-               (utils/crt-inductive
-                [[]])
