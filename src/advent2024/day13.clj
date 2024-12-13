@@ -6,8 +6,6 @@
 
 ;; good ol'fashioned linear algebra
 
-(def q [[94 22] [34 67]])
-
 ;; (ml/solve q [8400 5400])
 
 ;; (ml/solve [[26 67] [66 21]] [12748 12176])
@@ -31,12 +29,23 @@
         [t1 t2] (map #(math/round %) double-result)]
     (if
      (and
-      (= a (+ (* x1 t1) (* x2 t2)))
-      (= b (+ (* y1 t1) (* y2 t2)))
+      (= x (+ (* x1 t1) (* x2 t2)))
+      (= y (+ (* y1 t1) (* y2 t2)))
       (<= t1 100)
       (<= t2 100))
       (+ (* 3 t1) t2)
       0)))
+
+(defn solve-buttons [[[x1 x2 x] [y1 y2 y]]]
+  ;; cramer's rule
+  (let [det (- (* x1 y2) (* x2 y1))
+        x-minor (- (* x y2) (* x2 y))
+        y-minor (- (* x1 y) (* x y1))
+        [t1 t2] [(/ x-minor det) (/ y-minor det)]]
+    (if (and (integer? t1) (integer? t2))
+      (+ (* 3 t1) t2)
+      0)))
+
 
 (def example
   '("Button A: X+94, Y+34"
@@ -77,6 +86,16 @@
      (map solve-buttons)
      (reduce +))
 
+;; easy
+(binding [part2? true]
+  (->> (utils/read-input "2024/day13.txt")
+       (utils/split-by "")
+       (map parse-buttons)
+       (map solve-buttons)
+       (reduce +)))
+
+;; BEGIN OVER-COMPLICATED CRT APPROACH
+
 ;; OK, we can find solutions mod p (for some number of ps) then use CRT to
 ;; find the answer.  how many p's do we need?
 ;; (also it could be that our residues compute an answer that doesn't work,
@@ -86,7 +105,6 @@
 (defn system-mod-p [p [[x1 x2 a] [y1 y2 b]]]
   [[(mod x1 p) (mod x2 p) (mod a p)]
    [(mod y1 p) (mod y2 p) (mod b p)]])
-
 
 (m/mmul [[1 2] [3 4]] [[1] [2]])
 (defn solve-mod-p [p [[a b x] [c d y]]]
