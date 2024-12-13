@@ -17,19 +17,21 @@
 
 (utils/str->nums "Button A: X+94, Y+34")
 
+(def ^:dynamic part2? false)
+
 (defn parse-buttons [[line1 line2 line3]]
   (let [[x1 y1] (utils/str->nums line1)
         [x2 y2] (utils/str->nums line2)
         [a b] (utils/str->nums line3)
         double-result (ml/solve (m/matrix :vectorz [[x1 x2] [y1 y2]]) [a b])
+        _ (println double-result)
         [t1 t2] (map #(math/round %) double-result)]
     (if
      (and
-     (= a (+ (* x1 t1) (* x2 t2)))
-     (= b (+ (* y1 t1) (* y2 t2)))
-      (<= t1 100)
-      (<= t2 100)
-      )
+      (= a (+ (* x1 t1) (* x2 t2)))
+      (= b (+ (* y1 t1) (* y2 t2)))
+      (if part2? true (<= t1 100))
+      (if part2? true (<= t2 100)))
       (+ (* 3 t1) t2)
       0)))
 
@@ -52,12 +54,18 @@
 
 (map parse-buttons (utils/split-by "" example))
 
+(parse-buttons '("Button A: X+26, Y+66"
+"Button B: X+67, Y+21"
+"Prize: X=10000000012748, Y=10000000012176"))
+
 (parse-buttons '("Button A: X+94, Y+34"
-                  "Button B: X+22, Y+67"
-                  "Prize: X=8400, Y=5400"))
+                 "Button B: X+22, Y+67"
+                 "Prize: X=8400, Y=5400"))
+
+
 
 (parse-buttons '("Button A: X+26, Y+66"
 "Button B: X+67, Y+21"
 "Prize: X=12748, Y=12176"))
 
-(utils/read-input "2024/day13.txt")
+(reduce + (map parse-buttons (utils/split-by "" (utils/read-input "2024/day13.txt"))))
