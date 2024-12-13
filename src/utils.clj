@@ -25,13 +25,18 @@
   ([line] (parse-number-list line #"\s+"))
   ([line ^java.util.regex.Pattern pattern] (map parse-long (.split pattern line))))
 
+(defn str->nums [str]
+  (->> (re-seq #"(\d+)" str)
+       (map first)
+       (map parse-long)))
+
 (defn xor [b1 b2]
   (case [b1 b2]
     [true false] true
     [false true] true
     false))
 
-(defn split-by [s ^String lines]
+(defn split-by [^String s lines]
   (->> lines
        (partition-by (partial = s))
        (remove (partial = (list s)))))
