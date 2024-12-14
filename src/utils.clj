@@ -26,7 +26,7 @@
   ([line ^java.util.regex.Pattern pattern] (map parse-long (.split pattern line))))
 
 (defn str->nums [str]
-  (->> (re-seq #"(\d+)" str)
+  (->> (re-seq #"(-?\d+)" str)
        (map first)
        (map parse-long)))
 
