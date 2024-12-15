@@ -22,6 +22,9 @@
 (defn at [grid [x y]]
   (get-in grid [y x]))
 
+(defn assoc [grid [x y] k]
+  (assoc-in grid [y x] k))
+
 (defn out-of-bounds? [grid [x y]]
   (nil? (at grid [x y])))
   ;; (or (< y 0)
