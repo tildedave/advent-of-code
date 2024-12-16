@@ -103,8 +103,10 @@
             (and (= (:coords x) end-location)
                  (= end-cutoff (:total-cost x)))
             (recur (rest queue) (set/union all-seen (:seen x)))
-            (> (:total-cost x)
-               (get goal-score hashed-state Integer/MAX_VALUE))
+            (or (> (:total-cost x)
+                   end-cutoff)
+                (> (:total-cost x)
+                   (get goal-score hashed-state Integer/MAX_VALUE)))
             ;; no reason to continue, we cutoff
             (recur (rest queue) all-seen)
             ;; OK we will do all the logic
