@@ -210,4 +210,4 @@ grid/out-of-bounds?
 (binding [part2? true] (execute-robot-debug double-push-example 11))
 
 (binding [part2? true] (execute-robot example))
-(binding [part2? true] (utils/read-input "2024/day15.txt"))
+(binding [part2? true] (execute-robot (utils/read-input "2024/day15.txt")))
