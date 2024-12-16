@@ -2,7 +2,8 @@
   (:require
    [grid :as grid]
    [graph :as graph]
-   [utils :as utils]))
+   [utils :as utils]
+   [clojure.set :as set]))
 
 (def example-grid
   '("###############"
@@ -34,13 +35,16 @@
 
 ;; go forward, cost 1
 ;; turn left or right, cost 1000
-(defn neighbors [grid n]
-  (let [{:keys [coords direction]} n]
+
+(defn can-go-forward? [grid {:keys [coords direction]}]
+  (not (empty? (grid/neighbors grid coords [direction] #(= % \#)))))
+
+(defn neighbors [grid {:keys [coords direction] :as x}]
   (let [turns (list {:coords coords :direction (turn-left direction) :cost 1000}
                     {:coords coords :direction (turn-right direction) :cost 1000})]
-  (if (empty? (grid/neighbors grid coords [direction] #(= % \#)))
-    turns
-    (cons {:coords (mapv + coords direction) :direction direction :cost 1} turns)))))
+    (if (can-go-forward? grid x)
+      (cons {:coords (mapv + coords direction) :direction direction :cost 1} turns)
+      turns)))
 
 (neighbors (grid/parse example-grid) {:coords [1 1] :direction [1 0]})
 
@@ -63,7 +67,8 @@
                            (utils/manhattan-distance start-location end-location)
                            (utils/manhattan-distance end-location coords)))
 ;;    (fn [& args] 1000)
-   (fn [_ n] (:cost n))))
+   (fn [_ n] (:cost n))
+   (fn [x] (dissoc x :cost))))
 
 (defn solve-grid [grid]
   (let [start-location (start-location grid)
@@ -82,3 +87,89 @@
 (solve-grid (grid/parse example-grid))
 (solve-grid (grid/parse-file "2024/day16.txt"))
 
+;; part 2 idea: solve the grid to get a cutoff
+;; queue-based search from current location, but combine left/right forward etc
+(defn all-tiles-part-of-best-path [grid]
+  (let [start-location (start-location grid)
+        end-location (end-location grid)
+        [end-cutoff _ _ goal-score] (solve-grid grid)
+        goal-score (update-keys goal-score #(dissoc % :cost))]
+    (loop [queue [{:coords start-location :direction [1 0] :total-cost 0 :seen #{}}]
+           all-seen #{end-location}]
+      (if-let [x (first queue)]
+        ;; beep boop
+        (let [hashed-state (select-keys x [:coords :direction])]
+          (cond
+            (and (= (:coords x) end-location)
+                 (= end-cutoff (:total-cost x)))
+            (recur (rest queue) (set/union all-seen (:seen x)))
+            (> (:total-cost x)
+               (get goal-score hashed-state Integer/MAX_VALUE))
+            ;; no reason to continue, we cutoff
+            (recur (rest queue) all-seen)
+            ;; OK we will do all the logic
+            :else
+            (recur
+             (reduce
+              conj
+              (rest queue)
+              (remove
+               nil?
+               (list
+                (when (can-go-forward? grid hashed-state)
+                  (-> x
+                      (update :total-cost inc)
+                      (update :seen #(conj % (:coords x)))
+                      (update :coords #(mapv + % (:direction x)))))
+                (when (can-go-forward? grid (update hashed-state :direction turn-left))
+                  (-> x
+                      (update :total-cost (partial + 1001))
+                      (update :seen #(conj % (:coords x)))
+                      (update :coords #(mapv + % (turn-left (:direction x))))
+                      (update :direction turn-left)))
+                (when (can-go-forward? grid (update hashed-state :direction turn-right))
+                  (-> x
+                      (update :total-cost (partial + 1001))
+                      (update :seen #(conj % (:coords x)))
+                      (update :coords #(mapv + % (turn-right (:direction x))))
+                      (update :direction turn-right))))))
+             all-seen)))
+        all-seen))))
+
+(defn enrich-grid [grid seen]
+  (reduce
+   (fn [grid coords] (grid/assoc grid coords \O))
+   grid
+   seen))
+
+(let [grid (grid/parse example-grid)]
+  (enrich-grid grid (all-tiles-part-of-best-path grid)))
+
+(def second-example '(
+                      "#################"
+"#...#...#...#..E#"
+"#.#.#.#.#.#.#.#.#"
+"#.#.#.#...#...#.#"
+"#.#.#.#.###.#.#.#"
+"#...#.#.#.....#.#"
+"#.#.#.#.#.#####.#"
+"#.#...#.#.#.....#"
+"#.#.#####.#.###.#"
+"#.#.#.......#...#"
+"#.#.###.#####.###"
+"#.#.#...#.....#.#"
+"#.#.#.#####.###.#"
+"#.#.#.........#.#"
+"#.#.#.#########.#"
+"#S#.............#"
+"#################"
+))
+
+(count (all-tiles-part-of-best-path (grid/parse second-example)))
+(count (all-tiles-part-of-best-path (grid/parse-file "2024/day16.txt")))
+
+;; part 2 secondary idea: recursive A*
+;; the problem is that we'd have to start from every place on the path
+;; use an inverse neighbor function
+;; and if we get to something on the "best path", we are done
+;; we have to match both coords/direction on the best path too

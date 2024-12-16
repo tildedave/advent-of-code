@@ -19,7 +19,7 @@
            0]]
      (if-let [[current _] (peek open-set)]
        (cond
-         (is-goal? current) [(goal-score (state-hash current)) current nodes]
+         (is-goal? current) [(goal-score (state-hash current)) current nodes goal-score]
          (> nodes 1000000) (throw (Exception. "too many nodes"))
          (should-cutoff? current goal-score came-from)
          (recur [goal-score (pop open-set) (inc nodes)])
