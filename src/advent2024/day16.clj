@@ -37,7 +37,7 @@
 ;; turn left or right, cost 1000
 
 (defn can-go-forward? [grid {:keys [coords direction]}]
-  (not (empty? (grid/neighbors grid coords [direction] #(= % \#)))))
+  (seq (grid/neighbors grid coords [direction] #(= % \#))))
 
 (defn neighbors [grid {:keys [coords direction] :as x}]
   (let [turns (list {:coords coords :direction (turn-left direction) :cost 1000}
