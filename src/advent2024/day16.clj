@@ -145,31 +145,24 @@
 (let [grid (grid/parse example-grid)]
   (enrich-grid grid (all-tiles-part-of-best-path grid)))
 
-(def second-example '(
-                      "#################"
-"#...#...#...#..E#"
-"#.#.#.#.#.#.#.#.#"
-"#.#.#.#...#...#.#"
-"#.#.#.#.###.#.#.#"
-"#...#.#.#.....#.#"
-"#.#.#.#.#.#####.#"
-"#.#...#.#.#.....#"
-"#.#.#####.#.###.#"
-"#.#.#.......#...#"
-"#.#.###.#####.###"
-"#.#.#...#.....#.#"
-"#.#.#.#####.###.#"
-"#.#.#.........#.#"
-"#.#.#.#########.#"
-"#S#.............#"
-"#################"
-))
+(def second-example
+  '("#################"
+    "#...#...#...#..E#"
+    "#.#.#.#.#.#.#.#.#"
+    "#.#.#.#...#...#.#"
+    "#.#.#.#.###.#.#.#"
+    "#...#.#.#.....#.#"
+    "#.#.#.#.#.#####.#"
+    "#.#...#.#.#.....#"
+    "#.#.#####.#.###.#"
+    "#.#.#.......#...#"
+    "#.#.###.#####.###"
+    "#.#.#...#.....#.#"
+    "#.#.#.#####.###.#"
+    "#.#.#.........#.#"
+    "#.#.#.#########.#"
+    "#S#.............#"
+    "#################"))
 
 (count (all-tiles-part-of-best-path (grid/parse second-example)))
-(count (all-tiles-part-of-best-path (grid/parse-file "2024/day16.txt")))
-
-;; part 2 secondary idea: recursive A*
-;; the problem is that we'd have to start from every place on the path
-;; use an inverse neighbor function
-;; and if we get to something on the "best path", we are done
-;; we have to match both coords/direction on the best path too
+(time (count (all-tiles-part-of-best-path (grid/parse-file "2024/day16.txt"))))
