@@ -208,14 +208,14 @@
                   (assoc :b b)
                   (assoc :c c)
                   (assoc :program (vec program)))]
-    (loop [queue [[0 1]]
-           results #{}]
-      (if-let [[a n] (first queue)]
-        (do
-          (if (= n 17)
-            (recur (rest queue) (conj results a))
-            (let [next-candidates
-                  (->>
+    (loop [n 0
+           candidates (list 0)]
+      (if (= n 17)
+        (reduce min candidates)
+        (recur
+         (inc n)
+         (mapcat
+          (fn [a] (->>
                    (range 0 8)
                    (map
                     #(let [v (+ (bit-shift-left a 3) %)]
@@ -223,24 +223,8 @@
                                      (assoc :a v)
                                      (fully-execute)))))
                    (filter #(= (take-last n (:output (second %)))
-                               (take-last n program))))]
-              (recur
-               (reduce
-                (fn [queue c]
-                  (conj queue [c (inc n)]))
-                (rest queue)
-                (map first next-candidates))
-               results))))
-          (first (sort results))))))
+                               (take-last n program)))
+                   (map first)))
+          candidates))))))
 
-;; result!
 (search)
-
-;; ultimately the moduluses that match have to do with the program that we
-;; passed in.  there is nothing special about them.
-;; it seems that the first *10* bits of A are relevant to the computation
-
-;; another way to think about this would going in reverse.
-;; what does A need to be at the END?
-;; yes, this seems to work.
-;; then we get 3 bits of A and can make it do what we want.
