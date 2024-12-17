@@ -120,6 +120,7 @@
     :output
     (#(string/join "," %)))
 
+;; part 1
 (let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))]
   (-> new-state
       (assoc :a a)
@@ -130,21 +131,6 @@
       :output
       (#(string/join "," %))))
 
-(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))]
-  (->>
-   (-> new-state
-       (assoc :a a)
-       (assoc :b b)
-       (assoc :c c)
-       (assoc :program (vec program))
-       (program-seq))
-   (filter #(= (% :ip) 0))))
-
-(bit-shift-right 65804993 3)
-
-(math/ceil (/ (math/log 281474976710656) (math/log 8)))
-
-
 ;; observations:
 ;; the program will only execute ceil log 8 instructions
 ;; so we need to look for a number that has 15 < log8 N < 16
@@ -153,61 +139,9 @@
 ;; constraints A must be between:
 ;; between 35184372088832 and 281474976710656 (not inclusive)
 
-(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))]
-  (->>
-   (-> new-state
-       (assoc :a 65804993)
-       (assoc :b b)
-       (assoc :c c)
-       (assoc :program (vec program))
-       (program-seq))
-   (take 10)))
-
-(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
-      state (-> new-state
-                (assoc :a 65804993)
-                (assoc :b b)
-                (assoc :c c)
-                (assoc :program (vec program)))]
-  (->>
-   (range 35184372088832 281474976710656)
-   (map
-    #(vector % (-> state
-         (assoc :a %)
-         (fully-execute))))
-   (filter #(= (take 3 (:output (second %)))
-               (take 3 program)))
-   (take 10)
-   (map (fn [[n _]]
-           [n (->>
-            (range 3 8)
-            (map (fn [x] (mod n (bit-shift-left 1 x))))
-            )]))))
-
-
-(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
-      state (-> new-state
-                (assoc :a 65804993)
-                (assoc :b b)
-                (assoc :c c)
-                (assoc :program (vec program)))]
-  (->>
-   (range 0 8)
-   (map
-    #(vector % (-> state
-                   (assoc :a %)
-                   (fully-execute))))
-   (filter #(= (take-last 1 (:output (second %)))
-               (take-last 1 program)))))
-
-;; queue based search may get us there
 (defn search []
-  (let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
-        state (-> new-state
-                  (assoc :a 65804993)
-                  (assoc :b b)
-                  (assoc :c c)
-                  (assoc :program (vec program)))]
+  (let [[_ _ _ _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
+        state (assoc new-state :program (vec program))]
     (loop [n 0
            candidates (list 0)]
       (if (= n 17)
@@ -227,4 +161,4 @@
                    (map first)))
           candidates))))))
 
-(search)
+(time (search))
