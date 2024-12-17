@@ -1,7 +1,8 @@
 (ns advent2024.day17
   (:require
-    [clojure.string :as string]
-    [utils :as utils]))
+   [clojure.string :as string]
+   [utils :as utils]
+   [clojure.math :as math]))
 
 (def instruction
   {0 :adv ;; A register / 2^(combo)
@@ -19,6 +20,7 @@
     0 0
     1 1
     2 2
+    3 3
     4 (state :a)
     5 (state :b)
     6 (state :c)
@@ -35,8 +37,8 @@
 ;;            ))
 ;;   (println (state :a) (combo-operand-value state operand))
   (assert (=
-         (bit-shift-right (state :a) (combo-operand-value state operand))
-         (quot (state :a) (bit-shift-left 1 (combo-operand-value state operand)))))
+           (bit-shift-right (state :a) (combo-operand-value state operand))
+           (quot (state :a) (bit-shift-left 1 (combo-operand-value state operand)))))
   (-> state
       (assoc register (bit-shift-right (state :a) (combo-operand-value state operand)))
       (update :ip (partial + 2))))
@@ -123,4 +125,75 @@
       (assoc :a a)
       (assoc :b b)
       (assoc :c c)
-      (assoc :program (vec program))))
+      (assoc :program (vec program))
+      (fully-execute)
+      :output
+      (#(string/join "," %))))
+
+(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))]
+  (->>
+   (-> new-state
+       (assoc :a a)
+       (assoc :b b)
+       (assoc :c c)
+       (assoc :program (vec program))
+       (program-seq))
+   (filter #(= (% :ip) 0))))
+
+(bit-shift-right 65804993 3)
+
+(math/ceil (/ (math/log 281474976710656) (math/log 8)))
+
+
+;; observations:
+;; the program will only execute ceil log 8 instructions
+;; so we need to look for a number that has 15 < log8 N < 16
+;; this is too many programs to brute force :-)
+
+;; constraints A must be between:
+;; between 35184372088832 and 281474976710656 (not inclusive)
+
+(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))]
+  (->>
+   (-> new-state
+       (assoc :a 65804993)
+       (assoc :b b)
+       (assoc :c c)
+       (assoc :program (vec program))
+       (program-seq))
+   (take 10)))
+
+(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
+      state (-> new-state
+                (assoc :a 65804993)
+                (assoc :b b)
+                (assoc :c c)
+                (assoc :program (vec program)))]
+  (->>
+   (range 35184372088832 281474976710656)
+   (map
+    #(vector % (-> state
+         (assoc :a %)
+         (fully-execute))))
+   (filter #(= (take 3 (:output (second %)))
+               (take 3 program)))
+   (take 10)
+   (map (fn [[n _]]
+           [n (->>
+            (range 3 8)
+            (map (fn [x] (mod n (bit-shift-left 1 x))))
+            )]))))
+
+;; I suppose the approach I would use here is to
+;; try to calculate bits at a time, similar to how
+;; I've manually been looking at it
+
+;; ultimately the moduluses that match have to do with the program that we
+;; passed in.  there is nothing special about them.
+;; it seems that the first *10* bits of A are relevant to the computation
+
+;; another way to think about this would going in reverse.
+;; what does A need to be at the END?
+;; yes, this seems to work.
+;; then we get 3 bits of A and can make it do what we want.
+;; back to it after daycare dropoff
