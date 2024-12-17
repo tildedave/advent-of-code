@@ -184,9 +184,57 @@
             (map (fn [x] (mod n (bit-shift-left 1 x))))
             )]))))
 
-;; I suppose the approach I would use here is to
-;; try to calculate bits at a time, similar to how
-;; I've manually been looking at it
+
+(let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
+      state (-> new-state
+                (assoc :a 65804993)
+                (assoc :b b)
+                (assoc :c c)
+                (assoc :program (vec program)))]
+  (->>
+   (range 0 8)
+   (map
+    #(vector % (-> state
+                   (assoc :a %)
+                   (fully-execute))))
+   (filter #(= (take-last 1 (:output (second %)))
+               (take-last 1 program)))))
+
+;; queue based search may get us there
+(defn search []
+  (let [[[a] [b] [c] _ program] (map utils/str->nums (utils/read-input "2024/day17.txt"))
+        state (-> new-state
+                  (assoc :a 65804993)
+                  (assoc :b b)
+                  (assoc :c c)
+                  (assoc :program (vec program)))]
+    (loop [queue [[0 1]]
+           results #{}]
+      (if-let [[a n] (first queue)]
+        (do
+          (if (= n 17)
+            (recur (rest queue) (conj results a))
+            (let [next-candidates
+                  (->>
+                   (range 0 8)
+                   (map
+                    #(let [v (+ (bit-shift-left a 3) %)]
+                       (vector v (-> state
+                                     (assoc :a v)
+                                     (fully-execute)))))
+                   (filter #(= (take-last n (:output (second %)))
+                               (take-last n program))))]
+              (recur
+               (reduce
+                (fn [queue c]
+                  (conj queue [c (inc n)]))
+                (rest queue)
+                (map first next-candidates))
+               results))))
+          (first (sort results))))))
+
+;; result!
+(search)
 
 ;; ultimately the moduluses that match have to do with the program that we
 ;; passed in.  there is nothing special about them.
@@ -196,4 +244,3 @@
 ;; what does A need to be at the END?
 ;; yes, this seems to work.
 ;; then we get 3 bits of A and can make it do what we want.
-;; back to it after daycare dropoff
