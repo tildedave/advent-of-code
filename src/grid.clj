@@ -25,6 +25,13 @@
 (defn assoc [grid [x y] k]
   (assoc-in grid [y x] k))
 
+(defn make [xmax ymax empty-sq]
+  (vec (for [y (range 0 ymax)]
+    (vec
+     (for  [x (range 0 xmax)]
+      empty-sq
+      )))))
+
 (defn out-of-bounds? [grid [x y]]
   (nil? (at grid [x y])))
   ;; (or (< y 0)
