@@ -22,8 +22,8 @@
    (fn [_] 10)
    (fn [_ _] 1)))
 
-(defn answer-part1 [grid start end falling-coords]
-(let [grid (coords-fall grid falling-coords)]
+(defn answer-part1 [start end falling-coords]
+(let [grid (coords-fall (grid/make (inc (first end)) (inc (second end)) \.) falling-coords)]
   (first
    (graph/a*-search
    start
@@ -32,4 +32,33 @@
    (fn [_] 10)
    (fn [_ _] 1)))))
 
-(answer-part1 (grid/make 7 7 \.) [0 0] [6 6] )
+(answer-part1 [0 0] [6 6] (take 12 (parse-coords example-coords)))
+(answer-part1 [0 0] [70 70] (take 1024 (parse-coords (utils/read-input "2024/day18.txt"))))
+
+(answer-part1 [0 0] [6 6] (take 20 (parse-coords example-coords)))
+
+
+;; first byte that cuts off the path to the exit
+;; uh, isn't this very easy?  yes, looks like it.
+
+(answer-part1 [0 0] [70 70] (take 2048 (parse-coords (utils/read-input "2024/day18.txt"))))
+
+(defn answer-part2 [start end falling-coords]
+  (loop
+   [lo 0  ;; YES, still reachable
+    hi (count falling-coords)]
+    ;; (println lo hi)
+    (if (= (inc lo) hi)
+      (first (drop lo falling-coords))
+      (let [x (quot (+ lo hi) 2)
+            reachable? (try
+                         (do
+                           (answer-part1 start end (take x falling-coords))
+                           true)
+                         (catch Exception _ false))]
+        (if reachable?
+          (recur x hi)
+          (recur lo x))))))
+
+(answer-part2 [0 0] [6 6] (parse-coords example-coords))
+(answer-part2 [0 0] [70 70] (parse-coords (utils/read-input "2024/day18.txt")))
