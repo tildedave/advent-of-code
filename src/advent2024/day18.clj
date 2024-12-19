@@ -62,3 +62,4 @@
 
 (answer-part2 [0 0] [6 6] (parse-coords example-coords))
 (answer-part2 [0 0] [70 70] (parse-coords (utils/read-input "2024/day18.txt")))
+(answer-part1 [0 0] [70 70] (take 2934 (parse-coords (utils/read-input "2024/day18.txt"))))
