@@ -21,42 +21,35 @@
 (parse-towels example)
 
 ;; recursive memoization
-(defn can-make? [patterns]
-  (let [patterns (sort-by count > patterns)
-        f (fn [rec-f str]
-            (if (empty? str)
-              true
-              (->> patterns
-                   (filter #(.startsWith str %))
-                   (map #(subs str (count %)))
-                   (filter (partial rec-f rec-f))
-                   (empty?)
-                   (not))))]
-    (partial f (memoize f))))
-
-(sort-by count > ["r", "wr", "b", "g", "bwu", "rb", "gb", "br"])
+(def can-make?
+  (memoize (fn [patterns str]
+             (if (empty? str)
+               true
+               (->> patterns
+                    (filter #(.startsWith str %))
+                    (map #(subs str (count %)))
+                    (filter (partial can-make? patterns))
+                    (seq))))))
 
 (defn answer-part1 [lines]
-  (let [[patterns towels] (parse-towels lines)
-        can-make? (can-make? patterns)]
-    (count (filter can-make? towels))))
+  (let [[patterns towels] (parse-towels lines)]
+    (count (filter (partial can-make? (sort-by count > patterns)) towels))))
 
 (answer-part1 example)
-(answer-part1 (utils/read-input "2024/day19.txt"))
+(time (answer-part1 (utils/read-input "2024/day19.txt")))
 
-(defn towel-count [patterns]
-  (let [patterns (sort-by count > patterns)
-        f (fn [rec-f str]
-            (if (empty? str)
-              1
-              (->> patterns
-                   (filter #(.startsWith str %))
-                   (map #(subs str (count %)))
-                   (map (partial rec-f rec-f))
-                   (reduce +))))]
-    (partial f (memoize f))))
+(def towel-count
+  (memoize
+   (fn [patterns str]
+     (if (empty? str)
+       1
+       (->> patterns
+            (filter #(.startsWith str %))
+            (map #(subs str (count %)))
+            (map (partial towel-count patterns))
+            (reduce +))))))
 
-((towel-count ["r", "wr", "b", "g", "bwu", "rb", "gb", "br"]) "rrbgbr")
+(towel-count ["r", "wr", "b", "g", "bwu", "rb", "gb", "br"] "rrbgbr")
 
 (defn answer-part2 [lines]
   (let [[patterns towels] (parse-towels lines)
