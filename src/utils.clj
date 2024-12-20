@@ -139,11 +139,6 @@ will not be present in the new structure. "
          (.digest md)
          (.formatHex hex-format))))
 
-; https://stackoverflow.com/a/8642069/576087
-(defn indices [pred coll]
-  (keep-indexed #(when (pred %2) %1) coll))
-
-
 (defn mean [nums]
   (/ (reduce + 0.0 nums) (count nums)))
 

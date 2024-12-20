@@ -52,9 +52,8 @@
 (towel-count ["r", "wr", "b", "g", "bwu", "rb", "gb", "br"] "rrbgbr")
 
 (defn answer-part2 [lines]
-  (let [[patterns towels] (parse-towels lines)
-        towel-count (towel-count patterns)]
-    (reduce + (map towel-count towels))))
+  (let [[patterns towels] (parse-towels lines)]
+    (reduce + (map (partial towel-count (sort-by count > patterns)) towels))))
 
 (answer-part2 example)
 (answer-part2 (utils/read-input "2024/day19.txt"))
