@@ -65,27 +65,36 @@
                                (fn [& _] false))
         path (reconstruct distances (start-coords grid))]
     (->> path
-         (take 1)
-         (mapcat
+        ;;  (take 1)
+         (map
           (fn [c]
             (loop [queue (->> grid/cardinal-directions
                               (filter (fn [d] (= (grid/at grid (mapv + d c)) \#)))
                               (mapv (fn [d] {:coords (mapv + d c) :steps 1})))
                    visited #{}
                    saves {}]
-              (println queue)
               (if (empty? queue)
                 (->> (vals saves) (filter #(> % 0)))
-                (let [{:keys [coords steps]} (first queue)
-                      _ (println "we are at" coords)]
-                  (if (= steps cheating-fuel) ;; cheating fuel is gone
-                    (recur (subvec queue 1) (conj visited coords) saves)
+                ;; saves
+                (let [{:keys [coords steps]} (first queue)]
+                  (if (= steps cheating-fuel) ;; cheating fuel is gone, check if this is a save
+                    (recur
+                     (subvec queue 1)
+                     visited
+                     (let [save-time (if (contains? distances coords)
+                                       (- (distances c)
+                                          (distances coords)
+                                          steps)
+                                       Integer/MIN_VALUE)]
+                       (if (> save-time (get saves coords Integer/MIN_VALUE))
+                         (assoc saves coords save-time)
+                         saves)))
                     (let [[queue visited saves]
                           (reduce
                            (fn [[queue visited saves] next]
                              (cond
                                (contains? visited next) [queue visited saves]
-                               (not= (grid/at grid next) \#)
+                               (= (grid/at grid next) \E)
                                [queue visited
                                 (let [possible-save (- (distances c)
                                                        (distances next)
@@ -108,4 +117,4 @@
 ;; OK great
 ;; quantity numbers are wonky - claims 22 cheats that save 72, I only see 8
 ;; this is probably because I'm combining directions
-(search-part2 (grid/parse-file "2024/day20-example.txt") 6)
+(search-part2 (grid/parse-file "2024/day20-example.txt") 20)
