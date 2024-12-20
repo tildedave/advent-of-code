@@ -13,6 +13,9 @@
 
 (grid/parse-file "2024/day20-example.txt")
 
+(defn coord-add [[x1 y1] [x2 y2]]
+  [(+ x1 x2) (+ y1 y2)])
+
 (defn reconstruct [distances start-coords end-coords]
   (loop [curr start-coords
          path []]
@@ -21,7 +24,7 @@
       (let [d (distances curr)]
         (recur
          (->> grid/cardinal-directions
-              (map #(mapv + curr %))
+              (map #(coord-add curr %))
               (filter #(= (dec d) (distances %)))
               (first))
          (conj path curr))))))
@@ -37,8 +40,8 @@
          (mapcat
           (fn [c]
             (->> grid/cardinal-directions
-                 (filter (fn [d] (= (grid/at grid (mapv + d c)) \#)))
-                 (map #(mapv + % % c))
+                 (filter (fn [d] (= (grid/at grid (coord-add d c)) \#)))
+                 (map #(coord-add % (coord-add % c)))
                  (remove #(nil? (distances %)))
                  (map (fn [cheat-dest]
                         (- (distances c)
@@ -64,54 +67,81 @@
       [(conj queue {:coords next :steps (inc steps)})
        (conj visited next)])))
 
-(defn search-part2 [grid cheating-fuel]
+(defn coords-in-radius [grid]
+  (memoize
+   (fn [[x y] r]
+     (->>
+      (for [dx (range (- r) (inc r))
+            dy (range (- r) (inc r))
+            :when (<= (+ (abs dx) (abs dy)) r)]
+        [(+ x dx) (+ y dy)])
+      (remove (partial grid/out-of-bounds? grid))))))
+
+(defn search-part2 [grid cheating-fuel cutoff]
   (let [end (end-coords grid)
         distances
         (graph/dijkstra-search
          end
          (fn [c] (grid/neighbors grid c grid/cardinal-directions #(= % \#)))
          (fn [& _] false))
-        path (reconstruct distances (start-coords grid) end)]
-    (map
-     (fn [start]
-       (loop [queue [{:coords start :steps 0}]
-              visited #{start}
-              saves {}]
-         (if (empty? queue)
-           saves
-           (let [{curr :coords steps :steps} (first queue)
-                 at-wall? (= \# (grid/at grid curr))
-                 saves (if at-wall?
-                         saves
-                         (assoc saves curr
-                                (-
-                                 (distances start)
-                                 (distances curr)
-                                 steps)))]
-             (if
-              (= steps cheating-fuel) ;; out o'cheating fuel
-               (recur
-                (subvec queue 1)
-                visited
-                saves)
-               (let [[queue visited]
-                     (reduce
-                      (bfs-neighbor-visit steps)
-                      [(subvec queue 1) visited]
-                      (grid/neighbors grid curr))]
-                 (recur queue visited saves)))))))
-     path)))
+        path (reconstruct distances (start-coords grid) end)
+        coords-in-radius (coords-in-radius grid)]
+    (->> path
+         (filter #(> (distances %) cutoff))
+         (map (fn [start]
+                (->>
+                 (coords-in-radius start cheating-fuel)
+                 (reduce (fn [saves curr]
+                           (if (distances curr)
+                             (assoc saves
+                                    curr
+                                    (-
+                                     (distances start)
+                                     (distances curr)
+                                     (utils/manhattan-distance start curr)))
+                             saves))
+                         {}))))
+                 )))
+
+        ;;  (map
+        ;;   (fn [start]
+        ;;     (loop [queue [{:coords start :steps 0}]
+        ;;            visited #{start}
+        ;;            saves {}]
+        ;;       (if (empty? queue)
+        ;;         saves
+        ;;         (let [{curr :coords steps :steps} (first queue)
+        ;;               at-wall? (= \# (grid/at grid curr))
+        ;;               saves (if at-wall?
+        ;;                       saves
+        ;;                       (assoc saves curr
+        ;;                              (-
+        ;;                               (distances start)
+        ;;                               (distances curr)
+        ;;                               steps)))]
+        ;;           (if
+        ;;            (= steps cheating-fuel) ;; out o'cheating fuel
+        ;;             (recur
+        ;;              (subvec queue 1)
+        ;;              visited
+        ;;              saves)
+        ;;             (let [[queue visited]
+        ;;                   (reduce
+        ;;                    (bfs-neighbor-visit steps)
+        ;;                    [(subvec queue 1) visited]
+        ;;                    (grid/neighbors grid curr))]
+        ;;               (recur queue visited saves)))))))))))
 
 (defn count-paths [results]
   (mapcat (fn [s] (->> (vals s) (filter #(> % 0)))) results))
 
 (=
- (frequencies (count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2)))
+ (frequencies (count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2 0)))
  (frequencies (search (grid/parse-file "2024/day20-example.txt"))))
 
-(count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2))
+(count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2 0))
 
-(let [f (frequencies (count-paths  (search-part2 (grid/parse-file "2024/day20-example.txt") 20)))]
+(let [f (frequencies (count-paths  (search-part2 (grid/parse-file "2024/day20-example.txt") 20 50)))]
   ;; correct
   (assert (= (f 76) 3))
   (assert (= (f 74) 4))
@@ -129,7 +159,7 @@
   (assert (= (f 50) 32) (str "value was " (f 50) "; needed " 32)))
 
 (defn answer-part2 [grid]
-  (let [saves (count-paths (search-part2 grid 20))]
+  (let [saves (count-paths (search-part2 grid 20 100))]
     (count (filter #(>= % 100) saves))))
 
 (println "time to calculate")
