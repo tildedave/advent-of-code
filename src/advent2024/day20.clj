@@ -65,43 +65,41 @@
                                (fn [& _] false))
         path (reconstruct distances (start-coords grid))]
     (->> path
+         (take 1)
          (mapcat
           (fn [c]
-            (->> grid/cardinal-directions
-                 (filter (fn [d] (= (grid/at grid (mapv + d c)) \#)))
-              ;; OK we're in the wall, we can walk inside the wall for up to
-              ;; 19 more steps
-              ;; I'll manually code this since it is fiddly
-                 ;; not clear if this is going to explode; BFS 20 steps should
-                 ;; be tractable
-                 (mapcat
-                  (fn [d]
-                    (loop [queue [{:coords (mapv + d c) :steps 1}]
-                           seen #{}
-                           saves {}]
-                      (if (empty? queue)
-                        (->> (vals saves) (filter #(> % 0)))
-                        (let [{:keys [coords steps]} (first queue)]
-                          (if (= steps cheating-fuel) ;; cheating fuel is gone
-                            (recur (rest queue) (conj seen coords) saves)
-                            (let [[queue seen saves]
-                              (reduce
-                               (fn [[queue seen saves] next]
-                                 (cond
-                                   (contains? seen next) [queue seen saves]
-                                   (not= (grid/at grid next) \#)
-                                   [queue seen
-                                    (assoc saves next
-                                           (- (distances c)
-                                              (distances next)
-                                              (inc steps)))]
-                                   :else
-                                   [(conj queue {:coords next :steps (inc steps)})
-                                    seen
-                                    saves]))
-                                [(rest queue) (conj seen coords) saves]
-                                (grid/neighbors grid coords))]
-                              (recur queue seen saves))))))))))))))
+            (loop [queue (->> grid/cardinal-directions
+                              (filter (fn [d] (= (grid/at grid (mapv + d c)) \#)))
+                              (mapv (fn [d] {:coords (mapv + d c) :steps 1})))
+                   visited #{}
+                   saves {}]
+              (println queue)
+              (if (empty? queue)
+                (->> (vals saves) (filter #(> % 0)))
+                (let [{:keys [coords steps]} (first queue)
+                      _ (println "we are at" coords)]
+                  (if (= steps cheating-fuel) ;; cheating fuel is gone
+                    (recur (subvec queue 1) (conj visited coords) saves)
+                    (let [[queue visited saves]
+                          (reduce
+                           (fn [[queue visited saves] next]
+                             (cond
+                               (contains? visited next) [queue visited saves]
+                               (not= (grid/at grid next) \#)
+                               [queue visited
+                                (let [possible-save (- (distances c)
+                                                       (distances next)
+                                                       (inc steps))]
+                                  (if (> possible-save (get saves next Integer/MIN_VALUE))
+                                    (assoc saves next possible-save)
+                                    saves))]
+                               :else
+                               [(conj queue {:coords next :steps (inc steps)})
+                                (conj visited next)
+                                saves]))
+                           [(subvec queue 1) visited saves]
+                           (grid/neighbors grid coords))]
+                      (recur queue visited saves)))))))))))
 
 (=
  (frequencies (search-part2 (grid/parse-file "2024/day20-example.txt") 2))
@@ -110,4 +108,4 @@
 ;; OK great
 ;; quantity numbers are wonky - claims 22 cheats that save 72, I only see 8
 ;; this is probably because I'm combining directions
-(frequencies (filter #(>= % 50) (search-part2 (grid/parse-file "2024/day20-example.txt") 20)))
+(search-part2 (grid/parse-file "2024/day20-example.txt") 6)
