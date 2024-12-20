@@ -89,8 +89,6 @@
                                  (distances curr)
                                  steps)))]
              (if
-              ;; if I cut off at end here I get the wrong value - I don't
-              ;; understand why exactly.
               (= steps cheating-fuel) ;; out o'cheating fuel
                (recur
                 (subvec queue 1)
@@ -135,7 +133,7 @@
     (count (filter #(>= % 100) saves))))
 
 (println "time to calculate")
-(println (answer-part2 (grid/parse-file "2024/day20.txt")))
+(time (println (answer-part2 (grid/parse-file "2024/day20.txt"))))
 
 ;; OK great
 ;; quantity numbers are wonky
