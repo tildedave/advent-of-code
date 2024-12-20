@@ -88,19 +88,19 @@
         coords-in-radius (coords-in-radius grid)]
     (->> path
          (filter #(> (distances %) cutoff))
-         (map (fn [start]
+         (mapcat (fn [start]
                 (->>
                  (coords-in-radius start cheating-fuel)
                  (reduce (fn [saves curr]
                            (if (distances curr)
-                             (assoc saves
-                                    curr
+                             (conj saves
                                     (-
                                      (distances start)
                                      (distances curr)
                                      (utils/manhattan-distance start curr)))
                              saves))
-                         {}))))
+                         []))))
+         (filter #(>= % cutoff))
                  )))
 
         ;;  (map
@@ -132,16 +132,17 @@
         ;;                    (grid/neighbors grid curr))]
         ;;               (recur queue visited saves)))))))))))
 
-(defn count-paths [results]
-  (mapcat (fn [s] (->> (vals s) (filter #(> % 0)))) results))
+;; (defn count-paths [results]
+;;   (mapcat (fn [s] (->> (vals s) (filter #(> % 0)))) results))
 
+(search-part2 (grid/parse-file "2024/day20-example.txt") 2 0)
 (=
- (frequencies (count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2 0)))
+ (frequencies (search-part2 (grid/parse-file "2024/day20-example.txt") 2 0))
  (frequencies (search (grid/parse-file "2024/day20-example.txt"))))
 
-(count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2 0))
+(search-part2 (grid/parse-file "2024/day20-example.txt") 2 0)
 
-(let [f (frequencies (count-paths  (search-part2 (grid/parse-file "2024/day20-example.txt") 20 50)))]
+(let [f (frequencies (search-part2 (grid/parse-file "2024/day20-example.txt") 20 50))]
   ;; correct
   (assert (= (f 76) 3))
   (assert (= (f 74) 4))
@@ -159,7 +160,7 @@
   (assert (= (f 50) 32) (str "value was " (f 50) "; needed " 32)))
 
 (defn answer-part2 [grid]
-  (let [saves (count-paths (search-part2 grid 20 100))]
+  (let [saves (search-part2 grid 20 100)]
     (count (filter #(>= % 100) saves))))
 
 (println "time to calculate")
