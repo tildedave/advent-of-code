@@ -17,7 +17,7 @@
   (loop [curr start-coords
          path []]
     (if (= curr end-coords)
-      path
+      (conj path end-coords)
       (let [d (distances curr)]
         (recur
          (->> grid/cardinal-directions
@@ -55,7 +55,6 @@
 
 ;; part 2 is basically the same instead we can do a bit more wandering through
 ;; the walls
-;; we can BFS or whatever from the inside-the-wall location
 
 (defn bfs-neighbor-visit [steps]
   (fn [[queue visited] next]
@@ -68,40 +67,42 @@
 (defn search-part2 [grid cheating-fuel]
   (let [end (end-coords grid)
         distances
-        (graph/dijkstra-search end
-                               (fn [c] (grid/neighbors grid c grid/cardinal-directions #(= % \#)))
-                               (fn [& _] false))
+        (graph/dijkstra-search
+         end
+         (fn [c] (grid/neighbors grid c grid/cardinal-directions #(= % \#)))
+         (fn [& _] false))
         path (reconstruct distances (start-coords grid) end)]
-    (->> path
-         (map
-          (fn [start]
-            (loop [queue [{:coords start :steps 0}]
-                   visited #{}
-                   saves {}]
-              (if (empty? queue)
-                saves
-                (let [{:keys [coords steps]} (first queue)
-                      at-wall? (= \# (grid/at grid coords))
-                      saves (if at-wall?
-                              saves
-                              (assoc saves coords
-                                     (-
-                                      (distances start)
-                                      (distances coords)
-                                      steps)))]
-                  (if
-                   (or (= steps cheating-fuel) ;; out o'cheating fuel
-                       (= coords end))
-                    (recur
-                     (subvec queue 1)
-                     visited
-                     saves)
-                    (let [[queue visited]
-                          (reduce
-                           (bfs-neighbor-visit steps)
-                           [(subvec queue 1) visited]
-                           (grid/neighbors grid coords))]
-                      (recur queue visited saves)))))))))))
+    (map
+     (fn [start]
+       (loop [queue [{:coords start :steps 0}]
+              visited #{start}
+              saves {}]
+         (if (empty? queue)
+           saves
+           (let [{curr :coords steps :steps} (first queue)
+                 at-wall? (= \# (grid/at grid curr))
+                 saves (if at-wall?
+                         saves
+                         (assoc saves curr
+                                (-
+                                 (distances start)
+                                 (distances curr)
+                                 steps)))]
+             (if
+              ;; if I cut off at end here I get the wrong value - I don't
+              ;; understand why exactly.
+              (= steps cheating-fuel) ;; out o'cheating fuel
+               (recur
+                (subvec queue 1)
+                visited
+                saves)
+               (let [[queue visited]
+                     (reduce
+                      (bfs-neighbor-visit steps)
+                      [(subvec queue 1) visited]
+                      (grid/neighbors grid curr))]
+                 (recur queue visited saves)))))))
+     path)))
 
 (defn count-paths [results]
   (mapcat (fn [s] (->> (vals s) (filter #(> % 0)))) results))
@@ -110,7 +111,7 @@
  (frequencies (count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2)))
  (frequencies (search (grid/parse-file "2024/day20-example.txt"))))
 
-(count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 8))
+(count-paths (search-part2 (grid/parse-file "2024/day20-example.txt") 2))
 
 (let [f (frequencies (count-paths  (search-part2 (grid/parse-file "2024/day20-example.txt") 20)))]
   ;; correct
@@ -121,17 +122,16 @@
   (assert (= (f 68) 14))
   (assert (= (f 66) 12))
   (assert (= (f 64) 19))
-  ;; starts getting wrong
-  (assert (= (f 62) 20) (str "value was " (f 62) " needed " 20))
-  (assert (= (f 60) 23) (str "value was " (f 60) " needed " 23))
-  (assert (= (f 58) 25) (str "value was " (f 58) " needed " 25))
-  (assert (= (f 56) 39) (str "value was " (f 56) " needed " 39))
-  (assert (= (f 54) 29) (str "value was " (f 54) " needed " 29))
-  (assert (= (f 52) 31) (str "value was " (f 52) " needed " 31))
-  (assert (= (f 50) 32) (str "value was " (f 50) " needed " 32)))
+  (assert (= (f 62) 20) (str "value was " (f 62) "; needed " 20))
+  (assert (= (f 60) 23) (str "value was " (f 60) "; needed " 23))
+  (assert (= (f 58) 25) (str "value was " (f 58) "; needed " 25))
+  (assert (= (f 56) 39) (str "value was " (f 56) "; needed " 39))
+  (assert (= (f 54) 29) (str "value was " (f 54) "; needed " 29))
+  (assert (= (f 52) 31) (str "value was " (f 52) "; needed " 31))
+  (assert (= (f 50) 32) (str "value was " (f 50) "; needed " 32)))
 
 (defn answer-part2 [grid]
-  (let [saves (search-part2 grid 20)]
+  (let [saves (count-paths (search-part2 grid 20))]
     (count (filter #(>= % 100) saves))))
 
 (println "time to calculate")
