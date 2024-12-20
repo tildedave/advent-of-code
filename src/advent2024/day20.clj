@@ -13,17 +13,17 @@
 
 (grid/parse-file "2024/day20-example.txt")
 
-(defn reconstruct [distances start-coords]
+(defn reconstruct [distances start-coords end-coords]
   (loop [curr start-coords
          path []]
-    (let [d (distances curr)]
-      (if (zero? d)
-        path
+    (if (= curr end-coords)
+      path
+      (let [d (distances curr)]
         (recur
          (->> grid/cardinal-directions
-             (map #(mapv + curr %))
-             (filter #(= (dec d) (distances %)))
-             (first))
+              (map #(mapv + curr %))
+              (filter #(= (dec d) (distances %)))
+              (first))
          (conj path curr))))))
 
 (defn search [grid]
@@ -32,7 +32,7 @@
         (graph/dijkstra-search end-coords
                                (fn [c] (grid/neighbors grid c grid/cardinal-directions #(= % \#)))
                                (fn [& _] false))
-        path (reconstruct distances (start-coords grid))]
+        path (reconstruct distances (start-coords grid) end-coords)]
     (->> path
          (mapcat
           (fn [c]
@@ -57,55 +57,66 @@
 ;; the walls
 ;; we can BFS or whatever from the inside-the-wall location
 
+(defn take-n-steps [distances start-coords end-coords n]
+  (loop [curr start-coords
+         total-steps 0]
+    (if (or (= curr end-coords) (= total-steps n))
+      curr
+      (let [d (distances curr)]
+        (recur
+         (->> grid/cardinal-directions
+              (map #(mapv + curr %))
+              (filter #(= (dec d) (distances %)))
+              (first))
+         (inc total-steps))))))
+
+(defn bfs-neighbor-visit [grid steps start end distances cheating-fuel]
+  (fn [[queue visited saves] next]
+    (cond
+      (contains? visited next) [queue visited saves]
+      (not= (grid/at grid next) \#)
+      [(conj queue {:coords next :steps (inc steps)})
+       (conj visited next)
+       (let [save (- (distances start)
+                     (distances next)
+                     (inc steps))]
+         ;; this coord actually needs to mark the end coord _as if_ we followed the closest path.  the save is still what we calculated.
+         (update
+          saves
+          (take-n-steps distances next end (- cheating-fuel (inc steps)))
+          (fnil #(conj % save) #{})))]
+      :else
+      [(conj queue {:coords next :steps (inc steps)})
+       (conj visited next)
+       saves])))
+
 (defn search-part2 [grid cheating-fuel]
-  (let [end-coords (end-coords grid)
+  (let [end (end-coords grid)
         distances
-        (graph/dijkstra-search end-coords
+        (graph/dijkstra-search end
                                (fn [c] (grid/neighbors grid c grid/cardinal-directions #(= % \#)))
                                (fn [& _] false))
-        path (reconstruct distances (start-coords grid))]
+        path (reconstruct distances (start-coords grid) end)]
     (->> path
         ;;  (take 1)
-         (map
-          (fn [c]
+         (mapcat
+          (fn [start]
             (loop [queue (->> grid/cardinal-directions
-                              (filter (fn [d] (= (grid/at grid (mapv + d c)) \#)))
-                              (mapv (fn [d] {:coords (mapv + d c) :steps 1})))
+                              (filter (fn [d] (= (grid/at grid (mapv + d start)) \#)))
+                              (mapv (fn [d] {:coords (mapv + d start) :steps 1})))
                    visited #{}
                    saves {}]
               (if (empty? queue)
-                (->> (vals saves) (filter #(> % 0)))
-                ;; saves
+                (->> saves (vals) (reduce set/union) (filter #(> % 0)))
                 (let [{:keys [coords steps]} (first queue)]
-                  (if (= steps cheating-fuel) ;; cheating fuel is gone, check if this is a save
+                  (if (= steps cheating-fuel) ;; cheating fuel is gone
                     (recur
                      (subvec queue 1)
                      visited
-                     (let [save-time (if (contains? distances coords)
-                                       (- (distances c)
-                                          (distances coords)
-                                          steps)
-                                       Integer/MIN_VALUE)]
-                       (if (> save-time (get saves coords Integer/MIN_VALUE))
-                         (assoc saves coords save-time)
-                         saves)))
+                     saves)
                     (let [[queue visited saves]
                           (reduce
-                           (fn [[queue visited saves] next]
-                             (cond
-                               (contains? visited next) [queue visited saves]
-                               (= (grid/at grid next) \E)
-                               [queue visited
-                                (let [possible-save (- (distances c)
-                                                       (distances next)
-                                                       (inc steps))]
-                                  (if (> possible-save (get saves next Integer/MIN_VALUE))
-                                    (assoc saves next possible-save)
-                                    saves))]
-                               :else
-                               [(conj queue {:coords next :steps (inc steps)})
-                                (conj visited next)
-                                saves]))
+                           (bfs-neighbor-visit grid steps start end distances cheating-fuel)
                            [(subvec queue 1) visited saves]
                            (grid/neighbors grid coords))]
                       (recur queue visited saves)))))))))))
@@ -115,6 +126,12 @@
  (frequencies (search (grid/parse-file "2024/day20-example.txt"))))
 
 ;; OK great
-;; quantity numbers are wonky - claims 22 cheats that save 72, I only see 8
-;; this is probably because I'm combining directions
-(search-part2 (grid/parse-file "2024/day20-example.txt") 20)
+;; quantity numbers are wonky
+
+;; quantity numbers are still wonky
+(frequencies (search-part2 (grid/parse-file "2024/day20-example.txt") 20))
+
+
+(filter (fn [[_ v]] (contains? v 76)) (first (search-part2 (grid/parse-file "2024/day20-example.txt") 20)))
+
+(end-coords (grid/parse-file "2024/day20-example.txt"))
