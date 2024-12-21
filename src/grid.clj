@@ -32,6 +32,10 @@
       empty-sq
       )))))
 
+
+(defn coords-of [grid ch]
+  (->> (grid/coords grid) (filter #(= (grid/at grid %) ch)) (first)))
+
 (defn out-of-bounds? [grid [x y]]
   (nil? (at grid [x y])))
   ;; (or (< y 0)
