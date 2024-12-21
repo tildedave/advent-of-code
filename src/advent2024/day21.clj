@@ -146,11 +146,6 @@
 ;; everything has to return to A; once we return to A we don't care about the
 ;; string's prefix.
 ;; let's see if we can understand a bit more about the problem
-;; ;; we basically never want to
-;; (paths-smart directional-grid \A \v)
-
-;;           (sort-by #(code-to-paths directional-grid %))
-;;           (partition-by (path-to-keypresses path))))))
 
 (defn pairs [l]
   (map vector l (rest l) ))
@@ -158,12 +153,12 @@
 ;; idea: same technique from stones.
 ;; question: we do have to follow tree branches and do some kind of cutoff
 ;; I think we need to assume yes, but let's see
-;; good news, buttons are unambiguous
+;; good news, buttons paths have an unambiguous "best" path between them always
 (defn paths-from-seq [grid source dest]
   (->> (paths-smart grid source dest)
        (map (fn [path] (let [presses (path-to-keypresses path)]
                          (if (= presses '(\A))
-                           [[\A \A]]
+                           [[\A]]
                            (pairs presses)))))))
 
 (paths-from-seq directional-grid \^ \^)
@@ -188,28 +183,98 @@
 ;; good news, buttons in my input have an unambiguous "best" path between them
 ;; bad news, not sure what to do about the ambiguity for \v \A
 
-(defn count-reducer [grid]
-  (fn [counts [[source dest] v]]
-    (println source dest v)
-    (let [best-paths (paths-from-seq grid source dest)
-          _ (println "best path between" source dest "is" (first best-paths))]
-      (merge-with + counts (update-vals
-                            (frequencies (first best-paths))
-                            (partial * v))))))
+;; (defn count-reducer [grid]
+;;   (fn [counts [[source dest] v]]
+;;     (println source dest v)
+;;     (let [best-paths (paths-from-seq grid source dest)
+;;           _ (println "best path between" source dest "is" (first best-paths))
+;;           _ (println (frequencies (first best-paths)))]
+;;       (merge-with + counts (update-vals
+;;                             (frequencies (first best-paths))
+;;                             (partial * v))))))
+
+;; (defn code-sequence [code]
+;;   (iterate
+;;    (fn [counts]
+;;      (reduce
+;;       (count-reducer directional-grid)
+;;       {}
+;;       counts))
+;;    (reduce
+;;     (count-reducer button-grid)
+;;     {}
+;;     (frequencies (pairs code)))))
+
+(paths-smart button-grid \3 \7)
+
+(defn split-by-as [seq]
+  (loop [curr []
+         splits []
+         seq seq]
+    (if-let [x (first seq)]
+      (if (= x \A)
+        (recur
+         []
+         (conj splits (conj curr x))
+         (rest seq))
+        (recur
+         (conj curr x)
+         splits
+         (rest seq)))
+      (mapv string/join splits))))
+
+(split-by-as '(\^ \A \< \< \^ \^ \A \A \A \> \> \A \v \v \v \A))
+
+(defn next-sequences [grid code]
+  (split-by-as
+   (mapcat
+   (fn [source dest] (let [paths (paths-smart grid source dest)]
+                    ;;    (if (= grid button-grid)
+                    ;;      (do (println source dest paths)
+                    ;;          (assert (= (count paths) 1))))
+                       ;; we assume first paths is fine, it might not be
+                       (path-to-keypresses (first paths))))
+   (cons \A code)
+   code)))
+
+(next-sequences button-grid "379A")
+
+(defn count-reducer [counts [code n]]
+  (merge-with + counts (update-vals (frequencies (next-sequences directional-grid code)) (partial * n))))
 
 (defn code-sequence [code]
   (iterate
    (fn [counts]
      (reduce
-      (count-reducer directional-grid)
+      count-reducer
       {}
       counts))
-   (reduce
-    (count-reducer button-grid)
-    {}
-    (frequencies (pairs code)))))
+   (frequencies (next-sequences button-grid code))))
 
-(take 2 (code-sequence "379A"))
+(defn total-length [m]
+  (reduce + (map (fn [[k v]] (* (count k) v)) m)))
+
+(defn numeric-part [code]
+  (->> (seq code)
+       (filter #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
+       (string/join)
+       (parse-long)))
+
+(defn answer-part1-smarter [codes n]
+  (->> codes
+       (map #(do (println %)
+                 (* (total-length (nth (code-sequence %) n)) (numeric-part %))))
+       (reduce +)))
+
+(answer-part1-smarter '("029A" "980A" "179A" "456A" "379A") 2)
+(answer-part1-smarter '("029A" "980A" "179A" "456A" "379A") 2)
+(println "answer" (answer-part1-smarter (utils/read-input "2024/day21.txt") 2))
+(println "answer" (answer-part1-smarter (utils/read-input "2024/day21.txt") 25))
+
+
+(map total-length (take 25 (code-sequence "379A")))
+
+
 
 ;; this is a set of CFG transitions
 ;; it seems like each sequence gets twice as big
@@ -256,7 +321,7 @@
        (mapcat (partial code-to-paths directional-grid) paths)
        (inc n)))))
 
-(println (string/join "\n" (all-sequences "379A" 1)))
+(map count  (all-sequences "379A" 0))
 
 (println (string/join "\n" (all-sequences "379A" 2)))
 
@@ -290,12 +355,6 @@
 (time (shortest-sequence-search "379A" 3))
 (time (println "prune" (shortest-sequence-length "379A" 2 false)))
 (time (println "prune" (shortest-sequence-length "379A" 2 true)))
-
-(defn numeric-part [code]
-  (->> (seq code)
-       (filter #{\0 \1 \2 \3 \4 \5 \6 \7 \8 \9})
-       (string/join)
-       (parse-long)))
 
 (numeric-part "029A")
 (shortest-sequence-length "029A" 2 false)
