@@ -32,10 +32,6 @@
       empty-sq
       )))))
 
-
-(defn coords-of [grid ch]
-  (->> (grid/coords grid) (filter #(= (grid/at grid %) ch)) (first)))
-
 (defn out-of-bounds? [grid [x y]]
   (nil? (at grid [x y])))
   ;; (or (< y 0)
@@ -71,6 +67,10 @@
     (for [x (range 0 xmax)
           y (range 0 ymax)]
       [x y])))
+
+
+(defn coords-of [grid ch]
+  (->> (grid/coords grid) (filter #(= (grid/at grid %) ch)) (first)))
 
 (defn is-adjacent?
   ([[x1 y1] [x2 y2]] (is-adjacent? [x1 y1] [x2 y2] cardinal-directions))
