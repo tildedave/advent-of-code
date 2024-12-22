@@ -17,31 +17,7 @@
   [[\# \^ \A]
    [\< \v \>]])
 
-(defn invalid-path? [grid path]
-  (contains? (set (map (partial grid/at grid) path)) \#))
-
-(def paths (memoize (fn [grid source dest]
-                      (let [[sx sy] (grid/coords-of grid source)
-                            [dx dy] (grid/coords-of grid dest)
-                            x-direction (compare dx sx)
-                            y-direction (compare dy sy)]
-    ;; can either go left / up or up / left &c
-    ;; but can't go to 0, 3 or 0, 0
-                        (->>
-                         (list
-                          (concat
-                           (for [x (range sx (+ dx x-direction) x-direction)]
-                             [x sy])
-                           (for [y (range sy (+ dy y-direction) y-direction)]
-                             [dx y]))
-                          (concat
-                           (for [y (range sy (+ dy y-direction) y-direction)]
-                             [sx y])
-                           (for [x (range sx (+ dx x-direction) x-direction)]
-                             [x dy])))
-                         (distinct)
-                         (remove (partial invalid-path? grid)))))))
-
+;; of course not all paths are good ones, we will prune later.
 (defn all-paths [grid source dest]
   (graph/all-paths
    (grid/coords-of grid source)
@@ -53,20 +29,8 @@
 ;; or a trick about using numbers.  I kind of doubt the numbers can work.
 ;; we already have seen that we can prune certain "bad" digit manipulations
 
-(paths button-grid \7 \9)
 (all-paths button-grid \7 \9)
-(paths button-grid \2 \9)
 (all-paths button-grid \2 \9)
-
-;;   (graph/all-paths
-;;    (grid/coords-of grid source)
-;;    (grid/coords-of grid dest)
-;;    (fn [c] (grid/neighbors grid c grid/cardinal-directions #(= % \#)))))
-
-(paths button-grid \2 \9)
-
-(defn any-path [grid source dest]
-  (first (paths grid source dest)))
 
 (defn path-to-keypresses [path]
   (loop [x (first path)
@@ -87,59 +51,50 @@
             [-1 0] \<))))
       (conj presses \A))))
 
-(path-to-keypresses (any-path button-grid \A \0))
-
-(def code-to-paths
+(def next-codes
   (memoize
-   (fn [grid code]
+   (fn [grid code path-expander]
      (loop [curr \A
             code-seq (seq code)
-            all-paths [[]]]
+            paths [[]]]
        (if-let [next (first code-seq)]
          (recur
           next
           (rest code-seq)
-          (let [next-paths (map path-to-keypresses (paths grid curr next))]
+          (let [next-paths (map path-to-keypresses (path-expander grid curr next))]
             (apply concat
-                   (for [path all-paths]
+                   (for [path paths]
                      (map
                       #(into path %)
                       next-paths)))))
-         (set (map string/join all-paths)))))))
+         (set (map string/join paths)))))))
 
-(->> (all-paths directional-grid \A \v)
-     (map #(code-to-paths directional-grid (path-to-keypresses %)))
-    ;;  (map #(map count %)))
-)
+(next-codes button-grid "029A" all-paths)
 
 (def paths-smart
   (memoize
    (fn [grid source dest]
      (->> (all-paths grid source dest)
           (map (fn [path]
-                 (let [next-paths (code-to-paths directional-grid (path-to-keypresses path))]
-                 (vector path
-                         (string/join (path-to-keypresses path))
-                         (map
-                          (fn [path] (code-to-paths directional-grid path))
-                          next-paths
-                          )))))
+                 (let [codes (next-codes directional-grid (path-to-keypresses path) all-paths)]
+                   (vector path
+                           (string/join (path-to-keypresses path))
+                           (map
+                            (fn [path] (next-codes directional-grid path all-paths))
+                            codes)))))
           (sort-by #(count (first (first (nth % 2)))))
           (partition-by #(count (first (first (nth % 2)))))
           (first)
           (map first)
-          ))))
+          ;; it turns out any ambiguity at this point doesn't matter.
+          (take 1)))))
 
-(paths-smart button-grid \3 \7)
-(all-paths directional-grid \A \v)
-;; these all have an unambiguous winner
-(paths-smart directional-grid \A \v)
-(paths-smart directional-grid \^ \>)
-(paths-smart directional-grid \> \^)
-;; this one is actually ambiguous as to which to do
-;; kind of makes sense
-(paths-smart directional-grid \v \A)
+(next-codes directional-grid (first (next-codes button-grid "029A" paths-smart)) paths-smart)
 
+(next-codes directional-grid ">^" paths-smart)
+(next-codes directional-grid "^>" paths-smart)
+(next-codes directional-grid "Av" paths-smart)
+(next-codes directional-grid "vA" paths-smart)
 
 ;; only ^>, >^ , vA, Av have a difference in how to do it optimally
 ;; all others are totally determined
@@ -147,24 +102,10 @@
 ;; string's prefix.
 ;; let's see if we can understand a bit more about the problem
 
-(defn pairs [l]
-  (map vector l (rest l) ))
-
 ;; idea: same technique from stones.
 ;; question: we do have to follow tree branches and do some kind of cutoff
 ;; I think we need to assume yes, but let's see
 ;; good news, buttons paths have an unambiguous "best" path between them always
-(defn paths-from-seq [grid source dest]
-  (->> (paths-smart grid source dest)
-       (map (fn [path] (let [presses (path-to-keypresses path)]
-                         (if (= presses '(\A))
-                           [[\A]]
-                           (pairs presses)))))))
-
-(paths-from-seq directional-grid \^ \^)
-
-(paths-from-seq button-grid \3 \7)
-(paths-from-seq directional-grid \v \A)
 
 (->>
  (for [x '(\0 \1 \2 \3 \4 \5 \6 \7 \8 \9 \A)
@@ -183,64 +124,32 @@
 ;; good news, buttons in my input have an unambiguous "best" path between them
 ;; bad news, not sure what to do about the ambiguity for \v \A
 
-;; (defn count-reducer [grid]
-;;   (fn [counts [[source dest] v]]
-;;     (println source dest v)
-;;     (let [best-paths (paths-from-seq grid source dest)
-;;           _ (println "best path between" source dest "is" (first best-paths))
-;;           _ (println (frequencies (first best-paths)))]
-;;       (merge-with + counts (update-vals
-;;                             (frequencies (first best-paths))
-;;                             (partial * v))))))
-
-;; (defn code-sequence [code]
-;;   (iterate
-;;    (fn [counts]
-;;      (reduce
-;;       (count-reducer directional-grid)
-;;       {}
-;;       counts))
-;;    (reduce
-;;     (count-reducer button-grid)
-;;     {}
-;;     (frequencies (pairs code)))))
-
-(paths-smart button-grid \3 \7)
-
 (defn split-by-as [seq]
   (loop [curr []
          splits []
          seq seq]
     (if-let [x (first seq)]
       (if (= x \A)
-        (recur
-         []
-         (conj splits (conj curr x))
-         (rest seq))
-        (recur
-         (conj curr x)
-         splits
-         (rest seq)))
+        (recur [] (conj splits (conj curr x)) (rest seq))
+        (recur (conj curr x) splits (rest seq)))
       (mapv string/join splits))))
 
 (split-by-as '(\^ \A \< \< \^ \^ \A \A \A \> \> \A \v \v \v \A))
 
-(defn next-sequences [grid code]
+(defn next-substrings [grid code]
   (split-by-as
-   (mapcat
-   (fn [source dest] (let [paths (paths-smart grid source dest)]
-                    ;;    (if (= grid button-grid)
-                    ;;      (do (println source dest paths)
-                    ;;          (assert (= (count paths) 1))))
-                       ;; we assume first paths is fine, it might not be
-                       (path-to-keypresses (first paths))))
-   (cons \A code)
-   code)))
+   (first (next-codes grid code paths-smart))))
 
-(next-sequences button-grid "379A")
+(next-codes button-grid "029A" paths-smart)
+(next-substrings button-grid "379A")
+(next-codes button-grid (str \A "379A") paths-smart)
 
 (defn count-reducer [counts [code n]]
-  (merge-with + counts (update-vals (frequencies (next-sequences directional-grid code)) (partial * n))))
+  (as-> code c
+    (next-substrings directional-grid c)
+    (frequencies c)
+    (update-vals c (partial * n))
+    (merge-with + counts c)))
 
 (defn code-sequence [code]
   (iterate
@@ -249,7 +158,7 @@
       count-reducer
       {}
       counts))
-   (frequencies (next-sequences button-grid code))))
+   (frequencies (next-substrings button-grid code))))
 
 (defn total-length [m]
   (reduce + (map (fn [[k v]] (* (count k) v)) m)))
@@ -260,123 +169,11 @@
        (string/join)
        (parse-long)))
 
-(defn answer-part1-smarter [codes n]
+(defn minimum-button-pushes [codes n]
   (->> codes
-       (map #(do (println %)
-                 (* (total-length (nth (code-sequence %) n)) (numeric-part %))))
+       (map #(* (total-length (nth (code-sequence %) n)) (numeric-part %)))
        (reduce +)))
 
-(answer-part1-smarter '("029A" "980A" "179A" "456A" "379A") 2)
-(answer-part1-smarter '("029A" "980A" "179A" "456A" "379A") 2)
-(println "answer" (answer-part1-smarter (utils/read-input "2024/day21.txt") 2))
-(println "answer" (answer-part1-smarter (utils/read-input "2024/day21.txt") 25))
-
-
-(map total-length (take 25 (code-sequence "379A")))
-
-
-
-;; this is a set of CFG transitions
-;; it seems like each sequence gets twice as big
-;; so in the end 2^25 is length 33 million
-;; that is likely also impossible to do via direct attack, so there is some
-;; trick about sequence lengths.
-;; let's try some direct search for fun, maybe I will learn something about
-;; the problem
-;; I did not learn anything about the problem
-
-(for [x '(\0 \1 \2 \3 \4 \5 \6 \7 \8 \9 \A)
-      y '(\0 \1 \2 \3 \4 \5 \6 \7 \8 \9 \A)]
-  [[x y]
-   (if (= x y)
-     \A
-     (map #(string/join (path-to-keypresses %)) (paths button-grid x y)))])
-
-(->>
- (for [x '(\< \^ \> \v \A)
-      y '(\< \^ \> \v \A)]
-  [(str x y)
-   (if (= x y)
-     (list \A)
-     (map #(string/join (path-to-keypresses %)) (paths directional-grid x y)))])
- (remove (fn [[[x y] _]] (case [x y]
-                           [\> \<] true
-                           [\< \>] true
-                           [\v \^] true
-                           [\^ \v] true
-                           false))))
-
-(defn count-a [str]
-  (->> (seq str) (filter (partial = \A)) (count)))
-
-(count-a ">A^^^A")
-
-
-(defn all-sequences [code num-indirections]
-  (loop [paths (code-to-paths button-grid code)
-         n 0]
-    (if (= n num-indirections)
-      (sort-by count paths)
-      (recur
-       (mapcat (partial code-to-paths directional-grid) paths)
-       (inc n)))))
-
-(map count  (all-sequences "379A" 0))
-
-(println (string/join "\n" (all-sequences "379A" 2)))
-
-;; so
-(defn shortest-sequence-search [code num-indirections]
-  (loop [candidates (mapv
-                     (fn [path] {:generation 0 :code path})
-                     (code-to-paths button-grid code))
-         current-bests {}]
-    (if-let [{:keys [generation code]} (first candidates)]
-      (let [a (count code)
-            candidates (rest candidates)
-            current-bests (update current-bests generation (fnil min Integer/MAX_VALUE) a)]
-        (cond
-          (> a (get current-bests generation Integer/MAX_VALUE))
-          (recur candidates current-bests)
-          (= generation num-indirections)
-          (recur candidates current-bests)
-          :else
-          (recur
-           (reduce
-            (fn [candidates code]
-              (if (> (count code) (get current-bests (inc generation) Integer/MAX_VALUE))
-                candidates
-                (conj candidates {:generation (inc generation) :code code})))
-            candidates
-            (code-to-paths directional-grid code))
-           current-bests)))
-      current-bests)))
-
-(time (shortest-sequence-search "379A" 3))
-(time (println "prune" (shortest-sequence-length "379A" 2 false)))
-(time (println "prune" (shortest-sequence-length "379A" 2 true)))
-
-(numeric-part "029A")
-(shortest-sequence-length "029A" 2 false)
-
-(defn answer-part1 [codes]
-  (->> codes
-       (map #(do (println %)
-                 (* (shortest-sequence-length % 2 false) (numeric-part %))))
-       (reduce +)))
-
-(answer-part1 '("029A" "980A" "179A" "456A" "379A"))
-(println "answer" (answer-part1 (utils/read-input "2024/day21.txt")))
-
-(defn answer-part2 [codes]
-  (->> codes
-       (map #(do (println %)
-                 (* (shortest-sequence-length % 25 false) (numeric-part %))))
-       (reduce +)))
-
-(answer-part2 '("029A" "980A" "179A" "456A" "379A"))
-
-;; OK so part 2 is what I was expecting
-;; we will need some level of pruning after each level
-;; another idea would be to make "all paths" so we only ever go in
-;; straight lines
+(assert (= (minimum-button-pushes '("029A" "980A" "179A" "456A" "379A") 2) 126384))
+(println "answer - part 1" (minimum-button-pushes (utils/read-input "2024/day21.txt") 2))
+(println "answer - part 2" (minimum-button-pushes (utils/read-input "2024/day21.txt") 25))
