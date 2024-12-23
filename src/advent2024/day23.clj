@@ -28,42 +28,27 @@
 
 (has-t? #{"co" "de" "ka"})
 
-;; slow
-;; (->> (reduce graph-reducer {} (utils/read-input "2024/day23.txt"))
-;;      three-sets
-;;      (filter has-t?)
-;;      (count))
-
-(defn graph-visualization [components]
-  (string/join "\n\t"
-  (for [[k vs] components]
-    (string/join "\n\t"
-     (map #(format "%s -- %s;" k %) vs)))))
-
-;; (spit "graph23.dot"
-;;      (str
-;;  "graph G {\n\t"
-;;  (graph-visualization (reduce graph-reducer {} (utils/read-input "2024/day23.txt")))
-;;  "\n}"))
-
 (defn maximal-cliques [graph]
-  (loop
-   [queue [[#{} (set (keys graph)) #{}]]
-    all-cliques []]
-    (if-let [[R P X] (first queue)]
+  (letfn
+   [(bron-kerbosch [R P X]
       (if (and (empty? P) (empty? X))
-        (recur (rest queue) (conj all-cliques R))
+        #{R}
         (let [pivot (first (set/union P X))
-              [queue _ _]
+              [all-cliques _ _]
               (reduce
-               (fn [[queue P X] v]
-                 [(conj queue [(conj R v) (set/intersection P (graph v)) (set/intersection X (graph v))])
+               (fn [[all-cliques P X] v]
+                 [(set/union
+                   all-cliques
+                   (bron-kerbosch
+                    (conj R v)
+                    (set/intersection P (graph v))
+                    (set/intersection X (graph v))))
                   (disj P v)
                   (conj P v)])
-               [(rest queue) P X]
+               [#{} P X]
                (set/difference P (graph pivot)))]
-          (recur queue all-cliques)))
-      all-cliques)))
+          all-cliques)))]
+    (bron-kerbosch #{} (set (keys graph)) #{})))
 
 (->> (utils/read-input "2024/day23.txt")
      (reduce graph-reducer {})
