@@ -60,7 +60,7 @@
                   (disj P v)
                   (conj P v)])
                [(rest queue) P X]
-               P)]
+               (sort-by #(count (graph %)) P))]
           (recur queue all-cliques)))
       all-cliques)))
 
@@ -70,4 +70,5 @@
      (sort-by count >)
      (first)
      (sort)
-     (string/join ","))
+     (string/join ",")
+     (time))
