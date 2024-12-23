@@ -54,24 +54,17 @@
 
 (count all-price-drops)
 
-(defn price-drops-seq [secret]
-  (let [secrets (take 2001 (map price (iterate next-secret secret)))]
-    (map - (rest secrets) secrets)))
+(defn price-seq [secret]
+  (take 2001 (map price (iterate next-secret secret))))
 
-(price-drops-seq 123)
+(partition 5 1 (price-seq 123))
+
+(partition 5 1 (price-seq 123))
 
 ; we are looking 4 ahead I think?
 (defn prices-with-drops [secret]
-  (let [prices (mapv price (take 2001 (iterate next-secret secret)))]
-    (loop [prices prices
-           price-drops (mapv - (rest prices) prices)
-           results []]
-      (if (> (count prices) 5)
-        (recur
-         (subvec prices 1)
-         (subvec price-drops 1)
-         (conj results [(nth prices 4) (take 4 price-drops)]))
-        results))))
+  (->> (partition 5 1 (price-seq secret))
+       (map (fn [[a b c d price]] [price [(- b a) (- c b) (- d c) (- price d)]]))))
 
 (defn sequence-benefits [secret]
   (reduce
