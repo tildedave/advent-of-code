@@ -53,14 +53,15 @@
     (if-let [[R P X] (first queue)]
       (if (and (empty? P) (empty? X))
         (recur (rest queue) (conj all-cliques R))
-        (let [[queue _ _]
+        (let [pivot (first (set/union P X))
+              [queue _ _]
               (reduce
                (fn [[queue P X] v]
                  [(conj queue [(conj R v) (set/intersection P (graph v)) (set/intersection X (graph v))])
                   (disj P v)
                   (conj P v)])
                [(rest queue) P X]
-               (sort-by #(count (graph %)) P))]
+               (set/difference P (graph pivot)))]
           (recur queue all-cliques)))
       all-cliques)))
 
