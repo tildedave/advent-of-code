@@ -144,7 +144,7 @@
         [px1 py1 pz1] (first h1)
         [vx1 vy1 vz1] (second h1)
         t1 (/ (- px px1) (- vx1 vx))
-        t1' (/ (- py py1) (- vy1 vy))
+        ;; t1' (/ (- py py1) (- vy1 vy))
         ;; pz + (vz * t1) = pz1 + (vz1 * t1)
         pz (+ pz1 (- (* t1 vz)) (* t1 vz1))]
     (+ px py pz)))
