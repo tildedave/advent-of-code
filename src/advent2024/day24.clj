@@ -30,8 +30,6 @@
     [(reduce merge (map parse-signal signals))
      (map parse-connector connectors)]))
 
-;; (run-system (utils/read-input "2024/day24.txt"))
-
 (def every-z (memoize (fn [connectors]
                         (->> (map #(nth % 3) connectors)
                              (filter #(.startsWith % "z"))))))
@@ -55,19 +53,20 @@
        (map (fn [n] (hash-map (format "%s%02d" prefix n) (if (bit-test number n) 1 0))))
        (reduce merge)))
 
+(def computation-limit 50)
 (number-to-signals 4 11 "x")
 
 (defn run-system [lines]
   (let [[initial-signals connectors] (parse-system lines)
         z-set (every-z connectors)]
     (if-let [result (->> (iterate (partial run-signals connectors) initial-signals)
-                         (take 500)
+                         (take computation-limit)
                          (drop-while #(not (has-every-z? z-set %)))
                          (first))]
       (z-values z-set result)
       nil)))
 
-(run-system (utils/read-input "2024/day24.txt"))
+(assert (= (run-system (utils/read-input "2024/day24.txt")) 56939028423824))
 
 ;; OK for part 2 we have a malfunctioning adder
 ;; this is a pretty cool kind of problem
@@ -78,7 +77,7 @@
 (defn test-system [connectors x y]
   (let [z-set (every-z connectors)]
     (if-let [result (->> (iterate (partial run-signals connectors) (merge (number-to-signals 45 x "x") (number-to-signals 45 y "y")))
-         (take 500)
+         (take computation-limit)
          (drop-while #(not (has-every-z? z-set %)))
          (first))]
       (z-values z-set result)
@@ -106,8 +105,11 @@
 ;; then something else is broken around bit 39
 ;; one of these must have multiple breakages
 (incorrect-bits parsed-connectors 0xFFFFFFFFFFF 1)
+(math/log (bit-or 1 (bit-shift-left 0xFFFFFFFFFFF 1)))
 (incorrect-bits parsed-connectors (bit-or 1 (bit-shift-left 0xFFFFFFFFFFF 1)) 1)
 (incorrect-bits parsed-connectors 0x0000000001F 1)
+
+(defn log2 [n] (/ (math/log n) (math/log 2)))
 
 ;; this one seems to be wrong
 (incorrect-bits parsed-connectors 31 1)
@@ -127,19 +129,21 @@
 ;; FOUR pairs of gates.  so we have found two of the outputs, six remain.
 
 ;; attempt to understand the output enough:
-(defn expression [connectors output]
-  (letfn [(rec [output]
-            (if-let [[left right connector _]
-                     (->> connectors
-                          (filter #(= (nth % 3) output))
-                          (first))]
-              [(rec left)
-               connector
-               (rec right)]
-              output))]
-    (rec output)))
+(defn expression [connectors output max-depth]
+  (letfn [(rec [output depth]
+               (if (zero? depth)
+                 output
+                 (if-let [[left right connector _]
+                          (->> connectors
+                               (filter #(= (nth % 3) output))
+                               (first))]
+                   [(rec left (dec depth))
+                    connector
+                    (rec right (dec depth))]
+                   output)))]
+    (rec output max-depth)))
 
-(expression parsed-connectors "z03")
+(expression parsed-connectors "z03" 2)
 
 (for [x (range 0 17)
       y (range 0 17)
@@ -152,7 +156,7 @@
   (let [z-set (every-z connectors)]
     (->> (iterate (partial run-signals connectors) (merge (number-to-signals 45 x "x") (number-to-signals 45 y "y")))
          ;; just bound our computation
-         (take 300)
+         (take computation-limit)
          (drop-while #(not (has-every-z? z-set %)))
          (first))))
 
@@ -171,7 +175,88 @@
            (= out out2) (assoc row 3 out1)
            :else row)) connectors))
 
-(for [candidate '("frn" "ccq" "qjq")]
-  [candidate (incorrect-bits (swap-outputs parsed-connectors "z05" candidate) 31 1)])
+(time
+ (for [candidate '("frn" "ccq" "qjq")]
+  [candidate (incorrect-bits (swap-outputs parsed-connectors "z05" candidate) 31 1)]))
 
 ;; OK so frn <-> z05 is one of my swaps
+
+(defn mask-seq [start]
+  (lazy-seq (cons start (mask-seq (bit-shift-left start 1)))))
+
+(defn limit-mask-seq [start]
+  (take-while #(< (log2 %) 44) (mask-seq start)))
+
+(let [connectors (swap-outputs parsed-connectors "z05" "frn")]
+  (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 3))))
+
+;; so something broken around 5, 16, 21, 39.  that is it.
+;; we have one of the swaps already.
+;; let's debug 21 first since that seems easiest.
+
+(incorrect-bits parsed-connectors (bit-set 0 21) (bit-set 0 21))
+
+(sort-by (fn [[_ l]] (count l))
+(let [connectors (swap-outputs parsed-connectors "z05" "frn")]
+  (for [candidate (->> connectors
+                       (filter (fn [[_ _ _ out]] (nil? (re-find #"^(x|y|z)" out))))
+                       (map last))
+        :let [connectors (swap-outputs connectors "z21" candidate)]]
+    [candidate
+     (mapcat (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (take 23 (limit-mask-seq 1))))])))
+
+(expression (-> parsed-connectors (swap-outputs "z05" "frn")) "z21" 3)
+
+;; seems gmq <-> z21 but not 100% certain
+;; pin down what's going on with z16 next, return to z21 after that's fixed
+
+;; (filter
+;;  (fn [[k v]] (and (= v 1)))
+;;  (test-full-system parsed-connectors (bit-set 0 21) (bit-set 0 21)))
+
+;; (let [connectors (-> parsed-connectors
+;;                      (swap-outputs "z05" "frn")
+;;                      (swap-outputs "z21" "gmq"))]
+;;   (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 5))))
+
+;; z16 def is fine -> wnf xor rsk -> wnf is fine, rsk is suspicious
+;; rsk is fine, grv or tfs suspicious
+;; (expression (-> parsed-connectors (swap-outputs "z05" "frn")) "z16" 4)
+
+(filter
+ (fn [[k v]] (and (= v 1) (nil? (re-find #"^x|y|z" k))))
+ (test-full-system parsed-connectors 16 16))
+
+(filter
+ (fn [[k v]] (and (= v 1))) ;; (nil? (re-find #"^x|y|z" k))))
+ (test-full-system parsed-connectors (bit-set 0 16) (bit-set 0 16)))
+
+;; so rsk is broken, either itself or one of its dependencies
+(incorrect-bits parsed-connectors (bit-set 0 16) (bit-set 0 16))
+
+(expression (-> parsed-connectors (swap-outputs "z05" "frn")) "rwf" 1)
+
+;; this is of course slow
+(->>
+ (let [connectors (swap-outputs parsed-connectors "z05" "frn")
+       candidates (->> connectors
+                                 (filter (fn [[_ _ _ out]] (nil? (re-find #"^(x|y|z)" out))))
+                                 (map last))]
+   (for [c1 candidates
+         c2 candidates
+         :when (= (compare c1 c2) 1)
+         :let [connectors (swap-outputs connectors c1 c2)]]
+    [[c1 c2]
+     (incorrect-bits connectors (bit-set 0 16) (bit-set 0 16))]))
+ (filter (fn [[_ l]] (= l '()))))
+
+;; claims wnf <-> vtj should be swapped
+
+(let [connectors (-> parsed-connectors
+                     (swap-outputs "z05" "frn")
+                     (swap-outputs "wnf" "vtj")
+                     (swap-outputs "z21" "gmq")
+                     )]
+  (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 5))))
+
+;; OK, final stretch
