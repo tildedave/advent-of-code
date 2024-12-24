@@ -87,7 +87,7 @@
   (let [result (test-system connectors x y)
         correct-result (+ x y)]
     (cond
-      (nil? result) :no-z-output
+      (nil? result) (list :no-z-output)
       (not= result correct-result)
       (let [differences (bit-xor result correct-result)]
         (->> (range 0 45)
@@ -232,31 +232,70 @@
  (test-full-system parsed-connectors (bit-set 0 16) (bit-set 0 16)))
 
 ;; so rsk is broken, either itself or one of its dependencies
-(incorrect-bits parsed-connectors (bit-set 0 16) (bit-set 0 16))
+(incorrect-bits
+ (-> parsed-connectors
+     (swap-outputs "z05" "frn")
+     (swap-outputs "wnf" "vtj")
+     (swap-outputs "z21" "gmq"))
+ (bit-set 0 38) (bit-set 0 38))
 
 (expression (-> parsed-connectors (swap-outputs "z05" "frn")) "rwf" 1)
 
 ;; this is of course slow
 (->>
- (let [connectors (swap-outputs parsed-connectors "z05" "frn")
+ (let [connectors (-> parsed-connectors
+                      (swap-outputs "z05" "frn")
+                      (swap-outputs "wnf" "vtj")
+                      (swap-outputs "z21" "gmq") ;; this does seem right
+                      )
        candidates (->> connectors
-                                 (filter (fn [[_ _ _ out]] (nil? (re-find #"^(x|y|z)" out))))
-                                 (map last))]
+                       (filter (fn [[_ _ _ out]] (nil? (re-find #"^(x|y)" out))))
+                       (map last)
+                       (remove #{"z05" "frn" "wnf" "vtj" "z21" "gmq"}))]
    (for [c1 candidates
          c2 candidates
-         :when (= (compare c1 c2) 1)
+         :when (> (compare c1 c2) 0)
          :let [connectors (swap-outputs connectors c1 c2)]]
-    [[c1 c2]
-     (incorrect-bits connectors (bit-set 0 16) (bit-set 0 16))]))
- (filter (fn [[_ l]] (= l '()))))
+     [[c1 c2]
+      (->> (list [(bit-set 0 38) (bit-set 0 38)])
+           (map (fn [[a b]] (set (incorrect-bits connectors a b))))
+           ;; this short-circuits the computation if we find something wrong
+           (reduce (fn [acc result]
+                     (if (empty? result)
+                       #{}
+                       (reduced result)))))]))
+ (filter (fn [[_ l]] (empty? l)))
+ (println "result"))
+
+;; OK so
+()
+
+(let [connectors  (-> parsed-connectors
+                      (swap-outputs "z05" "frn")
+                      (swap-outputs "wnf" "vtj")
+                      (swap-outputs "z21" "gmq"))]
+  (for [candidate '("wtt" "mdn")
+        :let [connectors (swap-outputs connectors "z39" candidate)]]
+    [["z39" candidate]
+    (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 7)))]))
+
+(incorrect-bits
+ (bit-set 0 38) (bit-set 0 38))
 
 ;; claims wnf <-> vtj should be swapped
-
-(let [connectors (-> parsed-connectors
-                     (swap-outputs "z05" "frn")
-                     (swap-outputs "wnf" "vtj")
-                     (swap-outputs "z21" "gmq")
-                     )]
-  (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 5))))
+;; options:
+;; ; result ([[z40 z39] #{}] [[z39 wtt] #{}] [[z39 mdn] #{}])
 
 ;; OK, final stretch
+
+;; "z39" "wtt"
+(let [connectors  (-> parsed-connectors
+                      (swap-outputs "z05" "frn")
+                      (swap-outputs "wnf" "vtj")
+                      (swap-outputs "z21" "gmq")
+                      (swap-outputs "z39" "wtt"))]
+  (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 7))))
+
+(defn alpha-sort []
+  (string/join "," (sort compare #{"z05" "frn" "wnf" "vtj" "z21" "gmq" "z39" "wtt"})))
+(alpha-sort)
