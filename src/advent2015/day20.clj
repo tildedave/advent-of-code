@@ -1,4 +1,5 @@
-(ns advent2015.day20)
+(ns advent2015.day20
+  (:require [utils :as utils]))
 
 ;; https://oeis.org/A000203
 ;; This is just the sigma function
@@ -9,36 +10,8 @@
 ;; the numbers we're dealing with are pretty small,
 ;; so we can probably just brute force this.
 
-(def isqrt
-  (memoize (fn [n]
-  (if (< n 2) n
-      (let [small (bit-shift-left (isqrt (bit-shift-right n 2)) 1)
-            large (inc small)]
-        (if (> (* large large) n)
-          small
-          large))))))
-
-(defn divisors [n]
-  (loop [n n
-         p 2
-         results []]
-    (cond
-      (= n 1) results
-      (> p (isqrt n)) (conj results [n 1])
-      :else (let [[n multiplicity] (loop [n n
-                                    multiplicity 0]
-                               (if (zero? (mod n p))
-                                 (recur (/ n p) (inc multiplicity))
-                                 [n multiplicity]))]
-        (if (> multiplicity 0)
-          (recur
-           n
-           (inc p)
-           (conj results [p multiplicity]))
-          (recur n (inc p) results))))))
-
 (defn sigma [n]
-  (loop [d-list (divisors n)
+  (loop [d-list (utils/divisors n)
          result 1]
     (if-let [[p n] (first d-list)]
       (recur

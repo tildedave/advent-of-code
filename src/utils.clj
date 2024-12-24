@@ -184,3 +184,51 @@ will not be present in the new structure. "
 
 (defn mod-inverse [m p]
   (mod-exp m (- p 2) p))
+
+(def isqrt
+  (memoize (fn [n]
+             (if (< n 2) n
+                 (let [small (bit-shift-left (isqrt (bit-shift-right n 2)) 1)
+                       large (inc small)]
+                   (if (> (* large large) n)
+                     small
+                     large))))))
+
+(defn divisors [n]
+  (loop [n n
+         p 2
+         results []]
+    (cond
+      (= n 1) results
+      (> p (isqrt n)) (conj results [n 1])
+      :else (let [[n multiplicity] (loop [n n
+                                          multiplicity 0]
+                                     (if (zero? (mod n p))
+                                       (recur (/ n p) (inc multiplicity))
+                                       [n multiplicity]))]
+              (if (> multiplicity 0)
+                (recur
+                 n
+                 (inc p)
+                 (conj results [p multiplicity]))
+                (recur n (inc p) results))))))
+
+
+(defn all-divisors
+  ([n] (all-divisors n (isqrt n)))
+  ([n limit]
+   (loop [d 2
+          results [1]]
+     (cond
+       (> d limit) results
+       :else (if (zero? (mod n d))
+               (recur (inc d) (conj results d))
+               (recur (inc d) results))))))
+
+(defn solve-2d-system [[[x1 x2 x] [y1 y2 y]]]
+  (let [det (- (* x1 y2) (* x2 y1))
+        x-minor (- (* x y2) (* x2 y))
+        y-minor (- (* x1 y) (* x y1))]
+    (if (zero? det)
+      nil
+      [(/ x-minor det) (/ y-minor det)])))
