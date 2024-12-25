@@ -21,3 +21,13 @@
               (range 0 ymax))
           :while (= (grid/at grid [x y]) \#)]
       [x y]))))))
+
+(defn fits? [grid1 grid2]
+  (every? #(<= % 5) (mapv + (heights grid1) (heights grid2))))
+
+(count
+ (let [grids (map grid/parse (utils/split-by "" (utils/read-input "2024/day25-example.txt")))]
+  (for [key (filter is-key? grids)
+        lock (filter is-lock? grids)
+        :when (fits? key lock)]
+    1)))
