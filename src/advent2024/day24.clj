@@ -1,7 +1,8 @@
 (ns advent2024.day24
   (:require
    [utils :as utils]
-   [clojure.math :as math]))
+   [clojure.math :as math]
+   [clojure.string :as string]))
 
 (defn parse-signal [^String line]
   (let [[signal pulse] (.split  #": " line)]
@@ -296,6 +297,8 @@
                       (swap-outputs "z39" "wtt"))]
   (map (fn [[a b]] (incorrect-bits connectors a b)) (partition 2 1 (limit-mask-seq 7))))
 
+
 (defn alpha-sort []
   (string/join "," (sort compare #{"z05" "frn" "wnf" "vtj" "z21" "gmq" "z39" "wtt"})))
+
 (alpha-sort)
