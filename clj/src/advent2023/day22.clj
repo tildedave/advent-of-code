@@ -154,9 +154,11 @@
    (fn [acc c]
      (reduce
       (fn [acc supported-by]
-        (-> acc
-            (update-in [:supports supported-by] (fnil #(conj % c) #{}))
-            (update-in [:supported-by c] (fnil #(conj % supported-by) #{}))))
+        (if (= supported-by c)
+          acc
+          (-> acc
+              (update-in [:supports supported-by] (fnil #(conj % c) #{}))
+              (update-in [:supported-by c] (fnil #(conj % supported-by) #{})))))
       acc
       (filter (partial supports? c) cubes)))
    {:supports {} :supported-by {}}
@@ -182,9 +184,6 @@
       (:cubes settled-cubes)))))
 
 ;; correct
-(answer-part1 example-lines)
-
-;; off by 1 >:(
-(answer-part1 (utils/read-input "2023/day22.txt"))
-
-;; (settle (map parse-cube (utils/read-input "2023/day22.txt")))
+(assert (= 5 (answer-part1 example-lines)))
+;; also correct
+(assert (= 393 (answer-part1 (utils/read-input "2023/day22.txt"))))
