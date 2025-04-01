@@ -1,5 +1,6 @@
 (ns advent2023.day22
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [utils :as utils]))
 
 (def example-lines
   ["1,0,1~1,2,1"
@@ -17,7 +18,7 @@
       (not= dx 0) [1 0 0]
       (not= dy 0) [0 1 0]
       (not= dz 0) [0 0 1]
-      :else (assert false))))
+      :else [0 0 0])))
 
 (def alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -26,7 +27,7 @@
         parsed-left (mapv Integer/parseInt (.split left ","))
         parsed-right (mapv Integer/parseInt (.split right ","))
         a (axis parsed-left parsed-right)
-        idx (case a [1 0 0] 0 [0 1 0] 1 [0 0 1] 2)]
+        idx (case a [1 0 0] 0 [0 1 0] 1 [0 0 1] 2 0)]
     {:start (if (< (get parsed-left idx) (get parsed-right idx))
               parsed-left
               parsed-right)
@@ -55,11 +56,23 @@
 
 (assert (contained? (parse-cube "1,0,1~1,2,1") [1 1 1]))
 
-(defn shift-down [{:keys [start end axis] :as brick}]
+(defn intersects? [cube other-cube]
+  (let [cube-end (:end cube)
+        dcurr (:axis cube)]
+    (loop [curr (:start cube)]
+      (cond
+        (contained? other-cube curr) true
+        (= curr cube-end) false
+        :else (recur (mapv + curr dcurr))))))
+
+(defn shift-x [x {:keys [start end] :as brick}]
   (let [[_ _ sz] start [_ _ ez] end]
     (-> brick
-        (assoc-in [:start 2] (dec sz))
-        (assoc-in [:end 2] (dec ez)))))
+        (assoc-in [:start 2] (+ sz x))
+        (assoc-in [:end 2] (+ ez x)))))
+
+(def shift-down (partial shift-x -1))
+(def shift-up (partial shift-x -1))
 
 (shift-down (parse-cube "1,0,1~1,2,1"))
 
@@ -87,35 +100,30 @@
     z-map
     (let [shifted (shift-down cube)
           new-z (get-in shifted [:start 2])
-          _ (println (disj (get z-map new-z #{}) cube))
         ;;   _ (println "new-z" new-z)
         ;;   _ (println (get z-map new-z #{}))]
           ]
       (if (->> (disj (get z-map new-z #{}) cube)
-               (filter #(contained? % (:start shifted)))
+               (filter #(intersects? % shifted))
                (empty?))
-        (do
-          (println z-map)
-          (println "fall")
-          (println (reduce
-                    (fn [z-map z]
-                      (update z-map z #(-> % (disj cube) (conj shifted))))
-                    z-map
-                    (range (get (:start cube) 2) (inc (get (:end cube) 2)))))
-          (->
-           (reduce
-            (fn [z-map z]
-              (update z-map z #(-> % (disj cube) (conj shifted))))
-            z-map
-            (range (get (:start cube) 2) (inc (get (:end cube) 2))))
-           (update (get-in cube [:end 2]) #(disj % shifted))
-           (update new-z (fnil #(conj % shifted) #{}))
-           (update :shifted (fnil #(conj % shifted) #{}))
-           (update :cubes (fnil #(-> % (conj shifted) (disj cube)) #{}))))
+        (->
+         (reduce
+          (fn [z-map z]
+            (update z-map z #(-> % (disj cube) (conj shifted))))
+          z-map
+          (range (get (:start cube) 2) (inc (get (:end cube) 2))))
+         (update (get-in cube [:end 2]) #(disj % shifted))
+         (update new-z (fnil #(conj % shifted) #{}))
+         (update :shifted (fnil #(conj % shifted) #{}))
+         (update :cubes (fnil #(-> % (conj shifted) (disj cube)) #{})))
         z-map))))
 
 (let [start-map (reduce add-to-z-map {} (map parse-cube example-lines))]
   (reduce shift-in-z-map start-map (:cubes start-map)))
+
+(let [start-map (reduce add-to-z-map {} (map-indexed parse-cube-with-name example-lines))]
+  (reduce shift-in-z-map start-map (:cubes start-map)))
+
 
 (defn settle [parsed-cubes]
   (->>
@@ -123,9 +131,60 @@
     (fn [z-map]
       (reduce shift-in-z-map (assoc z-map :shifted #{}) (:cubes z-map)))
     (reduce add-to-z-map {} parsed-cubes))
-   (take 100)
+;;    (take 100)
    (rest)
    (drop-while #(seq (:shifted %)))
    (first)))
 
-(settle (map-indexed parse-cube example-lines))
+(settle (map-indexed parse-cube-with-name example-lines))
+
+(intersects?
+ {:start [0 2 2], :end [2 2 2], :axis [1 0 0], :name "C"}
+ {:start [0 0 2], :end [2 0 2], :axis [1 0 0], :name "B"})
+
+;; OK we are ready to determine which are safe for disintegration
+
+(defn supports?
+  "Return true if cube1 supports cube2"
+  [cube1 cube2]
+  (intersects? (shift-down cube1) cube2))
+
+(defn support-map [{:keys [cubes]}]
+  (reduce
+   (fn [acc c]
+     (reduce
+      (fn [acc supported-by]
+        (-> acc
+            (update-in [:supports supported-by] (fnil #(conj % c) #{}))
+            (update-in [:supported-by c] (fnil #(conj % supported-by) #{}))))
+      acc
+      (filter (partial supports? c) cubes)))
+   {:supports {} :supported-by {}}
+   cubes))
+
+(support-map (settle (map-indexed parse-cube-with-name example-lines)))
+
+(defn safe-to-distingrate? [cube {:keys [supports supported-by]}]
+  ;; you're safe to disintegrate if, for every cube you support, another cube
+  ;; (not you) supports them.
+  (->> (supports cube)
+       (filter
+        (fn [other-cube]
+          (empty? (disj (supported-by other-cube) cube other-cube))))
+       (empty?)))
+
+(defn answer-part1 [lines]
+  (let [settled-cubes (settle (map parse-cube lines))
+        support-map (support-map settled-cubes)]
+    (count
+     (filter
+      #(safe-to-distingrate? % support-map)
+      (:cubes settled-cubes)))))
+
+;; correct
+(answer-part1 example-lines)
+
+;; off by 1 >:(
+(answer-part1 (utils/read-input "2023/day22.txt"))
+
+;; (settle (map parse-cube (utils/read-input "2023/day22.txt")))
