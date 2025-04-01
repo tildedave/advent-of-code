@@ -34,14 +34,13 @@
      :end (if (< (get parsed-left idx) (get parsed-right idx))
             parsed-right
             parsed-left)
-     :axis a
-     :id (random-uuid)}))
+     :axis a}))
 
 (defn parse-cube-with-name [n ^String line]
   (-> (parse-cube line)
       (assoc :name (str (.charAt alphabet n)))))
 
-(assert (= (dissoc (parse-cube "1,2,1~1,0,1") :id) (dissoc (parse-cube "1,0,1~1,2,1") :id)))
+(assert (= (parse-cube "1,2,1~1,0,1") (parse-cube "1,0,1~1,2,1")))
 
 ;; for each brick, fall it down (if it can)
 ;; how to determine if it can fall down?  well you have the shifted down brick,
@@ -162,28 +161,72 @@
  {:start [0 2 2], :end [2 2 2], :axis [1 0 0], :name "C"}
  {:start [0 0 2], :end [2 0 2], :axis [1 0 0], :name "B"})
 
-(defn answer-part1 [lines]
-  (let [settled-cubes (settle (map parse-cube lines))]
-    (->>
-     (for [cube (:cubes settled-cubes)]
-       (fall-seq settled-cubes cube))
-     (filter #(empty? (:shifted (first %))))
-     (count))))
+;; OK we are ready to determine which are safe for disintegration
 
-(answer-part1 example-lines)
+(defn supports?
+  "Return true if cube1 supports cube2"
+  [cube1 cube2]
+  (intersects? (shift-down cube1) cube2))
+
+(defn support-map [{:keys [cubes]}]
+  (reduce
+   (fn [acc c]
+     (reduce
+      (fn [acc supported-by]
+        (if (= supported-by c)
+          acc
+          (-> acc
+              (update-in [:supports supported-by] (fnil #(conj % c) #{}))
+              (update-in [:supported-by c] (fnil #(conj % supported-by) #{})))))
+      acc
+      (filter (partial supports? c) cubes)))
+   {:supports {} :supported-by {}}
+   cubes))
+
+(support-map (settle (map-indexed parse-cube-with-name example-lines)))
+
+(defn falling-cubes [cube {:keys [supports supported-by]}]
+  (loop
+   [result #{}
+    queue [cube]]
+    (if-let [c (first queue)]
+      (let [result (conj result c)]
+        (recur
+         (conj result c)
+         (reduce
+          conj
+          (rest queue)
+          (filter
+           (fn [other-cube]
+             (empty?
+              (set/difference (supported-by other-cube) result)))
+           (supports c)))))
+      result)))
+
+(defn causality-map [cubes s]
+  (reduce into {} (map #(hash-map % (disj (falling-cubes % s) %)) (:cubes cubes))))
+
+(defn answer-part1 [lines]
+  (let [cubes (settle (map parse-cube lines))
+        s (support-map cubes)]
+    (->> (causality-map cubes s)
+         (vals)
+         (filter empty?)
+         (count))))
+
+(defn answer-part2 [lines]
+  (let [cubes (settle (map parse-cube lines))
+        s (support-map cubes)]
+    (->> (causality-map cubes s)
+         (vals)
+         (map count)
+         (reduce +))))
 
 ;; correct
 (assert (= 5 (answer-part1 example-lines)))
 ;; also correct
 (time (assert (= 393 (answer-part1 (utils/read-input "2023/day22.txt")))))
 
-(defn answer-part2 [lines]
-  (let [settled-cubes (settle (map parse-cube lines))]
-    (->>
-     (for [cube (:cubes settled-cubes)]
-       (num-fall settled-cubes cube))
-     (reduce +))))
-
 (assert (= 7 (answer-part2 example-lines)))
 ;; 88 seconds
-(time (println (answer-part2 (utils/read-input "2023/day22.txt"))))
+(time (assert (= 58440 (answer-part2 (utils/read-input "2023/day22.txt")))))
