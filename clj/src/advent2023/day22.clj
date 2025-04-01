@@ -34,13 +34,14 @@
      :end (if (< (get parsed-left idx) (get parsed-right idx))
             parsed-right
             parsed-left)
-     :axis a}))
+     :axis a
+     :id (random-uuid)}))
 
 (defn parse-cube-with-name [n ^String line]
   (-> (parse-cube line)
       (assoc :name (str (.charAt alphabet n)))))
 
-(assert (= (parse-cube "1,2,1~1,0,1") (parse-cube "1,0,1~1,2,1")))
+(assert (= (dissoc (parse-cube "1,2,1~1,0,1") :id) (dissoc (parse-cube "1,0,1~1,2,1") :id)))
 
 ;; for each brick, fall it down (if it can)
 ;; how to determine if it can fall down?  well you have the shifted down brick,
@@ -124,17 +125,36 @@
 (let [start-map (reduce add-to-z-map {} (map-indexed parse-cube-with-name example-lines))]
   (reduce shift-in-z-map start-map (:cubes start-map)))
 
-
 (defn settle [parsed-cubes]
   (->>
    (iterate
     (fn [z-map]
       (reduce shift-in-z-map (assoc z-map :shifted #{}) (:cubes z-map)))
     (reduce add-to-z-map {} parsed-cubes))
-;;    (take 100)
    (rest)
    (drop-while #(seq (:shifted %)))
    (first)))
+
+(defn fall-seq [z-map {:keys [start end] :as cube-to-remove}]
+  (->>
+   (iterate
+    (fn [z-map]
+      (reduce shift-in-z-map (assoc z-map :shifted #{}) (:cubes z-map)))
+    (reduce
+     (fn [acc z] (update acc z #(disj % cube-to-remove)))
+     (update z-map :cubes #(disj % cube-to-remove))
+     (range (get start 2) (inc (get end 2)))))
+   (rest)))
+
+(defn num-fall [z-map cube-to-remove]
+  (->>
+   (fall-seq z-map cube-to-remove)
+   (take-while #(not-empty (:shifted %)))
+   (reduce
+    (fn [acc {:keys [shifted]}]
+      (reduce conj acc (map :id shifted)))
+    #{})
+   (count)))
 
 (settle (map-indexed parse-cube-with-name example-lines))
 
@@ -142,48 +162,28 @@
  {:start [0 2 2], :end [2 2 2], :axis [1 0 0], :name "C"}
  {:start [0 0 2], :end [2 0 2], :axis [1 0 0], :name "B"})
 
-;; OK we are ready to determine which are safe for disintegration
-
-(defn supports?
-  "Return true if cube1 supports cube2"
-  [cube1 cube2]
-  (intersects? (shift-down cube1) cube2))
-
-(defn support-map [{:keys [cubes]}]
-  (reduce
-   (fn [acc c]
-     (reduce
-      (fn [acc supported-by]
-        (if (= supported-by c)
-          acc
-          (-> acc
-              (update-in [:supports supported-by] (fnil #(conj % c) #{}))
-              (update-in [:supported-by c] (fnil #(conj % supported-by) #{})))))
-      acc
-      (filter (partial supports? c) cubes)))
-   {:supports {} :supported-by {}}
-   cubes))
-
-(support-map (settle (map-indexed parse-cube-with-name example-lines)))
-
-(defn safe-to-distingrate? [cube {:keys [supports supported-by]}]
-  ;; you're safe to disintegrate if, for every cube you support, another cube
-  ;; (not you) supports them.
-  (->> (supports cube)
-       (filter
-        (fn [other-cube]
-          (empty? (disj (supported-by other-cube) cube other-cube))))
-       (empty?)))
-
 (defn answer-part1 [lines]
-  (let [settled-cubes (settle (map parse-cube lines))
-        support-map (support-map settled-cubes)]
-    (count
-     (filter
-      #(safe-to-distingrate? % support-map)
-      (:cubes settled-cubes)))))
+  (let [settled-cubes (settle (map parse-cube lines))]
+    (->>
+     (for [cube (:cubes settled-cubes)]
+       (fall-seq settled-cubes cube))
+     (filter #(empty? (:shifted (first %))))
+     (count))))
+
+(answer-part1 example-lines)
 
 ;; correct
 (assert (= 5 (answer-part1 example-lines)))
 ;; also correct
-(assert (= 393 (answer-part1 (utils/read-input "2023/day22.txt"))))
+(time (assert (= 393 (answer-part1 (utils/read-input "2023/day22.txt")))))
+
+(defn answer-part2 [lines]
+  (let [settled-cubes (settle (map parse-cube lines))]
+    (->>
+     (for [cube (:cubes settled-cubes)]
+       (num-fall settled-cubes cube))
+     (reduce +))))
+
+(assert (= 7 (answer-part2 example-lines)))
+;; 88 seconds
+(time (println (answer-part2 (utils/read-input "2023/day22.txt"))))
