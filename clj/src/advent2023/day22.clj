@@ -228,5 +228,5 @@
 (time (assert (= 393 (answer-part1 (utils/read-input "2023/day22.txt")))))
 
 (assert (= 7 (answer-part2 example-lines)))
-;; 88 seconds
+;; ~4 seconds
 (time (assert (= 58440 (answer-part2 (utils/read-input "2023/day22.txt")))))
