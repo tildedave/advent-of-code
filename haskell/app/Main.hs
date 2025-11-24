@@ -9,6 +9,7 @@ import Data.Text (pack, stripEnd)
 import Day1 ( part1, part2 )
 import Day2 ( part1, part2 )
 import Day3 ( part1, part2 )
+import Day4 ( part1, part2 )
 
 main :: IO ()
 main = do
@@ -21,5 +22,7 @@ main = do
         ["day2", "2"] -> printf "%d\n" (Day2.part2 contents)
         ["day3", "1"] -> printf "%d\n" (Day3.part1 contents)
         ["day3", "2"] -> printf "%d\n" (Day3.part2 contents)
+        ["day4", "1"] -> printf "%d\n" (Day4.part1 contents)
+        ["day4", "2"] -> printf "%d\n" (Day4.part2 contents)
         _ -> do
             putStrLn "Not found"
