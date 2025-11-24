@@ -41,7 +41,7 @@ score c = resultScore (result c) + shapeScore (fst c)
 parseGame :: T.Text -> (Choice, Choice)
 parseGame s = (parseChoice $ T.last s, parseChoice $ T.head s)
 
--- | Foo
+-- | lineScore
 -- >>> lineScore (T.pack "A Y")
 -- 8
 -- >>> lineScore (T.pack "B X")
@@ -75,8 +75,15 @@ parseStrategy :: T.Text -> (Choice, Result)
 -- parseStrategy = ap ((,) . parseChoice . T.head) (parseResult . T.last)
 parseStrategy s = (parseChoice $ T.head s, parseResult $ T.last s)
 
-lineScorePart2 :: (Choice, Result) -> Int
-lineScorePart2 (opponentMove, r) = score (move opponentMove r, opponentMove)
+-- | lineScorePart2
+-- >>> lineScorePart2 (T.pack "A Y")
+-- 4
+-- >>> lineScorePart2 (T.pack "B X")
+-- 1
+-- >>> lineScorePart2 (T.pack "C Z")
+-- 7
+lineScorePart2 :: T.Text -> Int
+lineScorePart2 s = case parseStrategy s of (opponentMove, r) -> score (move opponentMove r, opponentMove)
 
 part2 :: T.Text -> Int
-part2 = sum . map (lineScorePart2 . parseStrategy). T.splitOn "\n"
+part2 = sum . map lineScorePart2 . T.splitOn "\n"
