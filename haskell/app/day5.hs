@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Day5 where
@@ -19,17 +20,17 @@ parseInstruction :: T.Text -> Instruction
 parseInstruction = mapMaybe readMaybe . words . T.unpack
 
 -- boxes are at 1  5  9  ...
-parseNumLine :: T.Text -> [Char]
-parseNumLine = (\s -> map (s !!) [1,5..length s]) . T.unpack
+parseBoxLine :: T.Text -> [Char]
+parseBoxLine = (\s -> map (s !!) [1,5..length s]) . T.unpack
 
-parseBoxLine :: Int -> T.Text -> [Char]
-parseBoxLine numLength = (\s -> map (\n -> if n >= length s then ' ' else s !! n) [1,5..numLength]) . T.unpack
-
-parseBoxes :: Int -> Int -> [T.Text] -> Map.Map Int [Char]
-parseBoxes numBoxes numLength =
+parseBoxes :: [T.Text] -> Map.Map Int [Char]
+parseBoxes =
     snd .
-    foldr (\s (n, m) -> (n + 1, Map.insert (numBoxes - n + 1) (trim s) m)) (1, Map.empty) .
-    foldr (flip (zipWith (flip (:))) . parseBoxLine numLength) (map (const "") [0..numBoxes])
+    foldl' (\(n, m) s -> (n + 1, Map.insert n (trim s) m)) (1, Map.empty) .
+    foldr (flip (zipWith (flip (:))) . parseBoxLine) (repeat "")
+
+pad :: Int -> T.Text -> T.Text
+pad n s = if T.length s >= n then s else T.append s (T.replicate (n - T.length s) " ")
 
 parseLines :: [T.Text] -> (Map.Map Int [Char], [Instruction])
 parseLines l =
@@ -37,8 +38,8 @@ parseLines l =
         [hd, tl] ->
             case splitAt (length hd - 1) hd of
                 (boxes, nums) ->
-                    let (numBoxes, numLength) = (length (parseNumLine (head nums)), T.length (head nums)) in
-                        (parseBoxes numBoxes numLength boxes, map parseInstruction tl)
+                    let padLength = T.length (head nums) in
+                        (parseBoxes (map (pad padLength) boxes), map parseInstruction tl)
         _ -> error "invalid input"
 
 processInstruction :: Map.Map Int [Char] -> Instruction -> Map.Map Int [Char]
