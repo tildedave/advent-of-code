@@ -60,5 +60,16 @@ part1 s = case parseLines $ T.splitOn "\n" s of
         Map.foldr (\s' acc -> head s' : acc) [] $
         foldl' processInstruction m instr
 
+processInstructionPart2 :: Map.Map Int [Char] -> Instruction -> Map.Map Int [Char]
+processInstructionPart2 m [numMove, source, dest] =
+    let sofar = (m ! source) in
+        Map.insert dest (take numMove sofar ++ fromJust (Map.lookup dest m)) (Map.insert source (drop numMove sofar) m)
+
+processInstructionPart2 _ _ = error "invalid instruction"
+
 part2 :: T.Text -> T.Text
-part2 _ = "bob"
+part2 s = case parseLines $ T.splitOn "\n" s of
+    (m, instr) ->
+        T.pack $
+        Map.foldr (\s' acc -> head s' : acc) [] $
+        foldl' processInstructionPart2 m instr
