@@ -1,8 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Day5 where
-
 import qualified Data.Text as T
 import Data.Maybe (mapMaybe, fromJust)
 import Text.Read (readMaybe)
