@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import Data.Map ((!))
 import Util (trim)
 
-import Data.List (uncons)
+import Data.List (uncons, foldl')
 import Data.List.Split (splitOn)
 
 -- input is awful but oh well
@@ -41,11 +41,11 @@ parseLines l =
                         (parseBoxes numBoxes numLength boxes, map parseInstruction tl)
         _ -> error "invalid input"
 
-processInstruction :: Instruction -> Map.Map Int [Char] -> Map.Map Int [Char]
-processInstruction [numMove, source, dest] m =
+processInstruction :: Map.Map Int [Char] -> Instruction -> Map.Map Int [Char]
+processInstruction m [numMove, source, dest] =
     foldr
     (\_ m' ->
-        case fromJust (uncons (m' ! source))
+        case fromJust $ uncons (m' ! source)
             of (hd, tl) ->
                 Map.insert dest (hd : fromJust (Map.lookup dest m')) (Map.insert source tl m'))
     m
@@ -57,7 +57,7 @@ part1 s = case parseLines $ T.splitOn "\n" s of
     (m, instr) ->
         T.pack $
         Map.foldr (\s' acc -> head s' : acc) [] $
-        foldr processInstruction m instr
+        foldl' processInstruction m instr
 
 part2 :: T.Text -> T.Text
 part2 _ = "bob"
