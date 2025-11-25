@@ -53,12 +53,15 @@ processInstruction m [numMove, source, dest] =
     [1..numMove]
 processInstruction _ _ = error "invalid instruction"
 
-part1 :: T.Text -> T.Text
-part1 s = case parseLines $ T.splitOn "\n" s of
+moveBoxes :: (Map.Map Int [Char] -> Instruction -> Map.Map Int [Char]) -> T.Text -> T.Text
+moveBoxes process s = case parseLines $ T.splitOn "\n" s of
     (m, instr) ->
         T.pack $
         Map.foldr (\s' acc -> head s' : acc) [] $
-        foldl' processInstruction m instr
+        foldl' process m instr
+
+part1 :: T.Text -> T.Text
+part1 = moveBoxes processInstruction
 
 processInstructionPart2 :: Map.Map Int [Char] -> Instruction -> Map.Map Int [Char]
 processInstructionPart2 m [numMove, source, dest] =
@@ -68,8 +71,4 @@ processInstructionPart2 m [numMove, source, dest] =
 processInstructionPart2 _ _ = error "invalid instruction"
 
 part2 :: T.Text -> T.Text
-part2 s = case parseLines $ T.splitOn "\n" s of
-    (m, instr) ->
-        T.pack $
-        Map.foldr (\s' acc -> head s' : acc) [] $
-        foldl' processInstructionPart2 m instr
+part2 = moveBoxes processInstructionPart2
