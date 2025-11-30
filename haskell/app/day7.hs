@@ -111,18 +111,18 @@ parseTree = parseInteractions (Dir "/" []) [] . tail
 
 type DirectorySizeMap = M.Map T.Text Int
 
-sizeCount :: DirectorySizeMap -> FSEntry -> (Int, DirectorySizeMap)
-sizeCount m (File n _) = (n, m)
-sizeCount m (Dir a contents) =
-    let (n', m') = foldr (\entry (n, acc) -> let (k, j) = sizeCount acc entry in (n + k, j)) (0, m) contents in
-        (n', M.insert a n' m')
+sizeCount :: DirectorySizeMap -> DirPath -> FSEntry -> (Int, DirectorySizeMap)
+sizeCount m _ (File n _) = (n, m)
+sizeCount m path (Dir a contents) =
+    let (n', m') = foldr (\entry (n, acc) -> let (k, j) = sizeCount acc (a:path) entry in (n + k, j)) (0, m) contents in
+        (n', M.insert (T.show (a:path)) n' m')
 
 -- | part1
 -- >>> s = "$ cd /\n$ ls\ndir a\n14848514 b.txt\n8504156 c.dat\ndir d\n$ cd a\n$ ls\ndir e\n29116 f\n2557 g\n62596 h.lst\n$ cd e\n$ ls\n584 i\n$ cd ..\n$ cd ..\n$ cd d\n$ ls\n4060174 j\n8033020 d.log\n5626152 d.ext\n7214296 k"
 -- >>> part1 s
 -- 95437
 part1 :: T.Text -> Int
-part1 = M.foldr (\s n -> if s <= 100000 then s + n else n) 0 . snd . sizeCount M.empty . parseTree . T.splitOn "\n"
+part1 = M.foldr (\s n -> if s <= 100000 then s + n else n) 0 . snd . sizeCount M.empty [] . parseTree . T.splitOn "\n"
 
 part2 :: T.Text -> Int
 part2 _ = 1
