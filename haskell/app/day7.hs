@@ -122,7 +122,7 @@ sizeCount m (Dir a contents) =
 -- >>> part1 s
 -- 95437
 part1 :: T.Text -> Int
-part1 = M.foldr (\s n -> if s < 100000 then s + n else n) 0 . snd . sizeCount M.empty . parseTree . T.splitOn "\n"
+part1 = M.foldr (\s n -> if s <= 100000 then s + n else n) 0 . snd . sizeCount M.empty . parseTree . T.splitOn "\n"
 
 part2 :: T.Text -> Int
 part2 _ = 1
