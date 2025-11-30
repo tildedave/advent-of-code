@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Day7 where
 
@@ -72,13 +73,14 @@ type DirPath = [T.Text]
 
 updateIn :: FSEntry -> DirPath -> [FSEntry] -> FSEntry
 updateIn (Dir dirname _) [] entries = Dir dirname entries
-updateIn (Dir dirname contents) (x:xs) entries =
+updateIn (Dir dirname contents) xs entries =
+    let (xs', x) = (init xs, last xs) in
     Dir dirname (map (\entry ->
         case entry of
             File _ _ -> entry
             Dir dirname' _ ->
                 if dirname' == x then
-                    updateIn entry xs entries
+                    updateIn entry xs' entries
                     else entry) contents)
 updateIn (File _ _) _ _ = error "can't update file"
 
