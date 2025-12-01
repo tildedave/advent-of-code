@@ -1,7 +1,10 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Util where
 
 import Data.Char (isSpace)
 import qualified Data.Map as M
+import qualified Data.Text as T
 
 trim :: String -> String
 trim = f . f
@@ -26,7 +29,45 @@ modPositive n m =
   let r = n `mod` m
    in if r < 0 then modPositive (r + m) m else r
 
-data Grid a = Grid
-  { cells :: M.Map (Int, Int) a,
-    bounds :: (Int, Int)
+class Neighbors a where
+  neighbors :: a -> [a]
+
+type Coord2d = (Int, Int)
+
+data Grid k a = Grid
+  { cells :: M.Map k a,
+    bounds :: k
   }
+
+-- parseGrid :: [T.Text] -> Grid Char
+parseGridContents :: (Char -> a) -> [T.Text] -> M.Map Coord2d a
+parseGridContents f =
+  foldr
+    ( \(y :: Int, t) acc ->
+        foldr
+          (\(x :: Int, c) -> M.insert (x, y) c)
+          acc
+          (zip [0 ..] (map f (T.unpack t)))
+    )
+    M.empty
+    . zip [0 ..]
+
+-- unexpected: maximum works for tuples
+-- Note - bounds are inclusive, <= maxx etc
+parseGrid :: (Char -> a) -> [T.Text] -> Grid Coord2d a
+parseGrid f l =
+  let cells_ = parseGridContents f l
+   in Grid {cells = cells_, bounds = maximum (M.keys cells_)}
+
+cardinalNeighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
+cardinalNeighbors g (x, y) =
+  filter
+    (`M.member` cells g)
+    [ (x + 1, y),
+      (x - 1, y),
+      (x, y + 1),
+      (x, y - 1)
+    ]
+
+gridAt :: (Ord k) => Grid k a -> k -> Maybe a
+gridAt g k = M.lookup k (cells g)
