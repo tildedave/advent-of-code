@@ -6,7 +6,6 @@ module Day7 where
 import qualified Data.Text as T
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
-import Debug.Trace (traceShow, trace)
 
 data FSEntry = File Int T.Text | Dir T.Text [FSEntry] deriving (Show)
 data Command = Chdir T.Text | Backup | Ls deriving (Show)
@@ -122,7 +121,29 @@ sizeCount m path (Dir a contents) =
 -- >>> part1 s
 -- 95437
 part1 :: T.Text -> Int
-part1 = M.foldr (\s n -> if s <= 100000 then s + n else n) 0 . snd . sizeCount M.empty [] . parseTree . T.splitOn "\n"
+part1 =
+    M.foldr (\s n -> if s <= 100000 then s + n else n) 0
+    . snd
+    . sizeCount M.empty []
+    . parseTree
+    . T.splitOn "\n"
 
+totalDiskSpace :: Int
+totalDiskSpace = 70000000
+
+neededFreeSpace :: Int
+neededFreeSpace = 30000000
+
+-- | part2
+-- >>> s = "$ cd /\n$ ls\ndir a\n14848514 b.txt\n8504156 c.dat\ndir d\n$ cd a\n$ ls\ndir e\n29116 f\n2557 g\n62596 h.lst\n$ cd e\n$ ls\n584 i\n$ cd ..\n$ cd ..\n$ cd d\n$ ls\n4060174 j\n8033020 d.log\n5626152 d.ext\n7214296 k"
+-- >>> part2 s
+-- 24933642
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 l =
+    let (totalSize, dirMap) = sizeCount M.empty [] $ parseTree $ T.splitOn "\n" l in
+    fromJust $ M.foldr (\v a ->
+        if totalDiskSpace - totalSize + v > neededFreeSpace then
+            case a of
+                Nothing -> Just v
+                Just n -> Just (min n v)
+                else a) Nothing dirMap
