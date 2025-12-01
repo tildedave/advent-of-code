@@ -55,8 +55,7 @@ part1 = length . filter (\n -> 0 == n `mod` 100) . dialSequence . map parseRotat
 -- 0
 numTurns :: Int -> Rotation -> Int
 numTurns prev (LeftRotation n) =
-  let next = prev - n
-   in length (takeWhile (>= next) $ drop (if prev == 0 then 1 else 0) [0, -100 ..])
+  ((100 - prev) + n) `div` 100 - (if prev == 0 then 1 else 0)
 numTurns prev (RightRotation n) = (prev + n) `div` 100
 
 part2 :: T.Text -> Int
