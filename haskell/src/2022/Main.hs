@@ -40,6 +40,6 @@ main = do
     ["day9", "1"] -> printf "%d\n" (Day9.part1 contents)
     ["day9", "2"] -> printf "%d\n" (Day9.part2 contents)
     ["day10", "1"] -> printf "%d\n" (Day10.part1 contents)
-    ["day10", "2"] -> printf "%d\n" (Day10.part2 contents)
+    ["day10", "2"] -> printf "%s\n" (Day10.part2 contents)
     _ -> do
       putStrLn "Not found"

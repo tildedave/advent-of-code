@@ -1,6 +1,7 @@
 module Day10 where
 
-import Data.List (unfoldr)
+import Data.List (intercalate, unfoldr)
+import Data.List.Split (chunksOf)
 import qualified Data.Text as T
 
 data Instruction = Noop | AddX Int deriving (Show)
@@ -62,5 +63,15 @@ part1 =
     . map parseCommand
     . T.splitOn "\n"
 
-part2 :: T.Text -> Int
-part2 _ = 1
+part2 :: T.Text -> T.Text
+part2 =
+  T.pack
+    . intercalate "\n"
+    . map (map (\(n, s) -> let idx = n `mod` 40 in if value s `elem` [idx + 1, idx, idx - 1] then '#' else '.'))
+    . chunksOf 40
+    . take 240
+    . zip [0 ..]
+    . scanl (\ps instr -> tick $ step ps instr) initialProgramState
+    . itemStream
+    . map parseCommand
+    . T.splitOn "\n"
