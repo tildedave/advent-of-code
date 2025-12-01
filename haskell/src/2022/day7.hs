@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Day7 where
 
-import qualified Data.Text as T
 import qualified Data.Map as M
 import Data.Maybe (fromJust)
+import qualified Data.Text as T
 
 data FSEntry = File Int T.Text | Dir T.Text [FSEntry] deriving (Show)
+
 data Command = Chdir T.Text | Backup | Ls deriving (Show)
 
 -- | parseCommand
@@ -17,9 +17,9 @@ data Command = Chdir T.Text | Backup | Ls deriving (Show)
 -- Just (Chdir "a")
 parseCommand :: T.Text -> Maybe Command
 parseCommand s =
-    case T.stripPrefix "$ cd " s of
-        Nothing -> if s == "$ ls" then Just Ls else Nothing
-        Just dir -> if dir == ".." then Just Backup else Just $ Chdir dir
+  case T.stripPrefix "$ cd " s of
+    Nothing -> if s == "$ ls" then Just Ls else Nothing
+    Just dir -> if dir == ".." then Just Backup else Just $ Chdir dir
 
 -- | parseFSEntry
 -- >>> parseFSEntry (T.pack "62596 h.lst")
@@ -30,14 +30,15 @@ parseCommand s =
 -- Just (File 584 "i")
 parseFSEntry :: T.Text -> Maybe FSEntry
 parseFSEntry s =
-    case T.stripPrefix "dir " s of
-        Nothing ->
-            if T.isPrefixOf "cd" s then
-                Nothing
-            else case T.splitOn " " s of
-                [numStr, fileName] -> Just $ File (read $ T.unpack numStr) fileName
-                _ -> Nothing
-        Just dir -> Just $ Dir dir []
+  case T.stripPrefix "dir " s of
+    Nothing ->
+      if T.isPrefixOf "cd" s
+        then
+          Nothing
+        else case T.splitOn " " s of
+          [numStr, fileName] -> Just $ File (read $ T.unpack numStr) fileName
+          _ -> Nothing
+    Just dir -> Just $ Dir dir []
 
 isCommand :: T.Text -> Bool
 isCommand = T.isPrefixOf "$ "
@@ -52,9 +53,9 @@ isCommand = T.isPrefixOf "$ "
 parseDirectoryContents :: [T.Text] -> [FSEntry] -> ([T.Text], [FSEntry])
 parseDirectoryContents [] entries = ([], entries)
 parseDirectoryContents (s : xs) entries =
-    case parseFSEntry s of
-        Just fs -> parseDirectoryContents xs (fs : entries)
-        Nothing -> (s : xs, entries)
+  case parseFSEntry s of
+    Just fs -> parseDirectoryContents xs (fs : entries)
+    Nothing -> (s : xs, entries)
 
 -- parseFileList :: [T.Text] -> FSEntry
 -- parseFileList =
@@ -73,14 +74,21 @@ type DirPath = [T.Text]
 updateIn :: FSEntry -> DirPath -> [FSEntry] -> FSEntry
 updateIn (Dir dirname _) [] entries = Dir dirname entries
 updateIn (Dir dirname contents) xs entries =
-    let (xs', x) = (init xs, last xs) in
-    Dir dirname (map (\entry ->
-        case entry of
-            File _ _ -> entry
-            Dir dirname' _ ->
-                if dirname' == x then
-                    updateIn entry xs' entries
-                    else entry) contents)
+  let (xs', x) = (init xs, last xs)
+   in Dir
+        dirname
+        ( map
+            ( \entry ->
+                case entry of
+                  File _ _ -> entry
+                  Dir dirname' _ ->
+                    if dirname' == x
+                      then
+                        updateIn entry xs' entries
+                      else entry
+            )
+            contents
+        )
 updateIn (File _ _) _ _ = error "can't update file"
 
 -- text to parse
@@ -89,17 +97,16 @@ updateIn (File _ _) _ _ = error "can't update file"
 parseInteractions :: FSEntry -> DirPath -> [T.Text] -> FSEntry
 parseInteractions currentTree _ [] = currentTree
 parseInteractions currentTree path (s : xs) =
-    case fromJust $ parseCommand s of
-        Chdir dir ->
-            parseInteractions currentTree (dir:path) xs
-        Ls ->
-            let (xs', entries) = parseDirectoryContents xs [] in
-                parseInteractions (updateIn currentTree path entries) path xs'
-        Backup ->
-            case path of
-                [] -> error "invalid dirpath"
-                _ : path' -> parseInteractions currentTree path' xs
-
+  case fromJust $ parseCommand s of
+    Chdir dir ->
+      parseInteractions currentTree (dir : path) xs
+    Ls ->
+      let (xs', entries) = parseDirectoryContents xs []
+       in parseInteractions (updateIn currentTree path entries) path xs'
+    Backup ->
+      case path of
+        [] -> error "invalid dirpath"
+        _ : path' -> parseInteractions currentTree path' xs
 
 -- | parseCommand
 -- >>> s = "$ cd /\n$ ls\ndir a\n14848514 b.txt\n8504156 c.dat\ndir d\n$ cd a\n$ ls\ndir e\n29116 f\n2557 g\n62596 h.lst\n$ cd e\n$ ls\n584 i\n$ cd ..\n$ cd ..\n$ cd d\n$ ls\n4060174 j\n8033020 d.log\n5626152 d.ext\n7214296 k"
@@ -113,8 +120,8 @@ type DirectorySizeMap = M.Map T.Text Int
 sizeCount :: DirectorySizeMap -> DirPath -> FSEntry -> (Int, DirectorySizeMap)
 sizeCount m _ (File n _) = (n, m)
 sizeCount m path (Dir a contents) =
-    let (n', m') = foldr (\entry (n, acc) -> let (k, j) = sizeCount acc (a:path) entry in (n + k, j)) (0, m) contents in
-        (n', M.insert (T.show (a:path)) n' m')
+  let (n', m') = foldr (\entry (n, acc) -> let (k, j) = sizeCount acc (a : path) entry in (n + k, j)) (0, m) contents
+   in (n', M.insert (T.show (a : path)) n' m')
 
 -- | part1
 -- >>> s = "$ cd /\n$ ls\ndir a\n14848514 b.txt\n8504156 c.dat\ndir d\n$ cd a\n$ ls\ndir e\n29116 f\n2557 g\n62596 h.lst\n$ cd e\n$ ls\n584 i\n$ cd ..\n$ cd ..\n$ cd d\n$ ls\n4060174 j\n8033020 d.log\n5626152 d.ext\n7214296 k"
@@ -122,7 +129,7 @@ sizeCount m path (Dir a contents) =
 -- 95437
 part1 :: T.Text -> Int
 part1 =
-    M.foldr (\s n -> if s <= 100000 then s + n else n) 0
+  M.foldr (\s n -> if s <= 100000 then s + n else n) 0
     . snd
     . sizeCount M.empty []
     . parseTree
@@ -140,10 +147,15 @@ neededFreeSpace = 30000000
 -- 24933642
 part2 :: T.Text -> Int
 part2 l =
-    let (totalSize, dirMap) = sizeCount M.empty [] $ parseTree $ T.splitOn "\n" l in
-    fromJust $ M.foldr (\v a ->
-        if totalDiskSpace - totalSize + v > neededFreeSpace then
-            case a of
-                Nothing -> Just v
-                Just n -> Just (min n v)
-                else a) Nothing dirMap
+  let (totalSize, dirMap) = sizeCount M.empty [] $ parseTree $ T.splitOn "\n" l
+   in fromJust $
+        M.foldr
+          ( \v a ->
+              if totalDiskSpace - totalSize + v > neededFreeSpace
+                then case a of
+                  Nothing -> Just v
+                  Just n -> Just (min n v)
+                else a
+          )
+          Nothing
+          dirMap

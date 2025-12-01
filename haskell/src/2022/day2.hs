@@ -5,6 +5,7 @@ module Day2 where
 import qualified Data.Text as T
 
 data Choice = Rock | Paper | Scissors deriving (Show, Eq)
+
 data Result = Win | Lose | Draw deriving (Show)
 
 parseChoice :: Char -> Choice

@@ -2,10 +2,10 @@
 
 module Day3 where
 
-import qualified Data.Text as T
+import Data.Char (isLower, isUpper, ord)
 import Data.List.Split (chunksOf)
 import qualified Data.Set as Set
-import Data.Char (isUpper, isLower, ord)
+import qualified Data.Text as T
 
 -- | parseRucksack
 -- >>> parseRucksack (T.pack "vJrwpWtwJgWrhcsFMMfFFhFp")
@@ -32,15 +32,16 @@ rucksackChars = T.foldr Set.insert Set.empty
 -- >>> commonChar (T.pack "CrZsJsPPZsGzwwsLwLmpwMDw")
 -- 's'
 commonChar :: T.Text -> Char
-commonChar = Set.findMin
+commonChar =
+  Set.findMin
     . (\(r1, r2) -> Set.intersection (rucksackChars r1) (rucksackChars r2))
     . parseRucksack
 
 priority :: Char -> Int
 priority ch
-    | isLower ch = ord ch - 96
-    | isUpper ch = ord ch - 38  -- (-64 + 26) = 38
-    | otherwise = error "invalid input"
+  | isLower ch = ord ch - 96
+  | isUpper ch = ord ch - 38 -- (-64 + 26) = 38
+  | otherwise = error "invalid input"
 
 -- | lineScore
 -- >>> lineScore (T.pack "vJrwpWtwJgWrhcsFMMfFFhFp")
@@ -62,7 +63,8 @@ part1 :: T.Text -> Int
 part1 = foldr ((+) . lineScore) 0 . T.splitOn "\n"
 
 part2 :: T.Text -> Int
-part2 = sum
+part2 =
+  sum
     . map (priority . Set.findMin . foldr1 Set.intersection . map rucksackChars)
     . chunksOf 3
     . T.splitOn "\n"
