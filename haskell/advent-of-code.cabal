@@ -54,7 +54,7 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable advent-of-code
+executable advent-of-code2022
     -- Import common warning flags.
     import:           warnings
 
@@ -73,7 +73,7 @@ executable advent-of-code
     build-depends:    base ^>=4.18.3.0, split >= 0.2.5, text >= 2.1.3, containers >= 0.8
 
     -- Directories containing source files.
-    hs-source-dirs:   app
+    hs-source-dirs:   src/2022 src/common
 
     -- Base language which the package is written in.
     default-language: Haskell2010
