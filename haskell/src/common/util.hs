@@ -13,3 +13,12 @@ trim = f . f
 -- "boom"
 pad :: Int -> String -> String
 pad n s = if length s >= n then s else s ++ replicate (n - length s) ' '
+
+-- | modPositive
+-- >>> modPositive (-5) 6
+-- 1
+-- >>> modPositive 13 7
+-- 6
+modPositive :: Int -> Int -> Int
+modPositive n m = let r = n `mod` m in
+   if r < 0 then modPositive (r + m) m else r
