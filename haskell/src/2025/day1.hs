@@ -1,20 +1,28 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Day1 where
 
+import qualified Text.Parsec as Parsec
 import qualified Data.Text as T
-import Data.Text.Read (decimal)
-import Data.Either (fromRight)
 import Data.List (foldl')
 
 data Rotation = LeftRotation Int | RightRotation Int deriving Show
 
+rotationParser :: Parsec.Parsec T.Text () Rotation
+rotationParser = do
+    direction <- Parsec.oneOf "RL"
+    number <- Parsec.many1 Parsec.digit
+    return (case direction of
+        'R' -> RightRotation (read number)
+        'L' -> LeftRotation (read number)
+        _ -> error "impossible")
+
 parseRotation :: T.Text -> Rotation
 parseRotation s =
-    case T.take 1 s of
-        "R" -> RightRotation (fst $ fromRight (0, "") $ decimal (T.drop 1 s))
-        "L" -> LeftRotation (fst $ fromRight (0, "") $ decimal (T.drop 1 s))
-        _ -> error ("invalid: " ++ show s)
+    case Parsec.parse rotationParser "(source)" s of
+        Right r -> r
+        _ -> error "invalid"
 
 -- | applyRotation
 -- >>> applyRotation 50 (LeftRotation 68)
