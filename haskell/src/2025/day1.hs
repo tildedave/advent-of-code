@@ -5,8 +5,9 @@ module Day1 where
 import qualified Data.Text as T
 import Data.Text.Read (decimal)
 import Data.Either (fromRight)
+import Data.List (foldl')
 
-data Rotation = LeftRotation Int | RightRotation Int
+data Rotation = LeftRotation Int | RightRotation Int deriving Show
 
 parseRotation :: T.Text -> Rotation
 parseRotation s =
@@ -16,21 +17,42 @@ parseRotation s =
         _ -> error ("invalid: " ++ show s)
 
 -- | applyRotation
--- >>> applyRotation (LeftRotation 68) 50
--- 82
--- >>> applyRotation (LeftRotation 30) 82
+-- >>> applyRotation 50 (LeftRotation 68)
+-- -18
+-- >>> applyRotation 82 (LeftRotation 30)
 -- 52
--- >>> applyRotation (RightRotation 48) 52
--- 0
-applyRotation :: Rotation -> Int -> Int
-applyRotation (LeftRotation n) dial = (dial - n) `mod` 100
-applyRotation (RightRotation n) dial = (dial + n) `mod` 100
+-- >>> applyRotation 52 (RightRotation 48)
+-- 100
+applyRotation :: Int -> Rotation -> Int
+applyRotation dial (LeftRotation n) = dial - n
+applyRotation dial (RightRotation n) = dial + n
 
 dialSequence :: [Rotation] -> [Int]
-dialSequence = scanl (flip applyRotation) 50
+dialSequence = scanl applyRotation 50
 
 part1:: T.Text -> Int
-part1 = length . filter (== 0) . dialSequence . map parseRotation . T.splitOn "\n"
+part1 = length . filter (\n -> 0 == n `mod` 100) . dialSequence . map parseRotation . T.splitOn "\n"
+
+-- | password0x434C49434B
+-- >>> password0x434C49434B (50, 0) (LeftRotation 68)
+-- (82,1)
+-- >>> password0x434C49434B (82, 1) (LeftRotation 30)
+-- (52,1)
+-- >>> password0x434C49434B (52, 1) (RightRotation 48)
+-- (0,2)
+-- >>> password0x434C49434B (0, 2) (LeftRotation 5)
+-- (95,2)
+password0x434C49434B :: (Int, Int) -> Rotation -> (Int, Int)
+password0x434C49434B (prev, count) (LeftRotation n) =
+    let next = prev - n in
+        (next `mod` 100, count + length (takeWhile (>= next) $ drop (if prev == 0 then 1 else 0) [0,-100..] ))
+password0x434C49434B (prev, count) (RightRotation n) =
+    let next = prev + n in
+        (next `mod` 100, count + length (takeWhile (<= next) [100,200..] ))
 
 part2:: T.Text -> Int
-part2 _ = 1
+part2 =
+    snd .
+    foldl' password0x434C49434B (50, 0) .
+    map parseRotation .
+    T.splitOn "\n"
