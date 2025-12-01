@@ -11,6 +11,7 @@ import Day5 (part1, part2)
 import Day6 (part1, part2)
 import Day7 (part1, part2)
 import Day8 (part1, part2)
+import Day9 (part1, part2)
 import System.Environment
 import Text.Printf (printf)
 
@@ -35,5 +36,7 @@ main = do
     ["day7", "2"] -> printf "%d\n" (Day7.part2 contents)
     ["day8", "1"] -> printf "%d\n" (Day8.part1 contents)
     ["day8", "2"] -> printf "%d\n" (Day8.part2 contents)
+    ["day9", "1"] -> printf "%d\n" (Day9.part1 contents)
+    ["day9", "2"] -> printf "%d\n" (Day9.part2 contents)
     _ -> do
       putStrLn "Not found"
