@@ -27,11 +27,11 @@ parseRotation s =
 
 -- | applyRotation
 -- >>> applyRotation 50 (LeftRotation 68)
--- -18
+-- 82
 -- >>> applyRotation 82 (LeftRotation 30)
 -- 52
 -- >>> applyRotation 52 (RightRotation 48)
--- 100
+-- 0
 applyRotation :: Int -> Rotation -> Int
 applyRotation dial (LeftRotation n) = (dial - n) `mod` 100
 applyRotation dial (RightRotation n) = (dial + n) `mod` 100
@@ -56,9 +56,7 @@ numTurns prev (LeftRotation n) =
     let next = prev - n in
         length (takeWhile (>= next) $ drop (if prev == 0 then 1 else 0) [0,-100..])
 
-numTurns prev (RightRotation n) =
-    let next = prev + n in
-        length (takeWhile (<= next) [100,200..])
+numTurns prev (RightRotation n) = (prev + n) `div` 100
 
 part2:: T.Text -> Int
 part2 l =
