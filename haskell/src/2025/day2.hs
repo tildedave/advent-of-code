@@ -3,14 +3,6 @@ module Day2 where
 import Data.List.Split (chunksOf)
 import qualified Data.Text as T
 
--- hasDuplicate :: (Eq a) => [a] -> Bool
--- hasDuplicate [] = False
--- hasDuplicate [_] = False
--- hasDuplicate (x : y : xs) = (x == y) || hasDuplicate (y : xs)
-
--- hasRepeatedDigit :: Int -> Bool
--- hasRepeatedDigit n = hasDuplicate (show n)
-
 -- | isInvalidId
 -- >>> isInvalidId 22
 -- True
@@ -58,8 +50,6 @@ isInvalidIdPart2 n =
    in any
         (\k -> allSame $ chunksOf (length l `div` k) l)
         (filter (\k -> length l `mod` k == 0) [2 .. length l])
-
--- allSame $ chunksOf (length l `div` 2) l where l = show n
 
 part2 :: T.Text -> Int
 part2 = sum . map (uncurry (invalidIdSum isInvalidIdPart2) . parseRange) . T.splitOn ","
