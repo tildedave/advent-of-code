@@ -1,21 +1,64 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Day3 where
 
 import Data.Char (digitToInt)
-import Data.Foldable (maximumBy)
-import Data.Function (on)
+import Data.List (intercalate)
+import Data.Map ((!))
+import qualified Data.Map as M
 import qualified Data.Text as T
 
 -- | highestVoltage
--- >>> highestVoltage [9,8,7,6,5,4,3,2,1,1,1,1,1,1,1]
+-- >>> highestVoltage "987654321111111"
 -- 98
-highestVoltage :: [Int] -> Int
-highestVoltage l =
+highestVoltage :: T.Text -> Int
+highestVoltage s =
   let h = maximum (init l)
    in let rest = dropWhile (< h) l
        in h * 10 + maximum (drop 1 rest)
+  where
+    l = map digitToInt $ T.unpack s
 
 part1 :: T.Text -> Int
-part1 = sum . map (highestVoltage . map digitToInt . T.unpack) . T.splitOn "\n"
+part1 = sum . map highestVoltage . T.splitOn "\n"
+
+-- part2 is harder
+-- really it is just looking for, of all 12 digit substrings, which is the maximum
+-- I wonder if we can use a descent approach
+-- look for position of the 9.  if the remainder of the string has 11+
+-- characters, it's the "pivot", repeat with the rest.  otherwise go on to 8
+-- can cache this too
+-- unfortunate that I am doing this in Haskell
+-- create char -> positions map
+
+textPositions :: T.Text -> M.Map Int [Int]
+textPositions s =
+  ( foldr
+      ( \(n, digit) m ->
+          M.alter (maybe (Just [n]) (Just . (n :))) digit m
+      )
+      M.empty
+      . zip [T.length s - 1, T.length s - 2 .. 0]
+      . map digitToInt
+      . T.unpack
+  )
+    s
+
+-- OK this should work
+highestSuffix :: M.Map Int [Int] -> Int -> Int -> [Int]
+highestSuffix _ _ 0 = []
+highestSuffix m start n =
+  let nextDigit = head $ filter (\d -> maybe False (any (\x -> x >= (n - 1) && x < start)) (M.lookup d m)) [9, 8 .. 0]
+   in let nextStart = maximum (filter (< start) (m ! nextDigit))
+       in (nextDigit : highestSuffix m nextStart (n - 1))
+
+-- | highestVoltagePart2
+-- >>> highestVoltagePart2 "818181911112111"
+-- 888911112111
+highestVoltagePart2 :: T.Text -> Int
+highestVoltagePart2 t =
+  let m = textPositions t
+   in read $ intercalate "" (map show (highestSuffix m (T.length t) 12))
 
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 = sum . map highestVoltagePart2 . T.splitOn "\n"
