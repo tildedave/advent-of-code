@@ -42,11 +42,11 @@ textPositions s =
     $ T.unpack s
 
 -- OK this should work
-highestSuffix :: [(Int, Int)] -> Int -> Int -> [Int]
-highestSuffix _ _ 0 = []
-highestSuffix m start n =
-  let (nextStart, nextDigit) = head $ filter (\(x, _) -> x >= (n - 1) && x < start) m
-   in (nextDigit : highestSuffix m nextStart (n - 1))
+highestSuffix :: [(Int, Int)] -> Int -> [Int]
+highestSuffix _ 0 = []
+highestSuffix m n =
+  let (nextStart, nextDigit) = head $ filter (\(x, _) -> x >= n - 1) m
+   in (nextDigit : highestSuffix (filter (\(x, _) -> x < nextStart) m) (n - 1))
 
 -- | highestVoltagePart2
 -- >>> highestVoltagePart2 "818181911112111"
@@ -54,7 +54,7 @@ highestSuffix m start n =
 highestVoltagePart2 :: T.Text -> Int
 highestVoltagePart2 t =
   let m = textPositions t
-   in read $ intercalate "" (map show (highestSuffix m (T.length t) 12))
+   in read $ intercalate "" (map show (highestSuffix m 12))
 
 part2 :: T.Text -> Int
 part2 = sum . map highestVoltagePart2 . T.splitOn "\n"
