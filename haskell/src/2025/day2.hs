@@ -13,11 +13,6 @@ import qualified Data.Text as T
 isInvalidId :: Int -> Bool
 isInvalidId n = uncurry (==) $ splitAt (length l `div` 2) l where l = show n
 
--- | invalidIdSum
--- >>> invalidIdSum 1698522 1698528
--- 0
--- >>> invalidIdSum 38593856 38593862
--- 38593859
 invalidIdSum :: (Int -> Bool) -> Int -> Int -> Int
 invalidIdSum checker l h = sum $ filter checker [l .. h]
 
