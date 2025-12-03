@@ -3,9 +3,7 @@
 module Day3 where
 
 import Data.Char (digitToInt)
-import Data.List (intercalate)
-import Data.Map ((!))
-import qualified Data.Map as M
+import Data.List (intercalate, sortBy)
 import qualified Data.Text as T
 
 -- | highestVoltage
@@ -31,26 +29,24 @@ part1 = sum . map highestVoltage . T.splitOn "\n"
 -- unfortunate that I am doing this in Haskell
 -- create char -> positions map
 
-textPositions :: T.Text -> M.Map Int [Int]
+textPositions :: T.Text -> [(Int, Int)]
 textPositions s =
-  ( foldr
-      ( \(n, digit) m ->
-          M.alter (maybe (Just [n]) (Just . (n :))) digit m
-      )
-      M.empty
-      . zip [T.length s - 1, T.length s - 2 .. 0]
-      . map digitToInt
-      . T.unpack
-  )
-    s
+  sortBy
+    ( \(n, x) (n', y) ->
+        case compare y x of
+          EQ -> compare n' n
+          b -> b
+    )
+    $ zip [T.length s - 1, T.length s - 2 .. 0]
+    $ map digitToInt
+    $ T.unpack s
 
 -- OK this should work
-highestSuffix :: M.Map Int [Int] -> Int -> Int -> [Int]
+highestSuffix :: [(Int, Int)] -> Int -> Int -> [Int]
 highestSuffix _ _ 0 = []
 highestSuffix m start n =
-  let nextDigit = head $ filter (\d -> maybe False (any (\x -> x >= (n - 1) && x < start)) (M.lookup d m)) [9, 8 .. 0]
-   in let nextStart = maximum (filter (< start) (m ! nextDigit))
-       in (nextDigit : highestSuffix m nextStart (n - 1))
+  let (nextStart, nextDigit) = head $ filter (\(x, _) -> x >= (n - 1) && x < start) m
+   in (nextDigit : highestSuffix m nextStart (n - 1))
 
 -- | highestVoltagePart2
 -- >>> highestVoltagePart2 "818181911112111"
