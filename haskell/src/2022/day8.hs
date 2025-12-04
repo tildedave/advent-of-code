@@ -35,11 +35,11 @@ scenicScore g c =
           [West, East, South, North]
 
 part1 :: T.Text -> Int
-part1 l =
-  let g = parseGrid digitToInt $ T.splitOn "\n" l
+part1 t =
+  let g = parseGrid digitToInt t
    in length $ filter (isVisible g) $ M.keys (cells g)
 
 part2 :: T.Text -> Int
-part2 l =
-  let g = parseGrid digitToInt $ T.splitOn "\n" l
+part2 t =
+  let g = parseGrid digitToInt t
    in maximum $ map (scenicScore g) $ M.keys (cells g)

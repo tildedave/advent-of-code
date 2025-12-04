@@ -5,6 +5,7 @@ module Util where
 
 import Data.Char (isSpace)
 import qualified Data.Map as M
+import Data.Maybe (fromJust)
 import qualified Data.Text as T
 
 trim :: String -> String
@@ -41,7 +42,9 @@ data Grid k a = Grid
   }
   deriving (Show, Foldable)
 
--- parseGrid :: [T.Text] -> Grid Char
+gridCoords :: Grid k a -> [k]
+gridCoords g = M.keys (cells g)
+
 parseGridContents :: (Char -> a) -> [T.Text] -> M.Map Coord2d a
 parseGridContents f =
   foldr
@@ -56,9 +59,9 @@ parseGridContents f =
 
 -- unexpected: maximum works for tuples
 -- Note - bounds are inclusive, <= maxx etc
-parseGrid :: (Char -> a) -> [T.Text] -> Grid Coord2d a
+parseGrid :: (Char -> a) -> T.Text -> Grid Coord2d a
 parseGrid f l =
-  let cells_ = parseGridContents f l
+  let cells_ = parseGridContents f $ T.splitOn "\n" l
    in Grid {cells = cells_, bounds = maximum (M.keys cells_)}
 
 cardinalNeighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
@@ -71,8 +74,21 @@ cardinalNeighbors g (x, y) =
       (x, y - 1)
     ]
 
+ordinalNeighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
+ordinalNeighbors g (x, y) =
+  filter
+    (`M.member` cells g)
+    [ (x + 1, y + 1),
+      (x + 1, y - 1),
+      (x - 1, y + 1),
+      (x - 1, y - 1)
+    ]
+
 gridAt :: (Ord k) => Grid k a -> k -> Maybe a
 gridAt g k = M.lookup k (cells g)
+
+gridAt' :: (Ord k) => Grid k a -> k -> a
+gridAt' g k = fromJust $ M.lookup k (cells g)
 
 data Direction = West | East | North | South deriving (Show, Eq)
 
