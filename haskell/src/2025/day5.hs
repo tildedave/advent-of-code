@@ -57,6 +57,5 @@ mergeIn coord coordList =
     [] -> coord : coordList
 
 part2 :: T.Text -> Int
-part2 t =
-  let (ranges, _) = parseInput t
-   in sum $ (\(lo, hi) -> hi - lo + 1) <$> foldr mergeIn [] ranges
+part2 =
+  sum . fmap ((+ 1) . uncurry subtract) . foldr mergeIn [] . fst . parseInput
