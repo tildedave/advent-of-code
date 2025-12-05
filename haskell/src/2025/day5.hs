@@ -1,17 +1,16 @@
 module Day5 where
 
-import Data.Maybe (fromJust)
 import qualified Data.Text as T
 
 parseRange :: T.Text -> (Int, Int)
-parseRange t = case map (read . T.unpack) $ T.splitOn "-" t of
+parseRange t = case read . T.unpack <$> T.splitOn "-" t of
   [lo, hi] -> (lo, hi)
   _ -> error "invalid range"
 
 parseInput :: T.Text -> ([(Int, Int)], [Int])
 parseInput t =
   case T.splitOn "\n\n" t of
-    [h, tl] -> (map parseRange $ T.splitOn "\n" h, map (read . T.unpack) (T.splitOn "\n" tl))
+    [h, tl] -> (parseRange <$> T.splitOn "\n" h, read . T.unpack <$> T.splitOn "\n" tl)
     _ -> error "invalid"
 
 inRange :: Int -> (Int, Int) -> Bool
@@ -29,20 +28,14 @@ part1 t =
 -- 4 cases
 overlaps :: (Int, Int) -> (Int, Int) -> Bool
 overlaps (lo, hi) (lo', hi') =
-  lo' <= lo && lo <= hi'
-    || lo <= lo' && lo' <= hi
-    || lo <= lo' && hi' <= hi
-    || lo' <= lo && hi <= hi'
+  not (hi < lo' || hi' < lo)
 
 -- | merge
 -- >>> merge (16,20) (12,18)
--- Just (12,20)
-merge :: (Int, Int) -> (Int, Int) -> Maybe (Int, Int)
+-- (12,20)
+merge :: (Int, Int) -> (Int, Int) -> (Int, Int)
 merge (lo, hi) (lo', hi') =
-  if overlaps (lo, hi) (lo', hi')
-    then
-      Just (min lo lo', max hi hi')
-    else Nothing
+  (min lo lo', max hi hi')
 
 -- does it even matter if we merge an interval in more than once to a list?
 
@@ -59,15 +52,11 @@ merge (lo, hi) (lo', hi') =
 -- [(10,20),(3,5)]
 mergeIn :: (Int, Int) -> [(Int, Int)] -> [(Int, Int)]
 mergeIn coord coordList =
-  let matchers = filter (overlaps coord) coordList
-   in if null matchers
-        then
-          coord : coordList
-        else
-          let h = head matchers
-           in mergeIn (fromJust (merge h coord)) [x | x <- coordList, x /= h]
+  case filter (overlaps coord) coordList of
+    h : _ -> mergeIn (merge h coord) [x | x <- coordList, x /= h]
+    [] -> coord : coordList
 
 part2 :: T.Text -> Int
 part2 t =
   let (ranges, _) = parseInput t
-   in sum $ map (\(lo, hi) -> hi - lo + 1) $ foldr mergeIn [] ranges
+   in sum $ (\(lo, hi) -> hi - lo + 1) <$> foldr mergeIn [] ranges
