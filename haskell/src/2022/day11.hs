@@ -101,20 +101,20 @@ monkeyInspect m k =
     Add n -> n + k
 
 monkeyTest :: Monkey -> Int -> MonkeyId
-monkeyTest m k =
+monkeyTest m n =
   case test m of
-    (n, m1, m2) -> if k `mod` n == 0 then m1 else m2
+    (k, m1, m2) -> if n `mod` k == 0 then m1 else m2
 
 monkeyAddItem :: Int -> Monkey -> Monkey
 monkeyAddItem s m = m {startingItems = startingItems m ++ [s]}
 
-monkeyTurn :: MonkeyId -> M.Map MonkeyId Monkey -> (Int, M.Map MonkeyId Monkey)
-monkeyTurn mid m =
+monkeyTurn :: Bool -> MonkeyId -> M.Map MonkeyId Monkey -> (Int, M.Map MonkeyId Monkey)
+monkeyTurn div3 mid m =
   ( length items,
     foldl'
       ( \m' s -> do
           let s1 = monkeyInspect monkey s
-          let s2 = s1 `div` 3
+          let s2 = if div3 then s1 `div` 3 else s1
           M.update (Just . monkeyAddItem s2) (monkeyTest monkey s2) m'
       )
       (M.update (\m' -> Just m' {startingItems = []}) mid m)
@@ -127,11 +127,11 @@ monkeyTurn mid m =
 sumMap :: M.Map MonkeyId Int -> M.Map MonkeyId Int -> M.Map MonkeyId Int
 sumMap = M.unionWith (+)
 
-monkeyRound :: M.Map MonkeyId Monkey -> (M.Map MonkeyId Int, M.Map MonkeyId Monkey)
-monkeyRound m =
+monkeyRound :: Bool -> M.Map MonkeyId Monkey -> (M.Map MonkeyId Int, M.Map MonkeyId Monkey)
+monkeyRound partTwo m =
   foldl'
     ( \(mInspects, m') mid ->
-        let (numInspects, mNext) = monkeyTurn mid m'
+        let (numInspects, mNext) = monkeyTurn (not partTwo) mid m'
          in (M.insert mid numInspects mInspects, mNext)
     )
     (M.empty, m)
@@ -139,11 +139,29 @@ monkeyRound m =
   where
     numMonkeys = M.size m - 1
 
-rounds :: M.Map MonkeyId Monkey -> [M.Map MonkeyId Int]
-rounds = unfoldr (Just . monkeyRound)
+rounds :: Bool -> M.Map MonkeyId Monkey -> [M.Map MonkeyId Int]
+rounds partTwo = unfoldr (Just . monkeyRound partTwo)
+
+-- | monkeyBusiness
+-- >>> s = "Monkey 0:\n  Starting items: 79, 98\n  Operation: new = old * 19\n  Test: divisible by 23\n    If true: throw to monkey 2\n    If false: throw to monkey 3\n\nMonkey 1:\n  Starting items: 54, 65, 75, 74\n  Operation: new = old + 6\n  Test: divisible by 19\n    If true: throw to monkey 2\n    If false: throw to monkey 0\n\nMonkey 2:\n  Starting items: 79, 60, 97\n  Operation: new = old * old\n  Test: divisible by 13\n    If true: throw to monkey 1\n    If false: throw to monkey 3\n\nMonkey 3:\n  Starting items: 74\n  Operation: new = old + 3\n  Test: divisible by 17\n    If true: throw to monkey 0\n    If false: throw to monkey 1"
+-- >>> foldr sumMap M.empty $ take 20 $ rounds True $ parseMonkeys s
+-- fromList [(0,99),(1,97),(2,8),(3,103)]
+-- >>> foldr sumMap M.empty $ take 1000 $ rounds True $ parseMonkeys s
+-- fromList [(0,5204),(1,4792),(2,199),(3,5192)]
+monkeyBusiness :: Int -> Bool -> T.Text -> Int
+monkeyBusiness n partTwo =
+  product
+    . map snd
+    . take 2
+    . sortBy (\(_, a) (_, b) -> compare b a)
+    . M.toList
+    . foldr sumMap M.empty
+    . take n
+    . rounds partTwo
+    . parseMonkeys
 
 part1 :: T.Text -> Int
-part1 = product . map snd . take 2 . sortBy (\(_, a) (_, b) -> compare b a) . M.toList . foldr sumMap M.empty . take 20 . rounds . parseMonkeys
+part1 = monkeyBusiness 20 False
 
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 = monkeyBusiness 10000 True
