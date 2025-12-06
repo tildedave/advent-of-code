@@ -182,8 +182,10 @@ rounds monkeys = unfoldr (Just . monkeyRound monkeys)
 -- >>> s = "Monkey 0:\n  Starting items: 79, 98\n  Operation: new = old * 19\n  Test: divisible by 23\n    If true: throw to monkey 2\n    If false: throw to monkey 3\n\nMonkey 1:\n  Starting items: 54, 65, 75, 74\n  Operation: new = old + 6\n  Test: divisible by 19\n    If true: throw to monkey 2\n    If false: throw to monkey 0\n\nMonkey 2:\n  Starting items: 79, 60, 97\n  Operation: new = old * old\n  Test: divisible by 13\n    If true: throw to monkey 1\n    If false: throw to monkey 3\n\nMonkey 3:\n  Starting items: 74\n  Operation: new = old + 3\n  Test: divisible by 17\n    If true: throw to monkey 0\n    If false: throw to monkey 1"
 -- >>> foldr sumMap M.empty $ take 20 $ uncurry rounds $ parseMonkeys s
 -- fromList [(0,101),(1,95),(2,7),(3,105)]
--- >>> foldr sumMap M.empty $ take 1000 $ uncurry rounds $ parseMonkeys s
+-- >>> foldr sumMap M.empty $ take 1000 $ uncurry rounds $ parseMonkeysResidues s
 -- fromList [(0,5204),(1,4792),(2,199),(3,5192)]
+-- >>> foldr sumMap M.empty $ take 8000 $ uncurry rounds $ parseMonkeysResidues s
+-- fromList [(0,41728),(1,38268),(2,1553),(3,41606)]
 monkeyBusiness :: (Monkeyable a) => (T.Text -> (M.Map MonkeyId Monkey, M.Map MonkeyId [a])) -> Int -> T.Text -> Int
 monkeyBusiness parser n =
   product

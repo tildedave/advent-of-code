@@ -3,13 +3,13 @@ module Day4 where
 import Data.List (unfoldr)
 import qualified Data.Map as M
 import qualified Data.Text as T
-import Util (Coord2d, Grid (Grid), bounds, cardinalNeighbors, cells, gridAt', gridCoords, ordinalNeighbors, parseGrid)
+import Util (Coord2d, Grid, cardinalNeighbors, gridAt', gridCoords, ordinalNeighbors, parseGrid)
 
 neighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
 neighbors g c = cardinalNeighbors g c ++ ordinalNeighbors g c
 
 canRemove :: Grid Coord2d Char -> Coord2d -> Bool
-canRemove g c = gridAt' g c == '@' && length (filter (\n -> gridAt' g n == '@') $ neighbors g c) < 4
+canRemove g c = gridAt' c g == '@' && length (filter (\n -> gridAt' n g == '@') $ neighbors g c) < 4
 
 part1 :: T.Text -> Int
 part1 t =
@@ -28,11 +28,8 @@ part2 t =
                 then
                   Nothing
                 else
-                  -- this is pretty ugly, I want to fold this into the Util module
-                  let newCells = foldr (`M.insert` '.') (cells g) removable
+                  let newCells = foldr (`M.insert` '.') g removable
                    in Just
-                        ( length removable,
-                          Grid {cells = newCells, bounds = bounds g}
-                        )
+                        (length removable, newCells)
       )
       (parseGrid id t)

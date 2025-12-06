@@ -36,14 +36,10 @@ class Neighbors a where
 
 type Coord2d = (Int, Int)
 
-data Grid k a = Grid
-  { cells :: M.Map k a,
-    bounds :: k
-  }
-  deriving (Show, Foldable)
+type Grid k a = M.Map k a
 
 gridCoords :: Grid k a -> [k]
-gridCoords g = M.keys (cells g)
+gridCoords = M.keys
 
 parseGridContents :: (Char -> a) -> [T.Text] -> M.Map Coord2d a
 parseGridContents f =
@@ -59,15 +55,16 @@ parseGridContents f =
 
 -- unexpected: maximum works for tuples
 -- Note - bounds are inclusive, <= maxx etc
+bounds :: Grid Coord2d a -> Coord2d
+bounds = maximum . M.keys
+
 parseGrid :: (Char -> a) -> T.Text -> Grid Coord2d a
-parseGrid f l =
-  let cells_ = parseGridContents f $ T.splitOn "\n" l
-   in Grid {cells = cells_, bounds = maximum (M.keys cells_)}
+parseGrid f l = parseGridContents f $ T.splitOn "\n" l
 
 cardinalNeighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
 cardinalNeighbors g (x, y) =
   filter
-    (`M.member` cells g)
+    (`M.member` g)
     [ (x + 1, y),
       (x - 1, y),
       (x, y + 1),
@@ -77,18 +74,18 @@ cardinalNeighbors g (x, y) =
 ordinalNeighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
 ordinalNeighbors g (x, y) =
   filter
-    (`M.member` cells g)
+    (`M.member` g)
     [ (x + 1, y + 1),
       (x + 1, y - 1),
       (x - 1, y + 1),
       (x - 1, y - 1)
     ]
 
-gridAt :: (Ord k) => Grid k a -> k -> Maybe a
-gridAt g k = M.lookup k (cells g)
+gridAt :: (Ord k) => k -> Grid k a -> Maybe a
+gridAt = M.lookup
 
-gridAt' :: (Ord k) => Grid k a -> k -> a
-gridAt' g k = fromJust $ M.lookup k (cells g)
+gridAt' :: (Ord k) => k -> Grid k a -> a
+gridAt' k g = fromJust $ M.lookup k g
 
 data Direction = West | East | North | South deriving (Show, Eq)
 
