@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Day11 where
@@ -26,6 +27,14 @@ instance Monkeyable Int where
   monkeyPlus n k = n + k
   monkeySquare n = n * n
   monkeyReduceWorryLevel n = n `div` 3
+
+-- these are moduli, n \equiv (a, k) means n \equiv a mod k
+instance Monkeyable [(Int, Int)] where
+  monkeyTest l k = (0, k) `elem` l
+  monkeyMult l k = (\(a, m) -> ((a * k) `mod` m, m)) <$> l
+  monkeyPlus l k = (\(a, m) -> ((a + k) `mod` m, m)) <$> l
+  monkeySquare l = (\(a, m) -> ((a * a) `mod` m, m)) <$> l
+  monkeyReduceWorryLevel = id
 
 data Monkey = Monkey
   { monkeyId :: MonkeyId,
@@ -111,6 +120,18 @@ parseMonkeys t =
     (M.empty, M.empty)
     $ T.splitOn "\n\n" t
 
+monkeyResidue :: Monkey -> Int
+monkeyResidue m = case test m of (k, _, _) -> k
+
+toResidue :: Int -> [Int] -> [(Int, Int)]
+toResidue n l = (\k -> (n `mod` k, k)) <$> l
+
+parseMonkeysResidues :: T.Text -> (M.Map MonkeyId Monkey, M.Map MonkeyId [[(Int, Int)]])
+parseMonkeysResidues t =
+  let (monkeys, mItems) = parseMonkeys t
+   in let residues = monkeyResidue <$> M.elems monkeys
+       in (monkeys, (\l -> (`toResidue` residues) <$> l) <$> mItems)
+
 monkeyInspect :: (Monkeyable a) => Monkey -> a -> a
 monkeyInspect m k =
   case operation m of
@@ -163,8 +184,8 @@ rounds monkeys = unfoldr (Just . monkeyRound monkeys)
 -- fromList [(0,101),(1,95),(2,7),(3,105)]
 -- >>> foldr sumMap M.empty $ take 1000 $ uncurry rounds $ parseMonkeys s
 -- fromList [(0,5204),(1,4792),(2,199),(3,5192)]
-monkeyBusiness :: Int -> T.Text -> Int
-monkeyBusiness n =
+monkeyBusiness :: (Monkeyable a) => (T.Text -> (M.Map MonkeyId Monkey, M.Map MonkeyId [a])) -> Int -> T.Text -> Int
+monkeyBusiness parser n =
   product
     . map snd
     . take 2
@@ -173,10 +194,10 @@ monkeyBusiness n =
     . foldr sumMap M.empty
     . take n
     . uncurry rounds
-    . parseMonkeys
+    . parser
 
 part1 :: T.Text -> Int
-part1 = monkeyBusiness 20
+part1 = monkeyBusiness parseMonkeys 20
 
 part2 :: T.Text -> Int
-part2 = monkeyBusiness 10000
+part2 = monkeyBusiness parseMonkeysResidues 10000
