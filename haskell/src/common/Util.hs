@@ -4,9 +4,9 @@
 module Util where
 
 import Data.Char (isSpace)
-import qualified Data.Map as M
+import Data.Map qualified as M
 import Data.Maybe (fromJust)
-import qualified Data.Text as T
+import Data.Text qualified as T
 
 trim :: String -> String
 trim = f . f
@@ -86,6 +86,9 @@ gridAt = M.lookup
 
 gridAt' :: (Ord k) => k -> Grid k a -> a
 gridAt' k g = fromJust $ M.lookup k g
+
+gridFind :: (Ord k, Eq a) => a -> Grid k a -> k
+gridFind v m = fst $ M.findMin $ M.filter (== v) m
 
 data Direction = West | East | North | South deriving (Show, Eq)
 
