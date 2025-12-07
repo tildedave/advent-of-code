@@ -20,19 +20,23 @@ beamStep grid (visited, x :<| s') = case gridAt x grid of
     Just
       ( Just x,
         foldr
-          ( \dx (visited', s') ->
+          ( \dx (visited', s_) ->
               let next = add2 x dx
                in if S.member next visited'
                     then
-                      (visited', s')
+                      (visited', s_)
                     else
-                      (S.insert next visited', s' :|> next)
+                      (S.insert next visited', s_ :|> next)
           )
           (visited, s')
           [(1, 0), (-1, 0)]
       )
   _ -> error "impossible"
 
+-- | Examples
+-- >>> s = ".......S.......\n...............\n.......^.......\n...............\n......^.^......\n...............\n.....^.^.^.....\n...............\n....^.^...^....\n...............\n...^.^...^.^...\n...............\n..^...^.....^..\n...............\n.^.^.^.^.^...^.\n...............\n"
+-- >>> part1 s
+-- 21
 part1 :: T.Text -> Int
 part1 t =
   length $ foldr S.insert S.empty $ catMaybes $ unfoldr (beamStep grid) (S.empty, Seq.singleton (gridFind 'S' grid))
