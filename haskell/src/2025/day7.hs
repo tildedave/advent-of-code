@@ -5,7 +5,7 @@ module Day7 where
 -- import Data.Sequence (Seq (..), viewl)
 
 import Control.Monad (foldM)
-import Control.Monad.State.Lazy (MonadState (get, state), State, evalState)
+import Control.Monad.State.Lazy (MonadState (get), State, evalState, modify)
 import Data.List (unfoldr)
 import Data.Map qualified as M
 import Data.Maybe (catMaybes)
@@ -52,23 +52,16 @@ part1 t =
 
 -- part 2 is just dynamic programming
 
--- | numTimelines
--- >>> s = ".......S.......\n...............\n.......^.......\n...............\n......^.^......\n...............\n.....^.^.^.....\n...............\n....^.^...^....\n...............\n...^.^...^.^...\n...............\n..^...^.....^..\n...............\n.^.^.^.^.^...^.\n...............\n"
--- >>> g = parseGrid id s
--- >>> numTimelines g (M.empty) (7, 0)
--- (1,fromList [((7,0),1)])
--- >>> numTimelines g (M.empty) (7, 1)
--- (1,fromList [((7,1),1)])
 numTimelines :: Grid Coord2d Char -> Coord2d -> State (M.Map Coord2d Int) Int
 numTimelines grid coord = do
   m <- get
   case M.lookup coord m of
     Just n -> return n
-    Nothing ->
-      case gridAt coord grid of
+    Nothing -> do
+      l <- case gridAt coord grid of
         Nothing -> return 0
-        Just 'S' -> state (\m' -> (1, M.insert coord 1 m'))
-        Just '^' -> state (\m' -> (0, M.insert coord 0 m')) -- impossible
+        Just 'S' -> return 1
+        Just '^' -> return 0
         _ -> do
           let up = add2 (0, -1) coord
               right = add2 (1, 0) coord
@@ -81,7 +74,10 @@ numTimelines grid coord = do
           nr <- case gridAt right grid of
             Just '^' -> numTimelines grid (add2 (0, -1) right)
             _ -> return 0
-          state (\m' -> (nu + nl + nr, M.insert coord (nu + nl + nr) m'))
+          return (nu + nl + nr)
+
+      modify (M.insert coord l)
+      return l
 
 bottomCoords :: Grid Coord2d Char -> [Coord2d]
 bottomCoords grid =
