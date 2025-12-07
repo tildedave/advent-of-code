@@ -28,12 +28,14 @@ instance Monkeyable Int where
   monkeySquare n = n * n
   monkeyReduceWorryLevel n = n `div` 3
 
+newtype MonkeyResidues = MonkeyResidues [(Int, Int)]
+
 -- these are moduli, n \equiv (a, k) means n \equiv a mod k
-instance Monkeyable [(Int, Int)] where
-  monkeyTest l k = (0, k) `elem` l
-  monkeyMult l k = (\(a, m) -> ((a * k) `mod` m, m)) <$> l
-  monkeyPlus l k = (\(a, m) -> ((a + k) `mod` m, m)) <$> l
-  monkeySquare l = (\(a, m) -> ((a * a) `mod` m, m)) <$> l
+instance Monkeyable MonkeyResidues where
+  monkeyTest (MonkeyResidues l) k = (0, k) `elem` l
+  monkeyMult (MonkeyResidues l) k = MonkeyResidues $ (\(a, m) -> ((a * k) `mod` m, m)) <$> l
+  monkeyPlus (MonkeyResidues l) k = MonkeyResidues $ (\(a, m) -> ((a + k) `mod` m, m)) <$> l
+  monkeySquare (MonkeyResidues l) = MonkeyResidues $ (\(a, m) -> ((a * a) `mod` m, m)) <$> l
   monkeyReduceWorryLevel = id
 
 data Monkey = Monkey
@@ -123,10 +125,10 @@ parseMonkeys t =
 monkeyResidue :: Monkey -> Int
 monkeyResidue m = case test m of (k, _, _) -> k
 
-toResidue :: Int -> [Int] -> [(Int, Int)]
-toResidue n l = (\k -> (n `mod` k, k)) <$> l
+toResidue :: Int -> [Int] -> MonkeyResidues
+toResidue n l = MonkeyResidues $ (\k -> (n `mod` k, k)) <$> l
 
-parseMonkeysResidues :: T.Text -> (M.Map MonkeyId Monkey, M.Map MonkeyId [[(Int, Int)]])
+parseMonkeysResidues :: T.Text -> (M.Map MonkeyId Monkey, M.Map MonkeyId [MonkeyResidues])
 parseMonkeysResidues t =
   let (monkeys, mItems) = parseMonkeys t
    in let residues = monkeyResidue <$> M.elems monkeys
