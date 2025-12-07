@@ -90,6 +90,9 @@ gridAt_ k g = fromJust $ M.lookup k g
 gridFind :: (Ord k, Eq a) => a -> Grid k a -> k
 gridFind v m = fst $ M.findMin $ M.filter (== v) m
 
+gridFindAll :: (Ord k, Eq a) => a -> Grid k a -> [k]
+gridFindAll v m = fst <$> M.toList (M.filter (== v) m)
+
 data Direction = West | East | North | South deriving (Show, Eq)
 
 delta2d :: Direction -> (Int, Int)
