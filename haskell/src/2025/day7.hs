@@ -4,6 +4,8 @@ module Day7 where
 
 -- import Data.Sequence (Seq (..), viewl)
 
+import Control.Monad (foldM)
+import Control.Monad.State.Lazy (MonadState (get, state), State, evalState)
 import Data.List (unfoldr)
 import Data.Map qualified as M
 import Data.Maybe (catMaybes)
@@ -11,8 +13,7 @@ import Data.Sequence (Seq ((:<|), (:|>)))
 import Data.Sequence qualified as Seq
 import Data.Set qualified as S
 import Data.Text qualified as T
-import Debug.Trace (traceShow)
-import Util (Coord2d, Grid, add2, bounds, gridAt, gridAt_, gridCoords, gridFind, parseGrid)
+import Util (Coord2d, Grid, add2, bounds, gridAt, gridCoords, gridFind, parseGrid)
 
 beamStep :: Grid Coord2d Char -> (S.Set Coord2d, Seq.Seq Coord2d) -> Maybe (Maybe Coord2d, (S.Set Coord2d, Seq.Seq Coord2d))
 beamStep _ (_, Seq.Empty) = Nothing
@@ -41,6 +42,8 @@ beamStep grid (visited, x :<| s') = case gridAt x grid of
 -- >>> s = ".......S.......\n...............\n.......^.......\n...............\n......^.^......\n...............\n.....^.^.^.....\n...............\n....^.^...^....\n...............\n...^.^...^.^...\n...............\n..^...^.....^..\n...............\n.^.^.^.^.^...^.\n...............\n"
 -- >>> part1 s
 -- 21
+-- >>> part2 s
+-- 40
 part1 :: T.Text -> Int
 part1 t =
   length $ foldr S.insert S.empty $ catMaybes $ unfoldr (beamStep grid) (S.empty, Seq.singleton (gridFind 'S' grid))
@@ -56,27 +59,29 @@ part1 t =
 -- (1,fromList [((7,0),1)])
 -- >>> numTimelines g (M.empty) (7, 1)
 -- (1,fromList [((7,1),1)])
-numTimelines :: Grid Coord2d Char -> M.Map Coord2d Int -> Coord2d -> (Int, M.Map Coord2d Int)
-numTimelines grid memory coord =
-  case M.lookup coord memory of
-    Just n -> (n, memory)
+numTimelines :: Grid Coord2d Char -> Coord2d -> State (M.Map Coord2d Int) Int
+numTimelines grid coord = do
+  m <- get
+  case M.lookup coord m of
+    Just n -> return n
     Nothing ->
       case gridAt coord grid of
-        Nothing -> (0, memory)
-        Just 'S' -> (1, M.insert coord 1 memory)
-        Just '^' -> (0, M.insert coord 0 memory) -- impossible
-        _ ->
+        Nothing -> return 0
+        Just 'S' -> state (\m' -> (1, M.insert coord 1 m'))
+        Just '^' -> state (\m' -> (0, M.insert coord 0 m')) -- impossible
+        _ -> do
           let up = add2 (0, -1) coord
-              (nu, memory1) = numTimelines grid memory up
-              left = add2 (-1, 0) coord
-              (nl, memory2) = case gridAt left grid of
-                Just '^' -> numTimelines grid memory1 (add2 (0, -1) left)
-                _ -> (0, memory1)
               right = add2 (1, 0) coord
-              (nr, memory3) = case gridAt right grid of
-                Just '^' -> numTimelines grid memory2 (add2 (0, -1) right)
-                _ -> (0, memory2)
-           in (nu + nl + nr, M.insert coord (nu + nl + nr) memory3)
+              left = add2 (-1, 0) coord
+
+          nu <- numTimelines grid up
+          nl <- case gridAt left grid of
+            Just '^' -> numTimelines grid (add2 (0, -1) left)
+            _ -> return 0
+          nr <- case gridAt right grid of
+            Just '^' -> numTimelines grid (add2 (0, -1) right)
+            _ -> return 0
+          state (\m' -> (nu + nl + nr, M.insert coord (nu + nl + nr) m'))
 
 bottomCoords :: Grid Coord2d Char -> [Coord2d]
 bottomCoords grid =
@@ -86,6 +91,15 @@ bottomCoords grid =
 
 part2 :: T.Text -> Int
 part2 t =
-  sum $ fst . numTimelines grid M.empty <$> bottomCoords grid
+  evalState
+    ( foldM
+        ( \a c -> do
+            r <- numTimelines grid c
+            return (r + a)
+        )
+        0
+        (bottomCoords grid)
+    )
+    M.empty
   where
     grid = parseGrid id t
