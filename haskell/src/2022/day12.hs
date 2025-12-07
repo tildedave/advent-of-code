@@ -10,8 +10,7 @@ import Data.Map qualified as M
 import Data.Maybe (fromJust)
 import Data.Set qualified as S
 import Data.Text qualified as T
-import Debug.Trace (traceShow)
-import Util (Coord2d, Grid, Neighbors (neighbors), cardinalNeighbors, gridAt', gridFind, parseGrid)
+import Util (Coord2d, Grid, cardinalNeighbors, gridAt', gridCoords, gridFind, parseGrid)
 
 type DijkstraState a = (Ord a) => (M.Map a Int, S.Set a, MinPrioHeap Int a)
 
@@ -86,6 +85,8 @@ isClimbingGoal grid coord = gridAt' coord grid == 'E'
 -- >>> s = "Sabqponm\nabcryxxl\naccszExk\nacctuvwj\nabdefghi"
 -- >>> part1 s
 -- 31
+-- >>> part2 s
+-- 29
 part1 :: T.Text -> Int
 part1 t =
   snd $ fromJust $ snd $ dijkstraSearch (gridFind 'S' grid) (climbingNeighbors grid) (isClimbingGoal grid)
@@ -93,4 +94,9 @@ part1 t =
     grid = parseGrid id t
 
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 t =
+  minimum $
+    (\start -> snd $ fromJust $ snd $ dijkstraSearch start (climbingNeighbors grid) (isClimbingGoal grid))
+      <$> filter (\c -> ord 'a' == elevation (gridAt' c grid)) (gridCoords grid)
+  where
+    grid = parseGrid id t
