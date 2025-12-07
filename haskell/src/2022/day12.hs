@@ -93,10 +93,21 @@ part1 t =
   where
     grid = parseGrid id t
 
+reverseClimbingNeighbors :: Grid Coord2d Char -> Coord2d -> [Coord2d]
+reverseClimbingNeighbors grid coord =
+  filter
+    ( \c ->
+        let dest = elevation $ gridAt' c grid
+         in (curr - dest <= 1)
+    )
+    $ cardinalNeighbors grid coord
+  where
+    curr = elevation $ gridAt' coord grid
+
 part2 :: T.Text -> Int
 part2 t =
-  minimum $
-    (\start -> snd $ fromJust $ snd $ dijkstraSearch start (climbingNeighbors grid) (isClimbingGoal grid))
-      <$> filter (\c -> ord 'a' == elevation (gridAt' c grid)) (gridCoords grid)
+  minimum $ map snd $ M.toList $ M.filterWithKey (\k _ -> k `elem` startingPoints) distances
   where
     grid = parseGrid id t
+    distances = fst $ dijkstraSearch (gridFind 'E' grid) (reverseClimbingNeighbors grid) (const False)
+    startingPoints = filter (\c -> ord 'a' == elevation (gridAt' c grid)) (gridCoords grid)
