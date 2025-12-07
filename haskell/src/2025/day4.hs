@@ -1,15 +1,15 @@
 module Day4 where
 
 import Data.List (unfoldr)
-import qualified Data.Map as M
-import qualified Data.Text as T
-import Util (Coord2d, Grid, cardinalNeighbors, gridAt', gridCoords, ordinalNeighbors, parseGrid)
+import Data.Map qualified as M
+import Data.Text qualified as T
+import Util (Coord2d, Grid, cardinalNeighbors, gridAt_, gridCoords, ordinalNeighbors, parseGrid)
 
 neighbors :: Grid Coord2d a -> Coord2d -> [Coord2d]
 neighbors g c = cardinalNeighbors g c ++ ordinalNeighbors g c
 
 canRemove :: Grid Coord2d Char -> Coord2d -> Bool
-canRemove g c = gridAt' c g == '@' && length (filter (\n -> gridAt' n g == '@') $ neighbors g c) < 4
+canRemove g c = gridAt_ c g == '@' && length (filter (\n -> gridAt_ n g == '@') $ neighbors g c) < 4
 
 part1 :: T.Text -> Int
 part1 t =

@@ -84,8 +84,8 @@ ordinalNeighbors g (x, y) =
 gridAt :: (Ord k) => k -> Grid k a -> Maybe a
 gridAt = M.lookup
 
-gridAt' :: (Ord k) => k -> Grid k a -> a
-gridAt' k g = fromJust $ M.lookup k g
+gridAt_ :: (Ord k) => k -> Grid k a -> a
+gridAt_ k g = fromJust $ M.lookup k g
 
 gridFind :: (Ord k, Eq a) => a -> Grid k a -> k
 gridFind v m = fst $ M.findMin $ M.filter (== v) m

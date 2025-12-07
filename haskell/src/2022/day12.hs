@@ -7,7 +7,7 @@ import Data.Map qualified as M
 import Data.Maybe (fromJust)
 import Data.Text qualified as T
 import Search (dijkstraSearch)
-import Util (Coord2d, Grid, cardinalNeighbors, gridAt', gridCoords, gridFind, parseGrid)
+import Util (Coord2d, Grid, cardinalNeighbors, gridAt_, gridCoords, gridFind, parseGrid)
 
 elevation :: Char -> Int
 elevation 'S' = ord 'a'
@@ -18,15 +18,15 @@ climbingNeighbors :: Grid Coord2d Char -> Coord2d -> [Coord2d]
 climbingNeighbors grid coord =
   filter
     ( \c ->
-        let dest = elevation $ gridAt' c grid
+        let dest = elevation $ gridAt_ c grid
          in (dest - curr <= 1)
     )
     $ cardinalNeighbors grid coord
   where
-    curr = elevation $ gridAt' coord grid
+    curr = elevation $ gridAt_ coord grid
 
 isClimbingGoal :: Grid Coord2d Char -> Coord2d -> Bool
-isClimbingGoal grid coord = gridAt' coord grid == 'E'
+isClimbingGoal grid coord = gridAt_ coord grid == 'E'
 
 -- | Examples
 -- >>> s = "Sabqponm\nabcryxxl\naccszExk\nacctuvwj\nabdefghi"
@@ -44,12 +44,12 @@ reverseClimbingNeighbors :: Grid Coord2d Char -> Coord2d -> [Coord2d]
 reverseClimbingNeighbors grid coord =
   filter
     ( \c ->
-        let dest = elevation $ gridAt' c grid
+        let dest = elevation $ gridAt_ c grid
          in (curr - dest <= 1)
     )
     $ cardinalNeighbors grid coord
   where
-    curr = elevation $ gridAt' coord grid
+    curr = elevation $ gridAt_ coord grid
 
 part2 :: T.Text -> Int
 part2 t =
@@ -57,4 +57,4 @@ part2 t =
   where
     grid = parseGrid id t
     distances = fst $ dijkstraSearch (gridFind 'E' grid) (reverseClimbingNeighbors grid) (const False)
-    startingPoints = filter (\c -> ord 'a' == elevation (gridAt' c grid)) (gridCoords grid)
+    startingPoints = filter (\c -> ord 'a' == elevation (gridAt_ c grid)) (gridCoords grid)
