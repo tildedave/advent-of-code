@@ -5,10 +5,10 @@ module Day11 where
 
 import Data.List (foldl', sortBy, unfoldr)
 import Data.Map ((!))
-import qualified Data.Map as M
-import qualified Data.Text as T
+import Data.Map qualified as M
+import Data.Text qualified as T
 import Text.Parsec (char, newline, optional, spaces, string, try, (<|>))
-import qualified Text.Parsec as Parsec
+import Text.Parsec qualified as Parsec
 
 type MonkeyId = Int
 

@@ -1,17 +1,40 @@
 module Day13 where
 
-import qualified Data.Text as T
-import qualified Text.Parsec as Parsec
+import Data.Text qualified as T
+import Text.Parsec ((<|>))
+import Text.Parsec qualified as Parsec
 
-data Packet = PacketList [Packet] | PacketNumber Int
+data Packet = PacketList [Packet] | PacketNumber Int deriving (Show)
 
-number :: Parsec.Parsec T.Text () Int
-number = read <$> Parsec.many1 Parsec.digit
+packetListSingleton :: Parsec.Parsec T.Text () Packet
+packetListSingleton = do
+  _ <- Parsec.char '['
+  p <- packet
+  _ <- Parsec.char ']'
+  return (PacketList [p])
 
--- seems like we need to define these recursively.  I suppose a forward decl
--- is all we have to do.
--- packetList :: Parsec.Parsec T.Text () Packet
--- packet :: Parsec.Parsec T.Text () Packet
+packetListMany :: Parsec.Parsec T.Text () Packet
+packetListMany = do
+  _ <- Parsec.char '['
+  p <- packet
+  rest <- Parsec.many (Parsec.char ',' >> Parsec.spaces >> packet)
+  _ <- Parsec.char ']'
+  return (PacketList (p : rest))
+
+packetNumber :: Parsec.Parsec T.Text () Packet
+packetNumber = do
+  r <- read <$> Parsec.many1 Parsec.digit
+  return (PacketNumber r)
+
+packet :: Parsec.Parsec T.Text () Packet
+packet = do
+  packetNumber <|> packetListMany <|> packetListSingleton
+
+parse :: T.Text -> Packet
+parse s = case Parsec.parse packet "source" s of
+  Right m -> m
+  Left e -> error $ "parse error :-( " ++ show e
+
 -- packetList = do
 --   _ <- Parsec.char '['
 
