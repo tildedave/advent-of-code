@@ -2,6 +2,8 @@
 
 module Day8 where
 
+import Data.Heap (MinPrioHeap)
+import Data.Heap qualified as H
 import Data.List (sortBy)
 import Data.Map qualified as M
 import Data.Maybe (fromJust)
@@ -22,10 +24,11 @@ parsePoint t = case read . T.unpack <$> T.splitOn "," t of
 distance :: Point3d -> Point3d -> Int
 distance (x1, y1, z1) (x2, y2, z2) = (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2)
 
-closestPairs :: [Point3d] -> [(Point3d, Point3d)]
+closestPairs :: [Point3d] -> MinPrioHeap Int (Point3d, Point3d)
 closestPairs l =
-  sortBy
-    (\(p1, p2) (p3, p4) -> compare (distance p1 p2) (distance p3 p4))
+  foldr
+    (\(p1, p2) h -> H.insert (distance p1 p2, (p1, p2)) h)
+    H.empty
     [(x, y) | x <- l, y <- l, x /= y, x < y]
 
 -- | Disjoint Set tests
@@ -95,35 +98,37 @@ countComponents (m, pm) =
 -- 25272
 topThreeCircuitSizes :: Int -> T.Text -> Int
 topThreeCircuitSizes n t =
-  product
-    $ take 3
-    $ sortBy (comparing Down)
-    $ map snd
-    $ M.toList
-    $ fst
-    $ countComponents
-    $ foldr
-      (\(p1, p2) ds -> union p1 p2 ds)
-      (foldr makeSet emptyDisjointSet points)
-    $ take n (closestPairs points)
+  product $
+    take 3 $
+      sortBy (comparing Down) $
+        map snd $
+          M.toList $
+            fst $
+              countComponents $
+                foldr
+                  (\(_, (p1, p2)) ds -> union p1 p2 ds)
+                  (foldr makeSet emptyDisjointSet points)
+                  (H.take n (closestPairs points))
   where
     points = parsePoint <$> T.splitOn "\n" t
 
 part1 :: T.Text -> Int
 part1 = topThreeCircuitSizes 1000
 
-connect :: [(Point3d, Point3d)] -> Int -> DisjointSet Point3d -> Int
-connect ((p1, p2) : ps) numLeft ds =
-  let (p1p, _) = findSet p1 ds
-      (p2p, _) = findSet p2 ds
-      nextds = union p1 p2 ds
-      nextNumLeft = numLeft - (if p1p /= p2p then 1 else 0)
-   in if nextNumLeft == 1
-        then case (p1, p2) of
-          ((x1, _, _), (x2, _, _)) -> x1 * x2
-        else
-          connect ps nextNumLeft nextds
-connect [] _ _ = error "ran out of points to connect"
+connect :: MinPrioHeap Int (Point3d, Point3d) -> Int -> DisjointSet Point3d -> Int
+connect h numLeft ds =
+  case H.viewHead h of
+    Nothing -> error "ran out of points to connect"
+    Just (_, (p1, p2)) ->
+      let (p1p, _) = findSet p1 ds
+          (p2p, _) = findSet p2 ds
+          nextds = union p1 p2 ds
+          nextNumLeft = numLeft - (if p1p /= p2p then 1 else 0)
+       in if nextNumLeft == 1
+            then case (p1, p2) of
+              ((x1, _, _), (x2, _, _)) -> x1 * x2
+            else
+              connect (H.drop 1 h) nextNumLeft nextds
 
 part2 :: T.Text -> Int
 part2 t =
