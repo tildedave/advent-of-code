@@ -1,48 +1,90 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Day13 where
 
+import Data.List.Split (chunksOf)
 import Data.Text qualified as T
 import Text.Parsec ((<|>))
 import Text.Parsec qualified as Parsec
 
-data Packet = PacketList [Packet] | PacketNumber Int deriving (Show)
+data Packet = PacketList [Packet] | PacketNumber Int deriving (Show, Eq)
 
-packetListSingleton :: Parsec.Parsec T.Text () Packet
-packetListSingleton = do
-  _ <- Parsec.char '['
-  p <- packet
-  _ <- Parsec.char ']'
-  return (PacketList [p])
+instance Ord Packet where
+  compare (PacketNumber n) (PacketNumber m) = compare n m
+  compare (PacketList (x : xs)) (PacketList (y : ys)) =
+    case compare x y of
+      EQ -> compare xs ys
+      o -> o
+  compare (PacketList []) (PacketList []) = EQ
+  compare (PacketList []) (PacketList _) = LT
+  compare (PacketList _) (PacketList []) = GT
+  compare (PacketNumber n) p = compare (PacketList [PacketNumber n]) p
+  compare p (PacketNumber n) = compare p (PacketList [PacketNumber n])
 
-packetListMany :: Parsec.Parsec T.Text () Packet
-packetListMany = do
+-- I obviously am still learning Parsec
+packetList :: Parsec.Parsec T.Text () Packet
+packetList = do
   _ <- Parsec.char '['
-  p <- packet
-  rest <- Parsec.many (Parsec.char ',' >> Parsec.spaces >> packet)
+  p <- Parsec.optionMaybe packet
+  rest <- Parsec.optionMaybe $ Parsec.many (Parsec.char ',' >> Parsec.spaces >> packet)
   _ <- Parsec.char ']'
-  return (PacketList (p : rest))
+  return $ case p of
+    Nothing -> PacketList []
+    Just p' -> case rest of
+      Nothing -> PacketList [p']
+      Just rest' -> PacketList (p' : rest')
 
 packetNumber :: Parsec.Parsec T.Text () Packet
 packetNumber = do
   r <- read <$> Parsec.many1 Parsec.digit
   return (PacketNumber r)
 
+packetListEmpty :: Parsec.Parsec T.Text () Packet
+packetListEmpty = do
+  _ <- Parsec.char '[' >> Parsec.char ']'
+  return (PacketList [])
+
 packet :: Parsec.Parsec T.Text () Packet
 packet = do
-  packetNumber <|> packetListMany <|> packetListSingleton
+  packetNumber <|> packetList
 
 parse :: T.Text -> Packet
 parse s = case Parsec.parse packet "source" s of
   Right m -> m
   Left e -> error $ "parse error :-( " ++ show e
 
--- packetList = do
---   _ <- Parsec.char '['
-
---   _ <- Parsec.char ']'
---   return PacketList []
-
+-- | Given examples
+-- >>> compare (parse "[1,1,3,1,1]") (parse "[1,1,5,1,1]")
+-- LT
+-- >>> compare (parse "[[1],[2,3,4]]") (parse "[[1],4]")
+-- LT
+-- >>> compare (parse "[9]") (parse "[[8,7,6]]")
+-- GT
+-- >>> compare (parse "[[4,4],4,4]") (parse "[[4,4],4,4,4]")
+-- LT
+-- >>> compare (parse "[7,7,7,7]") (parse "[7,7,7]")
+-- GT
+-- >>> compare (parse "[]") (parse "[3]")
+-- LT
+-- >>> compare (parse "[[[]]]") (parse "[[]]")
+-- GT
+-- >>> compare (parse "[1,[2,[3,[4,[5,6,7]]]],8,9]") (parse "[1,[2,[3,[4,[5,6,0]]]],8,9]")
+-- GT
 part1 :: T.Text -> Int
-part1 _ = 1
+part1 =
+  sum
+    . map fst
+    . filter
+      ( \case
+          (_, [one, two]) -> (parse one < parse two)
+          _ -> error "invalid"
+      )
+    . zip [1 :: Int, 2 ..]
+    . chunksOf 2
+    . filter
+      (/= T.empty)
+    . T.splitOn "\n"
 
 part2 :: T.Text -> Int
 part2 _ = 1
