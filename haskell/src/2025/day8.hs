@@ -30,9 +30,9 @@ closestPairs l =
 
 -- | Disjoint Set tests
 -- >>> s :: DisjointSet Int = emptyDisjointSet
--- >>> countComponents (union 1 2 (makeSet 2 (makeSet 1 s)))
+-- >>> fst $ countComponents (union 1 2 (makeSet 2 (makeSet 1 s)))
 -- fromList [(2,2)]
--- >>> countComponents (makeSet 2 (makeSet 1 s))
+-- >>> fst $ countComponents (makeSet 2 (makeSet 1 s))
 -- fromList [(1,1),(2,1)]
 type DisjointSet a = (M.Map a Int, M.Map a a)
 
@@ -69,29 +69,30 @@ union x y ds =
       (py, ds2) = findSet y ds1
    in link px py ds2
 
-countComponents :: (Ord a, Show a) => DisjointSet a -> M.Map a Int
+countComponents :: (Ord a) => DisjointSet a -> (M.Map a Int, DisjointSet a)
 countComponents (m, pm) =
   foldr
-    ( \k s' ->
-        let (p, _) = findSet k (m, pm)
-         in M.alter
-              ( \case
-                  Nothing -> Just 1
-                  Just q -> Just (q + 1)
-              )
-              p
-              s'
+    ( \k (s', ds) ->
+        let (p, ds') = findSet k ds
+         in ( M.alter
+                ( \case
+                    Nothing -> Just 1
+                    Just q -> Just (q + 1)
+                )
+                p
+                s',
+              ds'
+            )
     )
-    M.empty
+    (M.empty, (m, pm))
     (M.keys pm)
-
--- connect :: M.Map Point3d (Maybe Point3d) -> (Point3d, Point3d) -> M.Map Point3d (Maybe Point3d)
--- connect m (p1, p2) =
 
 -- | Given examples
 -- >>> s = "162,817,812\n57,618,57\n906,360,560\n592,479,940\n352,342,300\n466,668,158\n542,29,236\n431,825,988\n739,650,466\n52,470,668\n216,146,977\n819,987,18\n117,168,530\n805,96,715\n346,949,466\n970,615,88\n941,993,340\n862,61,35\n984,92,344\n425,690,689"
 -- >>> topThreeCircuitSizes 10 s
 -- 40
+-- >>> part2 s
+-- 25272
 topThreeCircuitSizes :: Int -> T.Text -> Int
 topThreeCircuitSizes n t =
   product
@@ -99,6 +100,7 @@ topThreeCircuitSizes n t =
     $ sortBy (comparing Down)
     $ map snd
     $ M.toList
+    $ fst
     $ countComponents
     $ foldr
       (\(p1, p2) ds -> union p1 p2 ds)
@@ -110,5 +112,20 @@ topThreeCircuitSizes n t =
 part1 :: T.Text -> Int
 part1 = topThreeCircuitSizes 1000
 
+connect :: [(Point3d, Point3d)] -> DisjointSet Point3d -> Int
+connect ((p1, p2) : ps) ds =
+  let (m, nextds) = countComponents (union p1 p2 ds)
+   in if M.size m == 1
+        then case (p1, p2) of
+          ((x1, _, _), (x2, _, _)) -> x1 * x2
+        else
+          connect ps nextds
+connect [] _ = error "ran out of points to connect"
+
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 t =
+  connect
+    (closestPairs points)
+    (foldr makeSet emptyDisjointSet points)
+  where
+    points = parsePoint <$> T.splitOn "\n" t
