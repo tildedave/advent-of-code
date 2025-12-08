@@ -22,7 +22,9 @@ parsePoint t = case read . T.unpack <$> T.splitOn "," t of
 
 -- no reason to take the square root
 distance :: Point3d -> Point3d -> Int
-distance (x1, y1, z1) (x2, y2, z2) = (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2) + (z1 - z2) * (z1 - z2)
+distance (x1, y1, z1) (x2, y2, z2) = square (x1 - x2) + square (y1 - y2) + square (z1 - z2)
+  where
+    square n = n * n
 
 closestPairs :: [Point3d] -> MinPrioHeap Int (Point3d, Point3d)
 closestPairs l =
