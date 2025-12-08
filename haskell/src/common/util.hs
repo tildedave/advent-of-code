@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Util where
