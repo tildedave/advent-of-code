@@ -3,6 +3,7 @@
 
 module Day13 where
 
+import Data.List (sort)
 import Data.List.Split (chunksOf)
 import Data.Text qualified as T
 import Text.Parsec ((<|>))
@@ -71,6 +72,13 @@ parse s = case Parsec.parse packet "source" s of
 -- GT
 -- >>> compare (parse "[1,[2,[3,[4,[5,6,7]]]],8,9]") (parse "[1,[2,[3,[4,[5,6,0]]]],8,9]")
 -- GT
+
+-- | Examples
+-- >>> s = "[1,1,3,1,1]\n[1,1,5,1,1]\n[[1],[2,3,4]]\n[[1],4]\n[9]\n[[8,7,6]]\n[[4,4],4,4]\n[[4,4],4,4,4]\n[7,7,7,7]\n[7,7,7]\n[]\n[3]\n[[[]]]\n[[]]\n[1,[2,[3,[4,[5,6,7]]]],8,9]\n[1,[2,[3,[4,[5,6,0]]]],8,9]"
+-- >>> part1 s
+-- 13
+-- >>> part2 s
+-- 140
 part1 :: T.Text -> Int
 part1 =
   sum
@@ -87,4 +95,16 @@ part1 =
     . T.splitOn "\n"
 
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 =
+  product
+    . map fst
+    . filter (\(_, p) -> p == parse "[[2]]" || p == parse "[[6]]")
+    . zip [1, 2 ..]
+    . sort
+    . (++) [divider1, divider2]
+    . map parse
+    . filter (/= T.empty)
+    . T.splitOn "\n"
+  where
+    divider1 = parse "[[2]]"
+    divider2 = parse "[[6]]"
