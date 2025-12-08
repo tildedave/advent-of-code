@@ -112,20 +112,24 @@ topThreeCircuitSizes n t =
 part1 :: T.Text -> Int
 part1 = topThreeCircuitSizes 1000
 
-connect :: [(Point3d, Point3d)] -> DisjointSet Point3d -> Int
-connect ((p1, p2) : ps) ds =
-  let (m, nextds) = countComponents (union p1 p2 ds)
-   in if M.size m == 1
+connect :: [(Point3d, Point3d)] -> Int -> DisjointSet Point3d -> Int
+connect ((p1, p2) : ps) numLeft ds =
+  let (p1p, _) = findSet p1 ds
+      (p2p, _) = findSet p2 ds
+      nextds = union p1 p2 ds
+      nextNumLeft = numLeft - (if p1p /= p2p then 1 else 0)
+   in if nextNumLeft == 1
         then case (p1, p2) of
           ((x1, _, _), (x2, _, _)) -> x1 * x2
         else
-          connect ps nextds
-connect [] _ = error "ran out of points to connect"
+          connect ps nextNumLeft nextds
+connect [] _ _ = error "ran out of points to connect"
 
 part2 :: T.Text -> Int
 part2 t =
   connect
     (closestPairs points)
+    (length points)
     (foldr makeSet emptyDisjointSet points)
   where
     points = parsePoint <$> T.splitOn "\n" t
