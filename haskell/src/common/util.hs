@@ -103,6 +103,9 @@ delta2d South = (0, -1)
 add2 :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
 add2 (x, y) (dx, dy) = (x + dx, y + dy)
 
+sub2 :: (Num a, Num b) => (a, b) -> (a, b) -> (a, b)
+sub2 (x, y) (dx, dy) = (x - dx, y - dy)
+
 unsnoc :: [b] -> Maybe ([b], b)
 unsnoc [] = Nothing
 unsnoc l = Just (init l, last l)
