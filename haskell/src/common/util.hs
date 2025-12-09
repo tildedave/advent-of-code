@@ -12,6 +12,12 @@ trim = f . f
   where
     f = reverse . dropWhile isSpace
 
+compareInt :: (Ord a) => a -> a -> Int
+compareInt x y = case compare x y of
+  LT -> -1
+  GT -> 1
+  EQ -> 0
+
 -- | pad
 -- >>> pad 10 "boo"
 -- "boo       "

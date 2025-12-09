@@ -2,12 +2,13 @@
 
 module Day14 where
 
+import Data.Bifunctor (bimap)
 import Data.Foldable qualified as S
 import Data.List (unfoldr)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Debug.Trace (traceShow)
-import Util (Coord2d, add2, sub2)
+import Util (Coord2d, add2, compareInt)
 
 -- | parseCoord
 -- >>> parseCoord "498,4"
@@ -22,10 +23,7 @@ coordRange :: Coord2d -> Coord2d -> [Coord2d]
 coordRange c1 c2 =
   takeWhile (/= c2) (iterate (add2 (dx, dy)) c1) ++ [c2]
   where
-    (dx, dy) = case sub2 c1 c2 of
-      (x, 0) -> if x > 0 then (-1, 0) else (1, 0)
-      (0, y) -> if y > 0 then (0, -1) else (0, 1)
-      (_, _) -> error "invalid range"
+    (dx, dy) = bimap (compareInt (fst c2)) (compareInt (snd c2)) c1
 
 -- | parseLine
 -- >>> parseLine "498,4 -> 498,6 -> 496,6"
@@ -73,14 +71,16 @@ part1 t =
     walls = foldr (S.union . parseLine) S.empty (T.splitOn "\n" t)
     cutoff = abyssY walls
 
-sandFallPart2 :: Int -> Coord2d -> S.Set Coord2d -> Coord2d
-sandFallPart2 cutoff (x, y) blocked =
+-- to speed this up, return the previous sand location too.
+-- not working, OK.  plane is landing.
+sandFallPart2 :: Int -> Coord2d -> Coord2d -> S.Set Coord2d -> (Coord2d, Coord2d)
+sandFallPart2 cutoff (x, y) prev blocked =
   if y == cutoff
     then
-      (x, y)
+      ((x, y), prev)
     else
       let next = filter (\c -> not $ c `S.elem` blocked) [down, downLeft, downRight]
-       in (if null next then (x, y) else sandFallPart2 cutoff (head next) blocked)
+       in (if null next then ((x, y), prev) else sandFallPart2 cutoff (head next) (x, y) blocked)
   where
     down = (x, y + 1)
     downLeft = (x - 1, y + 1)
@@ -91,11 +91,11 @@ part2 t =
   (+ 1) $
     length $
       unfoldr
-        ( \walls' -> case sandFallPart2 cutoff (500, 0) walls' of
-            (500, 0) -> Nothing
-            next -> Just (traceShow next next, S.insert next walls')
+        ( \(walls', prev) -> case sandFallPart2 cutoff prev prev walls' of
+            ((500, 0), _) -> Nothing
+            (next, prev') -> Just (next, (S.insert next walls', prev'))
         )
-        walls
+        (walls, (500, 0))
   where
     walls = foldr (S.union . parseLine) S.empty (T.splitOn "\n" t)
     cutoff = abyssY walls + 1

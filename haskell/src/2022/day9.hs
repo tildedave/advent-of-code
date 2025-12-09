@@ -2,9 +2,9 @@
 
 module Day9 where
 
-import qualified Data.Set as S
-import qualified Data.Text as T
-import Util (Coord2d, Direction (..), add2, delta2d)
+import Data.Set qualified as S
+import Data.Text qualified as T
+import Util (Coord2d, Direction (..), add2, compareInt, delta2d)
 
 parseLine :: T.Text -> (Direction, Int)
 parseLine t = case T.splitOn " " t of
@@ -22,12 +22,6 @@ isAdjacent (hx, hy) (tx, ty) =
     (0, 1) -> True
     (1, 1) -> True
     _ -> False
-
-compareInt :: (Ord a) => a -> a -> Int
-compareInt x y = case compare x y of
-  LT -> -1
-  GT -> 1
-  EQ -> 0
 
 tailStep :: Coord2d -> Coord2d -> Coord2d
 tailStep (hx, hy) (tx, ty) =
