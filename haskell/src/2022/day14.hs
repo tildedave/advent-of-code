@@ -2,28 +2,12 @@
 
 module Day14 where
 
-import Data.Bifunctor (bimap)
 import Data.Foldable qualified as S
 import Data.List (unfoldr)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Debug.Trace (traceShow)
-import Util (Coord2d, add2, compareInt)
-
--- | parseCoord
--- >>> parseCoord "498,4"
--- (498,4)
-parseCoord :: T.Text -> Coord2d
-parseCoord = (\l -> (head l, l !! 1)) . map (read . T.unpack) . T.splitOn ","
-
--- | coordRange
--- >>> coordRange (498,4) (498,6)
--- [(498,4),(498,5),(498,6)]
-coordRange :: Coord2d -> Coord2d -> [Coord2d]
-coordRange c1 c2 =
-  takeWhile (/= c2) (iterate (add2 (dx, dy)) c1) ++ [c2]
-  where
-    (dx, dy) = bimap (compareInt (fst c2)) (compareInt (snd c2)) c1
+import Util (Coord2d, add2, compareInt, coordRange, parseCoord)
 
 -- | parseLine
 -- >>> parseLine "498,4 -> 498,6 -> 496,6"
