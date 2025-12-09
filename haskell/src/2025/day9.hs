@@ -10,7 +10,6 @@ import Data.Map.Strict qualified as M
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text qualified as T
-import Debug.Trace (trace, traceShow)
 import Util (Coord2d, add2, coordRange, parseCoord)
 
 -- | area
@@ -42,7 +41,7 @@ part1 t =
 type CoordCompression = M.Map Int Int
 
 compressCoord :: (CoordCompression, CoordCompression) -> Coord2d -> Coord2d
-compressCoord (xCompress, yCompress) (x, y) = traceShow (x, y) (xCompress ! x, yCompress ! y)
+compressCoord (xCompress, yCompress) (x, y) = (xCompress ! x, yCompress ! y)
 
 uniqueify :: (Ord a) => [a] -> [a]
 uniqueify = Set.toList . foldr Set.insert Set.empty
@@ -108,7 +107,7 @@ isValid :: Set Coord2d -> Coord2d -> Coord2d -> Bool
 isValid points (x1, y1) (x2, y2) =
   all
     (`Set.member` points)
-    [(x, y) | x <- [x1 .. x2], y <- [y1 .. y2]]
+    [(x, y) | x <- [min x1 x2 .. max x1 x2], y <- [min y1 y2 .. max y1 y2]]
 
 uncompressedArea :: (CoordCompression, CoordCompression) -> (Coord2d, Coord2d) -> Int
 uncompressedArea compression (c1, c2) =
@@ -122,10 +121,9 @@ part2 t =
       (compare `on` uncompressedArea compression)
     $ filter
       (uncurry (isValid compressedPoints))
-      [(coord1, coord2) | coord1 <- Set.elems redTiles, coord2 <- Set.elems redTiles, coord1 < coord2]
+      [(coord1, coord2) | coord1 <- compressedCoords, coord2 <- compressedCoords, coord1 < coord2]
   where
     coords = parseCoord <$> T.splitOn "\n" t
-    compression = traceShow (createCompression fst coords, createCompression snd coords) (createCompression fst coords, createCompression snd coords)
+    compression = (createCompression fst coords, createCompression snd coords)
     compressedCoords = compressCoord compression <$> coords
-    redTiles = boundaries compressedCoords
-    compressedPoints = trace ("polygon: " ++ show (polygon compressedCoords)) (polygon compressedCoords)
+    compressedPoints = polygon compressedCoords
