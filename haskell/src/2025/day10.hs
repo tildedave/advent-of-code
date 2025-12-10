@@ -13,6 +13,7 @@ import Search (dijkstraSearch)
 import Util (unsnoc)
 import Data.List (intercalate)
 import GHC.IO (unsafePerformIO)
+import System.Process (readProcess)
 
 data Machine = Machine Word32 [[Int]] [Int] deriving (Show)
 
@@ -115,16 +116,15 @@ minJoltagePresses (Machine _ buttonList joltages) =
 machineToLpSolveFormat :: Machine -> T.Text
 machineToLpSolveFormat (Machine _ buttonList joltages) =
   T.pack $
-  "min: " ++ intercalate " + " (map (\n -> "b" ++ show n) buttonRange) ++ ";\n" ++  intercalate
-  "\n" (map
-  (\(n :: Int) ->
-    let expr = (intercalate " + " $ map (\(b :: Int, _) -> "b" ++ show b) $  filter (\(_, buttons) -> n `elem` buttons) (zip [0..] buttonList))
-    in expr ++ " = " ++ show (joltageMap ! n) ++ ";")
-  joltageRange) ++ "\nint " ++ intercalate "," (map (\n -> "b" ++ show n) buttonRange) ++ ";"
+  optimizeDecl ++ "\n" ++ intercalate "\n" (map joltageConstraint joltageRange) ++ "\n" ++ variableDecl
   where
     joltageMap :: IntMap Int = foldr (uncurry IntMap.insert) IntMap.empty (zip [0 ..] joltages)
     joltageRange = [0..length joltages - 1]
     buttonRange = [0..length buttonList - 1]
+    variableDecl = "int " ++ intercalate "," (map (\n -> "b" ++ show n) buttonRange) ++ ";"
+    optimizeDecl = "min: " ++ intercalate " + " (map (\n -> "b" ++ show n) buttonRange) ++ ";"
+    joltageConstraint n =
+      intercalate " + " (map (\(b :: Int, _) -> "b" ++ show b) $  filter (\(_, buttons) -> n `elem` buttons) (zip [0..] buttonList)) ++ " = " ++ show (joltageMap ! n) ++ ";"
 
 lpSolve :: Machine -> IO Integer
 lpSolve machine = do
