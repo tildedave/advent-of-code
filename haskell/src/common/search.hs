@@ -31,7 +31,7 @@ isNodeCloser node d state =
     Nothing -> True
     Just d' -> d + 1 < d'
 
-dijkstraSearch :: (Ord a, Show a) => a -> (a -> [a]) -> (a -> Bool) -> (M.Map a Int, Maybe (a, Int))
+dijkstraSearch :: (Ord a) => a -> (a -> [a]) -> (a -> Bool) -> (M.Map a Int, Maybe (a, Int))
 dijkstraSearch start getNeighbors (isGoal :: a -> Bool) =
   loop
     ( M.singleton start (0 :: Int),
