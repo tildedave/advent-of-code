@@ -36,7 +36,7 @@ isClimbingGoal grid coord = gridAt_ coord grid == 'E'
 -- 29
 part1 :: T.Text -> Int
 part1 t =
-  snd $ fromJust $ snd $ dijkstraSearch (gridFind 'S' grid) (climbingNeighbors grid) (isClimbingGoal grid)
+  snd $ fromJust $ snd $ dijkstraSearch (gridFind 'S' grid) (climbingNeighbors grid) (isClimbingGoal grid) (const False)
   where
     grid = parseGrid id t
 
@@ -56,5 +56,5 @@ part2 t =
   minimum $ map snd $ M.toList $ M.filterWithKey (\k _ -> k `elem` startingPoints) distances
   where
     grid = parseGrid id t
-    distances = fst $ dijkstraSearch (gridFind 'E' grid) (reverseClimbingNeighbors grid) (const False)
+    distances = fst $ dijkstraSearch (gridFind 'E' grid) (reverseClimbingNeighbors grid) (const False) (const False)
     startingPoints = filter (\c -> ord 'a' == elevation (gridAt_ c grid)) (gridCoords grid)

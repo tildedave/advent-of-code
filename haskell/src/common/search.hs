@@ -31,8 +31,8 @@ isNodeCloser node d state =
     Nothing -> True
     Just d' -> d + 1 < d'
 
-dijkstraSearch :: (Ord a) => a -> (a -> [a]) -> (a -> Bool) -> (M.Map a Int, Maybe (a, Int))
-dijkstraSearch start getNeighbors (isGoal :: a -> Bool) =
+dijkstraSearch :: (Ord a) => a -> (a -> [a]) -> (a -> Bool) -> (a -> Bool) -> (M.Map a Int, Maybe (a, Int))
+dijkstraSearch start getNeighbors (isGoal :: a -> Bool) (shouldPrune :: a -> Bool) =
   loop
     ( M.singleton start (0 :: Int),
       S.empty,
@@ -46,6 +46,7 @@ dijkstraSearch start getNeighbors (isGoal :: a -> Bool) =
         Just (d, next) ->
           if
             | next `S.member` visited -> loop (distances, visited, H.drop 1 queue)
+            | shouldPrune next -> loop (distances, visited, H.drop 1 queue)
             | isGoal next -> (distances, Just (next, fromJust $ M.lookup next distances))
             | otherwise ->
                 loop $
