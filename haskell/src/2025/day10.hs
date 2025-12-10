@@ -12,7 +12,6 @@ import Data.Word (Word32)
 import Search (dijkstraSearch)
 import Util (unsnoc)
 import Data.List (intercalate)
-import GHC.IO (unsafePerformIO)
 import System.Process (readProcess)
 
 data Machine = Machine Word32 [[Int]] [Int] deriving (Show)
@@ -132,6 +131,5 @@ lpSolve machine = do
   let number = head $ mapMaybe (T.stripPrefix "Value of objective function: ") (T.splitOn "\n" t) in
     return (read $ takeWhile (/= '.') $ T.unpack number)
 
-part2 :: T.Text -> Integer
--- having too many issues with my harness, I will be horribly unsafe
-part2 t = unsafePerformIO $ foldM (\n m -> lpSolve m >>= (\a -> return (a + n))) 0 (parseMachine <$> T.splitOn "\n" t)
+part2 :: T.Text -> IO Integer
+part2 t = foldM (\n m -> fmap (+ n) (lpSolve m)) 0 (parseMachine <$> T.splitOn "\n" t)
