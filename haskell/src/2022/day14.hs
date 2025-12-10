@@ -6,8 +6,7 @@ import Data.Foldable qualified as S
 import Data.List (unfoldr)
 import Data.Set qualified as S
 import Data.Text qualified as T
-import Debug.Trace (traceShow)
-import Util (Coord2d, add2, compareInt, coordRange, parseCoord)
+import Util (Coord2d, coordRange, parseCoord)
 
 -- | parseLine
 -- >>> parseLine "498,4 -> 498,6 -> 496,6"
@@ -56,30 +55,30 @@ part1 t =
     cutoff = abyssY walls
 
 -- to speed this up, return the previous sand location too.
--- not working, OK.  plane is landing.
-sandFallPart2 :: Int -> Coord2d -> Coord2d -> S.Set Coord2d -> (Coord2d, Coord2d)
-sandFallPart2 cutoff (x, y) prev blocked =
+sandFallPart2 :: Int -> [Coord2d] -> S.Set Coord2d -> (Coord2d, [Coord2d])
+sandFallPart2 cutoff ((x, y) : path) blocked =
   if y == cutoff
     then
-      ((x, y), prev)
+      ((x, y), path)
     else
       let next = filter (\c -> not $ c `S.elem` blocked) [down, downLeft, downRight]
-       in (if null next then ((x, y), prev) else sandFallPart2 cutoff (head next) (x, y) blocked)
+       in (if null next then ((x, y), path) else sandFallPart2 cutoff (head next : ((x, y) : path)) blocked)
   where
     down = (x, y + 1)
     downLeft = (x - 1, y + 1)
     downRight = (x + 1, y + 1)
+sandFallPart2 _ [] _ = error "empty path"
 
 part2 :: T.Text -> Int
 part2 t =
   (+ 1) $
     length $
       unfoldr
-        ( \(walls', prev) -> case sandFallPart2 cutoff prev prev walls' of
+        ( \(walls', path) -> case sandFallPart2 cutoff path walls' of
             ((500, 0), _) -> Nothing
-            (next, prev') -> Just (next, (S.insert next walls', prev'))
+            (next, path') -> Just (next, (S.insert next walls', path'))
         )
-        (walls, (500, 0))
+        (walls, [(500, 0)])
   where
     walls = foldr (S.union . parseLine) S.empty (T.splitOn "\n" t)
     cutoff = abyssY walls + 1
