@@ -4,7 +4,6 @@ module Main where
 
 import Data.Text (pack, stripEnd)
 import Day1 (part1, part2)
-import Day10 (part1, part2)
 import Day2 (part1, part2)
 import Day3 (part1, part2)
 import Day4 (part1, part2)
@@ -13,6 +12,7 @@ import Day6 (part1, part2)
 import Day7 (part1, part2)
 import Day8 (part1, part2)
 import Day9 (part1, part2)
+import Day10 (part1, part2)
 import System.Environment
 import Text.Printf (printf)
 

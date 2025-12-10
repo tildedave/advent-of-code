@@ -60,7 +60,7 @@ common extensions
 common libraries
     -- Other library packages from which modules are imported.
     -- https://github.com/haskellari/indexed-traversable/issues/47 can't use containers 0.8 until this is fixed (rage)
-    build-depends:    base ^>=4.18.3.0, split >= 0.2.5, text >= 2.1.3, containers >= 0.7, parsec >= 3.1.11, mtl>=2.3.1, pqueue >= 1.6.0.0, heap >= 1.0.4
+    build-depends:    base ^>=4.18.3.0, split >= 0.2.5, text >= 2.1.3, containers >= 0.7, parsec >= 3.1.11, mtl>=2.3.1, pqueue >= 1.6.0.0, heap >= 1.0.4, process>=1.6.26.1
 
 executable advent-of-code2025
     import:           warnings, extensions, libraries

@@ -1,14 +1,18 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Day10 where
 
+import Control.Monad (foldM)
 import Data.Bits (Bits (shiftL, xor, (.|.)))
 import Data.IntMap (IntMap, (!))
 import Data.IntMap qualified as IntMap
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, mapMaybe)
 import Data.Text qualified as T
 import Data.Word (Word32)
-import Debug.Trace (traceShow)
 import Search (dijkstraSearch)
 import Util (unsnoc)
+import Data.List (intercalate)
+import GHC.IO (unsafePerformIO)
 
 data Machine = Machine Word32 [[Int]] [Int] deriving (Show)
 
@@ -87,6 +91,7 @@ minPresses (Machine goal buttonList _) =
 part1 :: T.Text -> Int
 part1 t = sum $ minPresses . parseMachine <$> T.splitOn "\n" t
 
+-- of course this is too slow
 minJoltagePresses :: Machine -> Int
 minJoltagePresses (Machine _ buttonList joltages) =
   snd $
@@ -102,5 +107,31 @@ minJoltagePresses (Machine _ buttonList joltages) =
   where
     joltageMap :: IntMap Int = foldr (uncurry IntMap.insert) IntMap.empty (zip [0 ..] joltages)
 
-part2 :: T.Text -> Int
-part2 t = sum $ minJoltagePresses . parseMachine <$> T.splitOn "\n" t
+-- I guess we will try linear programming for this
+-- | machineToLpSolveFormat
+-- >>> s = "[..##] (1,3) (0,2,3) (0,1) (2,3) {30,15,29,34}"
+-- >>> machineToLpSolveFormat $ parseMachine s
+-- 2
+machineToLpSolveFormat :: Machine -> T.Text
+machineToLpSolveFormat (Machine _ buttonList joltages) =
+  T.pack $
+  "min: " ++ intercalate " + " (map (\n -> "b" ++ show n) buttonRange) ++ ";\n" ++  intercalate
+  "\n" (map
+  (\(n :: Int) ->
+    let expr = (intercalate " + " $ map (\(b :: Int, _) -> "b" ++ show b) $  filter (\(_, buttons) -> n `elem` buttons) (zip [0..] buttonList))
+    in expr ++ " = " ++ show (joltageMap ! n) ++ ";")
+  joltageRange) ++ "\nint " ++ intercalate "," (map (\n -> "b" ++ show n) buttonRange) ++ ";"
+  where
+    joltageMap :: IntMap Int = foldr (uncurry IntMap.insert) IntMap.empty (zip [0 ..] joltages)
+    joltageRange = [0..length joltages - 1]
+    buttonRange = [0..length buttonList - 1]
+
+lpSolve :: Machine -> IO Integer
+lpSolve machine = do
+  t <- T.pack <$> readProcess "/opt/homebrew/bin/lp_solve" [] (T.unpack (machineToLpSolveFormat machine))
+  let number = head $ mapMaybe (T.stripPrefix "Value of objective function: ") (T.splitOn "\n" t) in
+    return (read $ takeWhile (/= '.') $ T.unpack number)
+
+part2 :: T.Text -> Integer
+-- having too many issues with my harness, I will be horribly unsafe
+part2 t = unsafePerformIO $ foldM (\n m -> lpSolve m >>= (\a -> return (a + n))) 0 (parseMachine <$> T.splitOn "\n" t)
