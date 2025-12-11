@@ -13,6 +13,7 @@ import Day7 (part1, part2)
 import Day8 (part1, part2)
 import Day9 (part1, part2)
 import Day10 (part1, part2)
+import Day11 (part1, part2)
 import System.Environment
 import Text.Printf (printf)
 
@@ -44,5 +45,7 @@ main = do
       r <- Day10.part2 contents
       ; print r
       ; return ()
+    ["day11", "1"] -> printf "%d\n" (Day11.part1 contents)
+    ["day11", "2"] -> printf "%d\n" (Day11.part2 contents)
     _ -> do
       putStrLn "Not found"

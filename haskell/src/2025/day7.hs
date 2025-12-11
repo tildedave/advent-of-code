@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Day7 where
@@ -5,7 +6,7 @@ module Day7 where
 -- import Data.Sequence (Seq (..), viewl)
 
 import Control.Monad (foldM)
-import Control.Monad.State.Lazy (MonadState (get), State, evalState, modify)
+import Control.Monad.State.Lazy (State, evalState, gets, modify)
 import Data.List (unfoldr)
 import Data.Map qualified as M
 import Data.Maybe (catMaybes)
@@ -54,8 +55,7 @@ part1 t =
 
 numTimelines :: Grid Coord2d Char -> Coord2d -> State (M.Map Coord2d Int) Int
 numTimelines grid coord = do
-  m <- get
-  case M.lookup coord m of
+  gets (M.lookup coord) >>= \case
     Just n -> return n
     Nothing -> do
       l <- case gridAt coord grid of

@@ -6,13 +6,13 @@ import Control.Monad (foldM)
 import Data.Bits (Bits (shiftL, xor, (.|.)))
 import Data.IntMap (IntMap, (!))
 import Data.IntMap qualified as IntMap
+import Data.List (intercalate)
 import Data.Maybe (fromJust, mapMaybe)
 import Data.Text qualified as T
 import Data.Word (Word32)
 import Search (dijkstraSearch)
-import Util (unsnoc)
-import Data.List (intercalate)
 import System.Process (readProcess)
+import Util (unsnoc)
 
 data Machine = Machine Word32 [[Int]] [Int] deriving (Show)
 
@@ -108,28 +108,29 @@ minJoltagePresses (Machine _ buttonList joltages) =
     joltageMap :: IntMap Int = foldr (uncurry IntMap.insert) IntMap.empty (zip [0 ..] joltages)
 
 -- I guess we will try linear programming for this
+
 -- | machineToLpSolveFormat
 -- >>> s = "[..##] (1,3) (0,2,3) (0,1) (2,3) {30,15,29,34}"
 -- >>> machineToLpSolveFormat $ parseMachine s
--- 2
+-- "min: b0 + b1 + b2 + b3;\nb1 + b2 = 30;\nb0 + b2 = 15;\nb1 + b3 = 29;\nb0 + b1 + b3 = 34;\nint b0,b1,b2,b3;"
 machineToLpSolveFormat :: Machine -> T.Text
 machineToLpSolveFormat (Machine _ buttonList joltages) =
   T.pack $
-  optimizeDecl ++ "\n" ++ intercalate "\n" (map joltageConstraint joltageRange) ++ "\n" ++ variableDecl
+    optimizeDecl ++ "\n" ++ intercalate "\n" (map joltageConstraint joltageRange) ++ "\n" ++ variableDecl
   where
     joltageMap :: IntMap Int = foldr (uncurry IntMap.insert) IntMap.empty (zip [0 ..] joltages)
-    joltageRange = [0..length joltages - 1]
-    buttonRange = [0..length buttonList - 1]
+    joltageRange = [0 .. length joltages - 1]
+    buttonRange = [0 .. length buttonList - 1]
     variableDecl = "int " ++ intercalate "," (map (\n -> "b" ++ show n) buttonRange) ++ ";"
     optimizeDecl = "min: " ++ intercalate " + " (map (\n -> "b" ++ show n) buttonRange) ++ ";"
     joltageConstraint n =
-      intercalate " + " (map (\(b :: Int, _) -> "b" ++ show b) $  filter (\(_, buttons) -> n `elem` buttons) (zip [0..] buttonList)) ++ " = " ++ show (joltageMap ! n) ++ ";"
+      intercalate " + " (map (\(b :: Int, _) -> "b" ++ show b) $ filter (\(_, buttons) -> n `elem` buttons) (zip [0 ..] buttonList)) ++ " = " ++ show (joltageMap ! n) ++ ";"
 
 lpSolve :: Machine -> IO Integer
 lpSolve machine = do
-  t <- T.pack <$> readProcess "/opt/homebrew/bin/lp_solve" [] (T.unpack (machineToLpSolveFormat machine))
-  let number = head $ mapMaybe (T.stripPrefix "Value of objective function: ") (T.splitOn "\n" t) in
-    return (read $ takeWhile (/= '.') $ T.unpack number)
+  t <- T.pack <$> readProcess "/opt/homebrew/bin/lp_solve" ["-S1"] (T.unpack (machineToLpSolveFormat machine))
+  let number = head $ mapMaybe (T.stripPrefix "Value of objective function: ") (T.splitOn "\n" t)
+   in return (read $ takeWhile (/= '.') $ T.unpack number)
 
 part2 :: T.Text -> IO Integer
 part2 t = foldM (\n m -> fmap (+ n) (lpSolve m)) 0 (parseMachine <$> T.splitOn "\n" t)
