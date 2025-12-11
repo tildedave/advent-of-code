@@ -8,7 +8,6 @@ import Data.List (intercalate)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
-import Debug.Trace (traceShow)
 
 -- all paths out is a kind of memoization exercise.  dynamic programming from the out connection.
 
@@ -53,7 +52,7 @@ numPathsOut conns label = do
       modify (Map.insert label result)
       return result
 
--- | Examples
+-- | part1
 -- >>> s = "aaa: you hhh\nyou: bbb ccc\nbbb: ddd eee\nccc: ddd eee fff\nddd: ggg\neee: out\nfff: out\nggg: out\nhhh: ccc fff iii\niii: out"
 -- >>> part1 s
 -- 5
@@ -95,8 +94,11 @@ connectionsToDot conn =
 -- so the result is paths between svr -> fft, paths between fft -> dac, paths between dac -> out.
 -- (my code is opposite so whatever)
 -- it feels like my current code handles this already?
--- answer based on this is is too low
 
+-- | part2
+-- >>> s = "svr: aaa bbb\naaa: fft\nfft: ccc\nbbb: tty\ntty: ccc\nccc: ddd eee\nddd: hub\nhub: fff\neee: dac\ndac: fff\nfff: ggg hhh\nggg: out\nhhh: out"
+-- >>> part2 s
+-- 2
 part2 :: T.Text -> Int
 part2 t =
   paths "svr" "fft" * paths "fft" "dac" * paths "dac" "out"
