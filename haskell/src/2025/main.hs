@@ -4,6 +4,9 @@ module Main where
 
 import Data.Text (pack, stripEnd)
 import Day1 (part1, part2)
+import Day10 (part1, part2)
+import Day11 (part1, part2)
+import Day12 (part1, part2)
 import Day2 (part1, part2)
 import Day3 (part1, part2)
 import Day4 (part1, part2)
@@ -12,8 +15,6 @@ import Day6 (part1, part2)
 import Day7 (part1, part2)
 import Day8 (part1, part2)
 import Day9 (part1, part2)
-import Day10 (part1, part2)
-import Day11 (part1, part2)
 import System.Environment
 import Text.Printf (printf)
 
@@ -43,9 +44,11 @@ main = do
     ["day10", "1"] -> printf "%d\n" (Day10.part1 contents)
     ["day10", "2"] -> do
       r <- Day10.part2 contents
-      ; print r
-      ; return ()
+      print r
+      return ()
     ["day11", "1"] -> printf "%d\n" (Day11.part1 contents)
     ["day11", "2"] -> printf "%d\n" (Day11.part2 contents)
+    ["day12", "1"] -> printf "%d\n" (Day12.part1 contents)
+    ["day12", "2"] -> printf "%d\n" (Day12.part2 contents)
     _ -> do
       putStrLn "Not found"
