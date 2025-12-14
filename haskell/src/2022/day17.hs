@@ -10,8 +10,6 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder (fromText, singleton, toLazyText)
-import Debug.Trace (traceShow)
-import GHC.IO (unsafePerformIO)
 import Util (Coord2d, add2)
 
 -- this a standard "simulate and then find a cycle" problem
@@ -70,7 +68,7 @@ chamberToString (Chamber maxY rocks shape) =
                 [0 .. 6]
         )
         (fromText "")
-        [maxY, maxY - 1 .. 0]
+        [maxY + 10, maxY + 9 .. 0]
   where
     shapeCoords = fromMaybe Set.empty shape
 
@@ -106,7 +104,7 @@ step (Chamber maxY rocks (Just shape), gusts, shapes) =
     -- jet, then push down. we will recurse here so step()'s results can just be the next
     (gust, restGusts) = fromJust $ uncons gusts
     gustedShape = applyGust rocks gust shape
-    newMaxY = foldr (\c acc -> max acc (snd c)) maxY gustedShape + 1
+    newMaxY = foldr (\c acc -> max acc (snd c + 1)) maxY gustedShape
 
 parseGusts :: T.Text -> [Gust]
 parseGusts t =
@@ -119,7 +117,7 @@ parseGusts t =
     $ T.unpack t
 
 part1 :: T.Text -> Int
-part1 t = case iterate step (Chamber 0 Set.empty Nothing, cycle (parseGusts t), shapeList) !! 2022 of
+part1 t = case tail (iterate step (Chamber 0 Set.empty Nothing, cycle (parseGusts t), shapeList)) !! 2022 of
   (Chamber maxY _ _, _, _) -> maxY
 
 part2 :: T.Text -> Int
