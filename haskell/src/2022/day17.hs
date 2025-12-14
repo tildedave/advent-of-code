@@ -3,7 +3,7 @@
 
 module Day17 where
 
-import Data.List (foldl', uncons)
+import Data.List (uncons)
 import Data.Maybe (fromJust, fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -105,8 +105,8 @@ step (Chamber maxY rocks (Just shape), gusts, shapes) =
   where
     -- jet, then push down. we will recurse here so step()'s results can just be the next
     (gust, restGusts) = fromJust $ uncons gusts
-    gustedShape = applyGust rocks gust (traceShow (unsafePerformIO $ putStrLn $ (T.unpack $ chamberToString (Chamber (maxY + 5) rocks (Just shape))) ++ "\n" ++ show gust) shape)
-    newMaxY = foldr (\c acc -> max acc (snd c)) maxY gustedShape
+    gustedShape = applyGust rocks gust shape
+    newMaxY = foldr (\c acc -> max acc (snd c)) maxY gustedShape + 1
 
 parseGusts :: T.Text -> [Gust]
 parseGusts t =
@@ -119,7 +119,7 @@ parseGusts t =
     $ T.unpack t
 
 part1 :: T.Text -> Int
-part1 t = case iterate step (Chamber 0 (Set.fromList $ (,-1) <$> [0 .. 6]) Nothing, cycle (parseGusts t), shapeList) !! 10 of
+part1 t = case iterate step (Chamber 0 (Set.fromList $ (,-1) <$> [0 .. 6]) Nothing, cycle (parseGusts t), shapeList) !! 2022 of
   (Chamber maxY _ _, _, _) -> maxY
 
 part2 :: T.Text -> Int
