@@ -1,12 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 
 module Day17 where
 
-import Data.List (uncons)
-import Data.Maybe (fromJust)
+import Data.List (foldl', uncons)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text qualified as T
+import Data.Text.Lazy (toStrict)
+import Data.Text.Lazy.Builder (fromText, singleton, toLazyText)
+import Debug.Trace (traceShow)
+import GHC.IO (unsafePerformIO)
 import Util (Coord2d, add2)
 
 -- this a standard "simulate and then find a cycle" problem
@@ -21,7 +26,7 @@ cross :: Shape
 cross = Set.fromList [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
 
 lbar :: Shape
-lbar = Set.fromList [(0, 2), (1, 2), (2, 2), (2, 0), (2, 1)]
+lbar = Set.fromList [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2)]
 
 long :: Shape
 long = Set.fromList [(0, 0), (0, 1), (0, 2), (0, 3)]
@@ -34,15 +39,40 @@ shapeList = cycle [plus, cross, lbar, long, square]
 
 -- int is maxY
 -- technically this grid works backwards (y = 0 is the bottom, y = 30 is 30 units up, etc)
-data Chamber = Chamber Int (Set Coord2d) (Maybe Shape)
+data Chamber = Chamber Int (Set Coord2d) (Maybe Shape) deriving (Show)
 
 -- maxY only gets updated when a shape ends
 placeShape :: Shape -> Chamber -> Chamber
 placeShape shape (Chamber maxY rocks _) = Chamber maxY rocks (Just (Set.map (add2 (2, 3 + maxY)) shape))
 
-data Gust = LeftGust | RightGust
+data Gust = LeftGust | RightGust deriving (Show)
 
 type ChamberState = (Chamber, [Gust], [Shape])
+
+chamberToString :: Chamber -> T.Text
+chamberToString (Chamber maxY rocks shape) =
+  toStrict $
+    toLazyText $
+      foldr
+        ( \y b ->
+            singleton '\n'
+              <> foldr
+                ( \x b' ->
+                    singleton
+                      ( if
+                          | (x, y) `elem` rocks -> '#'
+                          | (x, y) `elem` shapeCoords -> '@'
+                          | otherwise -> '.'
+                      )
+                      <> b'
+                )
+                b
+                [0 .. 6]
+        )
+        (fromText "")
+        [maxY, maxY - 1 .. 0]
+  where
+    shapeCoords = fromMaybe Set.empty shape
 
 applyGust :: Set Coord2d -> Gust -> Shape -> Shape
 applyGust rocks gust shape =
@@ -75,7 +105,7 @@ step (Chamber maxY rocks (Just shape), gusts, shapes) =
   where
     -- jet, then push down. we will recurse here so step()'s results can just be the next
     (gust, restGusts) = fromJust $ uncons gusts
-    gustedShape = applyGust rocks gust shape
+    gustedShape = applyGust rocks gust (traceShow (unsafePerformIO $ putStrLn $ (T.unpack $ chamberToString (Chamber (maxY + 5) rocks (Just shape))) ++ "\n" ++ show gust) shape)
     newMaxY = foldr (\c acc -> max acc (snd c)) maxY gustedShape
 
 parseGusts :: T.Text -> [Gust]
@@ -89,7 +119,7 @@ parseGusts t =
     $ T.unpack t
 
 part1 :: T.Text -> Int
-part1 t = case iterate step (Chamber 0 (Set.fromList $ (,-1) <$> [0 .. 6]) Nothing, cycle (parseGusts t), shapeList) !! 2022 of
+part1 t = case iterate step (Chamber 0 (Set.fromList $ (,-1) <$> [0 .. 6]) Nothing, cycle (parseGusts t), shapeList) !! 10 of
   (Chamber maxY _ _, _, _) -> maxY
 
 part2 :: T.Text -> Int
