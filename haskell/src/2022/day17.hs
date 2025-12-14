@@ -19,8 +19,8 @@ import Util (Coord2d, add2)
 
 type Shape = Set Coord2d
 
-plus :: Shape
-plus = Set.fromList [(0, 0), (1, 0), (2, 0), (3, 0)]
+longVertical :: Shape
+longVertical = Set.fromList [(0, 0), (1, 0), (2, 0), (3, 0)]
 
 cross :: Shape
 cross = Set.fromList [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
@@ -28,14 +28,14 @@ cross = Set.fromList [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
 lbar :: Shape
 lbar = Set.fromList [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2)]
 
-long :: Shape
-long = Set.fromList [(0, 0), (0, 1), (0, 2), (0, 3)]
+longHorizontal :: Shape
+longHorizontal = Set.fromList [(0, 0), (0, 1), (0, 2), (0, 3)]
 
 square :: Shape
 square = Set.fromList [(0, 0), (1, 0), (0, 1), (1, 1)]
 
 shapeList :: [Shape]
-shapeList = cycle [plus, cross, lbar, long, square]
+shapeList = cycle [longVertical, cross, lbar, longHorizontal, square]
 
 -- int is maxY
 -- technically this grid works backwards (y = 0 is the bottom, y = 30 is 30 units up, etc)
@@ -88,11 +88,11 @@ applyGust rocks gust shape =
 
 moveDown :: Set Coord2d -> Shape -> Maybe Shape
 moveDown rocks shape =
-  if any (`elem` rocks) nextShape
+  if all (\c -> notElem c rocks && snd c >= 0) nextShape
     then
-      Nothing
-    else
       Just nextShape
+    else
+      Nothing
   where
     nextShape = Set.map (add2 (0, -1)) shape
 
@@ -119,7 +119,7 @@ parseGusts t =
     $ T.unpack t
 
 part1 :: T.Text -> Int
-part1 t = case iterate step (Chamber 0 (Set.fromList $ (,-1) <$> [0 .. 6]) Nothing, cycle (parseGusts t), shapeList) !! 2022 of
+part1 t = case iterate step (Chamber 0 Set.empty Nothing, cycle (parseGusts t), shapeList) !! 2022 of
   (Chamber maxY _ _, _, _) -> maxY
 
 part2 :: T.Text -> Int
