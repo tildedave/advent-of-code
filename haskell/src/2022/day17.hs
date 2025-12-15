@@ -147,7 +147,10 @@ part1 :: T.Text -> Int
 part1 t = maxRocks $ rockSeqList t !! 2022
 
 chamberStateToHash :: ChamberState -> (Set Coord2d, Int, Int)
-chamberStateToHash (Chamber _ rocks _, (gn, _) : _, (sn, _) : _) = (rocks, gn, sn)
+chamberStateToHash (Chamber _ rocks _, (gn, _) : _, (sn, _) : _) =
+  (Set.map (\(x, y) -> (x, y - minY)) rocks, gn, sn)
+  where
+    minY = foldr (min . snd) maxBound rocks
 chamberStateToHash _ = error "impossible"
 
 part2 :: T.Text -> Int
@@ -163,7 +166,8 @@ part2 t =
                     rocksPerCycle = maxRocks chamberState - prevRocks
                     cycleLength = n - prevN
                     numFullCycles = (dest - prevN) `div` cycleLength
-                 in prevRocks + numFullCycles * rocksPerCycle
+                    left = (dest - prevN) `mod` cycleLength
+                 in numFullCycles * rocksPerCycle + maxRocks (chamberSeq !! (prevN + left))
       loop _ _ _ = error "invalid"
    in loop (zip [0 ..] chamberSeq) Map.empty 1000000000000
   where
