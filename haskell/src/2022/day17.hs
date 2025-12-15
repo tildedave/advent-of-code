@@ -4,7 +4,8 @@
 
 module Day17 where
 
-import Data.List (uncons)
+import Data.List (foldl', uncons)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
@@ -33,9 +34,6 @@ longHorizontal = Set.fromList [(0, 0), (0, 1), (0, 2), (0, 3)]
 square :: Shape
 square = Set.fromList [(0, 0), (1, 0), (0, 1), (1, 1)]
 
-shapeList :: [Shape]
-shapeList = cycle [longVertical, cross, lbar, longHorizontal, square]
-
 -- int is maxY
 -- technically this grid works backwards (y = 0 is the bottom, y = 30 is 30 units up, etc)
 data Chamber = Chamber Int (Set Coord2d) (Maybe Shape) deriving (Show)
@@ -47,7 +45,12 @@ blockedColumn rocks maxY x =
 prune :: Chamber -> Chamber
 prune (Chamber maxY rocks shape) =
   let filterY = minimum (blockedColumn rocks maxY <$> [0 .. 6])
-   in Chamber maxY (Set.filter (\c -> snd c >= filterY) rocks) shape
+   in Chamber maxY (Set.filter ((>= filterY) . snd) rocks) shape
+
+-- Chamber (foldr (max . snd) 0 filteredRocks) filteredRocks shape
+-- where
+--   filterY = minimum (blockedColumn rocks maxY <$> [0 .. 6])
+--   filteredRocks = Set.map (\(x, y) -> (x, y - filterY)) (Set.filter (\c -> snd c >= filterY) rocks)
 
 -- maxY only gets updated when a shape ends
 placeShape :: Shape -> Chamber -> Chamber
@@ -55,7 +58,7 @@ placeShape shape (Chamber maxY rocks _) = Chamber maxY rocks (Just (Set.map (add
 
 data Gust = LeftGust | RightGust deriving (Show)
 
-type ChamberState = (Chamber, [(Int, Gust)], [Shape])
+type ChamberState = (Chamber, [(Int, Gust)], [(Int, Shape)])
 
 chamberToString :: Chamber -> T.Text
 chamberToString (Chamber maxY rocks shape) =
@@ -105,7 +108,7 @@ moveDown rocks shape =
     nextShape = Set.map (add2 (0, -1)) shape
 
 step :: ChamberState -> ChamberState
-step (Chamber maxY rocks Nothing, gusts, shapes) = (prune $ placeShape (head shapes) (Chamber maxY rocks Nothing), gusts, tail shapes)
+step (Chamber maxY rocks Nothing, gusts, shapes) = (prune $ placeShape (snd (head shapes)) (Chamber maxY rocks Nothing), gusts, tail shapes)
 step (Chamber maxY rocks (Just shape), gusts, shapes) =
   case moveDown rocks gustedShape of
     Nothing -> step (Chamber newMaxY (Set.union gustedShape rocks) Nothing, restGusts, shapes)
@@ -126,11 +129,42 @@ parseGusts t =
     )
     $ T.unpack t
 
+rockSeqList :: T.Text -> [ChamberState]
+rockSeqList t =
+  tail -- discard first state since it's just a "placement" of the first shape
+    ( iterate
+        step
+        ( Chamber 0 Set.empty Nothing,
+          cycle (zip [0 ..] (parseGusts t)),
+          cycle (zip [0 ..] [longVertical, cross, lbar, longHorizontal, square])
+        )
+    )
+
+maxRocks :: ChamberState -> Int
+maxRocks (Chamber maxY _ _, _, _) = maxY
+
 part1 :: T.Text -> Int
-part1 t = case seqList !! 2022 of
-  (Chamber maxY _ _, _, _) -> maxY
-  where
-    seqList = tail (iterate step (Chamber 0 Set.empty Nothing, cycle (zip [0 ..] (parseGusts t)), shapeList))
+part1 t = maxRocks $ rockSeqList t !! 2022
+
+chamberStateToHash :: ChamberState -> (Set Coord2d, Int, Int)
+chamberStateToHash (Chamber _ rocks _, (gn, _) : _, (sn, _) : _) = (rocks, gn, sn)
+chamberStateToHash _ = error "impossible"
 
 part2 :: T.Text -> Int
-part2 _ = 1
+part2 t =
+  let loop ((n, chamberState) : xs) m dest =
+        -- hash needs to normalize Ys, doesn't do that now
+        let h = chamberStateToHash chamberState
+         in case Map.lookup h m of
+              Nothing -> loop xs (Map.insert h n m) dest
+              Just prevN ->
+                -- prevN ---> n is a cycle
+                let prevRocks = maxRocks (chamberSeq !! prevN)
+                    rocksPerCycle = maxRocks chamberState - prevRocks
+                    cycleLength = n - prevN
+                    numFullCycles = (dest - prevN) `div` cycleLength
+                 in prevRocks + numFullCycles * rocksPerCycle
+      loop _ _ _ = error "invalid"
+   in loop (zip [0 ..] chamberSeq) Map.empty 1000000000000
+  where
+    chamberSeq = rockSeqList t
