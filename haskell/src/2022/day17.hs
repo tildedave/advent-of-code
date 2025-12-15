@@ -1,10 +1,11 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE TupleSections #-}
 
 module Day17 where
 
 import Data.List (uncons)
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text qualified as T
@@ -39,13 +40,22 @@ shapeList = cycle [longVertical, cross, lbar, longHorizontal, square]
 -- technically this grid works backwards (y = 0 is the bottom, y = 30 is 30 units up, etc)
 data Chamber = Chamber Int (Set Coord2d) (Maybe Shape) deriving (Show)
 
+blockedColumn :: Set Coord2d -> Int -> Int -> Int
+blockedColumn rocks maxY x =
+  snd $ fromMaybe (0, 0) (listToMaybe $ dropWhile (`notElem` rocks) $ map (x,) [maxY, maxY - 1 .. 0])
+
+prune :: Chamber -> Chamber
+prune (Chamber maxY rocks shape) =
+  let filterY = minimum (blockedColumn rocks maxY <$> [0 .. 6])
+   in Chamber maxY (Set.filter (\c -> snd c >= filterY) rocks) shape
+
 -- maxY only gets updated when a shape ends
 placeShape :: Shape -> Chamber -> Chamber
 placeShape shape (Chamber maxY rocks _) = Chamber maxY rocks (Just (Set.map (add2 (2, 3 + maxY)) shape))
 
 data Gust = LeftGust | RightGust deriving (Show)
 
-type ChamberState = (Chamber, [Gust], [Shape])
+type ChamberState = (Chamber, [(Int, Gust)], [Shape])
 
 chamberToString :: Chamber -> T.Text
 chamberToString (Chamber maxY rocks shape) =
@@ -95,7 +105,7 @@ moveDown rocks shape =
     nextShape = Set.map (add2 (0, -1)) shape
 
 step :: ChamberState -> ChamberState
-step (Chamber maxY rocks Nothing, gusts, shapes) = (placeShape (head shapes) (Chamber maxY rocks Nothing), gusts, tail shapes)
+step (Chamber maxY rocks Nothing, gusts, shapes) = (prune $ placeShape (head shapes) (Chamber maxY rocks Nothing), gusts, tail shapes)
 step (Chamber maxY rocks (Just shape), gusts, shapes) =
   case moveDown rocks gustedShape of
     Nothing -> step (Chamber newMaxY (Set.union gustedShape rocks) Nothing, restGusts, shapes)
@@ -103,7 +113,7 @@ step (Chamber maxY rocks (Just shape), gusts, shapes) =
   where
     -- jet, then push down. we will recurse here so step()'s results can just be the next
     (gust, restGusts) = fromJust $ uncons gusts
-    gustedShape = applyGust rocks gust shape
+    gustedShape = applyGust rocks (snd gust) shape
     newMaxY = foldr (\c acc -> max acc (snd c + 1)) maxY gustedShape
 
 parseGusts :: T.Text -> [Gust]
@@ -117,8 +127,10 @@ parseGusts t =
     $ T.unpack t
 
 part1 :: T.Text -> Int
-part1 t = case tail (iterate step (Chamber 0 Set.empty Nothing, cycle (parseGusts t), shapeList)) !! 2022 of
+part1 t = case seqList !! 2022 of
   (Chamber maxY _ _, _, _) -> maxY
+  where
+    seqList = tail (iterate step (Chamber 0 Set.empty Nothing, cycle (zip [0 ..] (parseGusts t)), shapeList))
 
 part2 :: T.Text -> Int
 part2 _ = 1
