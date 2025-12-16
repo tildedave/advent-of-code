@@ -3,7 +3,7 @@
             [clojure.set :as set]
             [clojure.string :as string]))
 
-(def line (first (utils/read-resource-lines "input/day17.txt")))
+(def line (first (utils/read-resource-lines "2022/day17.txt")))
 (defn parse-pattern [jet-pattern-str]
   (mapv #(case % \> :right \< :left) jet-pattern-str))
 
@@ -252,7 +252,11 @@
       (let [cycle-length (- cycle-end cycle-start)
             cycle-idx (mod (- num-rocks cycle-start) cycle-length)
             rocks-at-start (cavern-height-brute-force cycle-start)
-            num-full-cycles (quot (- num-rocks cycle-start) cycle-length)]
+            num-full-cycles (quot (- num-rocks cycle-start) cycle-length)
+            _ (println "rocks-per-cycle" rocks-per-cycle)
+            _ (println "cycle-start" cycle-start)
+            _ (println "cycle end" cycle-end)
+            ]
         (+
          (* num-full-cycles rocks-per-cycle)
          rocks-at-start

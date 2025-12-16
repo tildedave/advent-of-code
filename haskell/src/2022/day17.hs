@@ -12,6 +12,7 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder (fromText, singleton, toLazyText)
+import Debug.Trace (trace)
 import Util (Coord2d, add2)
 
 -- this a standard "simulate and then find a cycle" problem
@@ -156,7 +157,6 @@ chamberStateToHash _ = error "impossible"
 part2 :: T.Text -> Int
 part2 t =
   let loop ((n, chamberState) : xs) m dest =
-        -- hash needs to normalize Ys, doesn't do that now
         let h = chamberStateToHash chamberState
          in case Map.lookup h m of
               Nothing -> loop xs (Map.insert h n m) dest
@@ -166,8 +166,12 @@ part2 t =
                     rocksPerCycle = maxRocks chamberState - prevRocks
                     cycleLength = n - prevN
                     numFullCycles = (dest - prevN) `div` cycleLength
-                    left = (dest - prevN) `mod` cycleLength
-                 in numFullCycles * rocksPerCycle + maxRocks (chamberSeq !! (prevN + left))
+                    left = (dest - prevN) `rem` cycleLength
+                 in -- trace
+                    -- ("hash: " ++ show h ++ "left: " ++ (show left) ++ " prevN: " ++ (show prevN) ++ " n: " ++ show n ++ " rocksPerCycle: " ++ show rocksPerCycle)
+                    maxRocks
+                      (chamberSeq !! (left + prevN))
+                      + numFullCycles * rocksPerCycle
       loop _ _ _ = error "invalid"
    in loop (zip [0 ..] chamberSeq) Map.empty 1000000000000
   where
