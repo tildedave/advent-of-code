@@ -4,7 +4,7 @@
 
 module Day17 where
 
-import Data.List (foldl', uncons)
+import Data.List (uncons)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromJust, fromMaybe, listToMaybe)
 import Data.Set (Set)
@@ -20,8 +20,8 @@ import Util (Coord2d, add2)
 
 type Shape = Set Coord2d
 
-longVertical :: Shape
-longVertical = Set.fromList [(0, 0), (1, 0), (2, 0), (3, 0)]
+longHorizontal :: Shape
+longHorizontal = Set.fromList [(0, 0), (1, 0), (2, 0), (3, 0)]
 
 cross :: Shape
 cross = Set.fromList [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
@@ -29,8 +29,8 @@ cross = Set.fromList [(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)]
 lbar :: Shape
 lbar = Set.fromList [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2)]
 
-longHorizontal :: Shape
-longHorizontal = Set.fromList [(0, 0), (0, 1), (0, 2), (0, 3)]
+longVertical :: Shape
+longVertical = Set.fromList [(0, 0), (0, 1), (0, 2), (0, 3)]
 
 square :: Shape
 square = Set.fromList [(0, 0), (1, 0), (0, 1), (1, 1)]
@@ -45,7 +45,7 @@ blockedColumn rocks maxY x =
 
 prune :: Chamber -> Chamber
 prune (Chamber maxY rocks shape) =
-  let filterY = minimum (blockedColumn rocks maxY <$> [0 .. 6])
+  let filterY = max (maxY - 20) 0
    in Chamber maxY (Set.filter ((>= filterY) . snd) rocks) shape
 
 -- Chamber (foldr (max . snd) 0 filteredRocks) filteredRocks shape
@@ -137,7 +137,7 @@ rockSeqList t =
         step
         ( Chamber 0 Set.empty Nothing,
           cycle (zip [0 ..] (parseGusts t)),
-          cycle (zip [0 ..] [longVertical, cross, lbar, longHorizontal, square])
+          cycle (zip [0 ..] [longHorizontal, cross, lbar, longVertical, square])
         )
     )
 
@@ -147,6 +147,7 @@ maxRocks (Chamber maxY _ _, _, _) = maxY
 part1 :: T.Text -> Int
 part1 t = maxRocks $ rockSeqList t !! 2022
 
+-- changing this results in a still incorrect answer
 chamberStateToHash :: ChamberState -> (Set Coord2d, Int, Int)
 chamberStateToHash (Chamber _ rocks _, (gn, _) : _, (sn, _) : _) =
   (Set.map (\(x, y) -> (x, y - minY)) rocks, gn, sn)
@@ -157,21 +158,25 @@ chamberStateToHash _ = error "impossible"
 part2 :: T.Text -> Int
 part2 t =
   let loop ((n, chamberState) : xs) m dest =
-        let h = chamberStateToHash chamberState
-         in case Map.lookup h m of
-              Nothing -> loop xs (Map.insert h n m) dest
-              Just prevN ->
-                -- prevN ---> n is a cycle
-                let prevRocks = maxRocks (chamberSeq !! prevN)
-                    rocksPerCycle = maxRocks chamberState - prevRocks
-                    cycleLength = n - prevN
-                    numFullCycles = (dest - prevN) `div` cycleLength
-                    left = (dest - prevN) `rem` cycleLength
-                 in -- trace
-                    -- ("hash: " ++ show h ++ "left: " ++ (show left) ++ " prevN: " ++ (show prevN) ++ " n: " ++ show n ++ " rocksPerCycle: " ++ show rocksPerCycle)
-                    maxRocks
-                      (chamberSeq !! (left + prevN))
-                      + numFullCycles * rocksPerCycle
+        if n == dest
+          then
+            maxRocks chamberState
+          else
+            let h = chamberStateToHash chamberState
+             in case Map.lookup h m of
+                  Nothing -> loop xs (Map.insert h (n, maxRocks chamberState) m) dest
+                  Just (prevN, prevRocks) ->
+                    -- prevN ---> n is a cycle
+                    let currentHeight = maxRocks chamberState
+                        rocksPerCycle = currentHeight - prevRocks
+                        cycleLength = n - prevN
+                        numFullCycles = (dest - prevN) `div` cycleLength
+                        left = (dest - prevN) `rem` cycleLength
+                     in trace
+                          ("hash: " ++ show h ++ " left: " ++ (show left) ++ " prevN: " ++ (show prevN) ++ " n: " ++ show n ++ " rocksPerCycle: " ++ show rocksPerCycle)
+                          maxRocks
+                          (chamberSeq !! (left + prevN))
+                          + numFullCycles * rocksPerCycle
       loop _ _ _ = error "invalid"
    in loop (zip [0 ..] chamberSeq) Map.empty 1000000000000
   where
