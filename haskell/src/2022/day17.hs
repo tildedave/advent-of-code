@@ -1,18 +1,16 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE TupleSections #-}
 
 module Day17 where
 
 import Data.List (uncons)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromJust, fromMaybe, listToMaybe)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Lazy (toStrict)
 import Data.Text.Lazy.Builder (fromText, singleton, toLazyText)
-import Debug.Trace (trace)
 import Util (Coord2d, add2)
 
 -- this a standard "simulate and then find a cycle" problem
@@ -39,19 +37,10 @@ square = Set.fromList [(0, 0), (1, 0), (0, 1), (1, 1)]
 -- technically this grid works backwards (y = 0 is the bottom, y = 30 is 30 units up, etc)
 data Chamber = Chamber Int (Set Coord2d) (Maybe Shape) deriving (Show)
 
-blockedColumn :: Set Coord2d -> Int -> Int -> Int
-blockedColumn rocks maxY x =
-  snd $ fromMaybe (0, 0) (listToMaybe $ dropWhile (`notElem` rocks) $ map (x,) [maxY, maxY - 1 .. 0])
-
 prune :: Chamber -> Chamber
 prune (Chamber maxY rocks shape) =
   let filterY = max (maxY - 20) 0
    in Chamber maxY (Set.filter ((>= filterY) . snd) rocks) shape
-
--- Chamber (foldr (max . snd) 0 filteredRocks) filteredRocks shape
--- where
---   filterY = minimum (blockedColumn rocks maxY <$> [0 .. 6])
---   filteredRocks = Set.map (\(x, y) -> (x, y - filterY)) (Set.filter (\c -> snd c >= filterY) rocks)
 
 -- maxY only gets updated when a shape ends
 placeShape :: Shape -> Chamber -> Chamber
@@ -109,7 +98,7 @@ moveDown rocks shape =
     nextShape = Set.map (add2 (0, -1)) shape
 
 step :: ChamberState -> ChamberState
-step (Chamber maxY rocks Nothing, gusts, shapes) = (prune $ placeShape (snd (head shapes)) (Chamber maxY rocks Nothing), gusts, tail shapes)
+step (Chamber maxY rocks Nothing, gusts, shapes) = (placeShape (snd (head shapes)) (Chamber maxY rocks Nothing), gusts, tail shapes)
 step (Chamber maxY rocks (Just shape), gusts, shapes) =
   case moveDown rocks gustedShape of
     Nothing -> step (Chamber newMaxY (Set.union gustedShape rocks) Nothing, restGusts, shapes)
@@ -144,40 +133,63 @@ rockSeqList t =
 maxRocks :: ChamberState -> Int
 maxRocks (Chamber maxY _ _, _, _) = maxY
 
-part1 :: T.Text -> Int
-part1 t = maxRocks $ rockSeqList t !! 2022
-
 -- changing this results in a still incorrect answer
-chamberStateToHash :: ChamberState -> (Set Coord2d, Int, Int)
-chamberStateToHash (Chamber _ rocks _, (gn, _) : _, (sn, _) : _) =
-  (Set.map (\(x, y) -> (x, y - minY)) rocks, gn, sn)
-  where
-    minY = foldr (min . snd) maxBound rocks
+chamberStateToHash :: ChamberState -> ([[Char]], Int, Int)
+chamberStateToHash (Chamber maxY rocks _, (gn, _) : _, (sn, _) : _) =
+  ( map
+      ( \y ->
+          map
+            (\x -> if (x, y) `Set.member` rocks then '#' else '.')
+            [0 .. 6]
+      )
+      (takeWhile (>= 0) [maxY, maxY - 1 .. maxY - 20]),
+    gn,
+    sn
+  )
 chamberStateToHash _ = error "impossible"
 
-part2 :: T.Text -> Int
-part2 t =
-  let loop ((n, chamberState) : xs) m dest =
-        if n == dest
+--   )
+-- chamberStateToHash :: ChamberState -> (Set Coord2d, Int, Int)
+-- chamberStateToHash (Chamber _ rocks _, (gn, _) : _, (sn, _) : _) =
+--   (Set.map (\(x, y) -> (x, y - minY)) rocks, gn, sn)
+--   where
+--     minY = foldr (min . snd) maxBound rocks
+-- chamberStateToHash _ = error "impossible"
+
+-- 1552 is the first deviation
+towerHeight :: Int -> T.Text -> Int
+towerHeight goal' t =
+  let loop ((n, chamberState) : xs) m goal =
+        if n == goal
           then
             maxRocks chamberState
           else
             let h = chamberStateToHash chamberState
              in case Map.lookup h m of
-                  Nothing -> loop xs (Map.insert h (n, maxRocks chamberState) m) dest
+                  Nothing -> loop xs (Map.insert h (n, maxRocks chamberState) m) goal
                   Just (prevN, prevRocks) ->
                     -- prevN ---> n is a cycle
                     let currentHeight = maxRocks chamberState
                         rocksPerCycle = currentHeight - prevRocks
                         cycleLength = n - prevN
-                        numFullCycles = (dest - prevN) `div` cycleLength
-                        left = (dest - prevN) `rem` cycleLength
-                     in trace
-                          ("hash: " ++ show h ++ " left: " ++ (show left) ++ " prevN: " ++ (show prevN) ++ " n: " ++ show n ++ " rocksPerCycle: " ++ show rocksPerCycle)
-                          maxRocks
+                        numFullCycles = (goal - prevN) `div` cycleLength
+                        left = (goal - prevN) `rem` cycleLength
+                     in maxRocks
                           (chamberSeq !! (left + prevN))
                           + numFullCycles * rocksPerCycle
       loop _ _ _ = error "invalid"
-   in loop (zip [0 ..] chamberSeq) Map.empty 1000000000000
+   in loop (zip [0 ..] chamberSeq) Map.empty goal'
   where
     chamberSeq = rockSeqList t
+
+-- | Examples
+-- >>> s = ">>><<><>><<<>><>>><<<>>><<<><<<>><>><<>>"
+-- >>> part1 s
+-- 3068
+-- >>> part2 s
+-- 1514285714288
+part1 :: T.Text -> Int
+part1 = towerHeight 2022
+
+part2 :: T.Text -> Int
+part2 = towerHeight 1000000000000
