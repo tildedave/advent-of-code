@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day10 where
 
@@ -128,7 +129,7 @@ machineToLpSolveFormat (Machine _ buttonList joltages) =
 
 lpSolve :: Machine -> IO Integer
 lpSolve machine = do
-  t <- T.pack <$> readProcess "/usr/local/bin/lp_solve" ["-S1"] (T.unpack (machineToLpSolveFormat machine))
+  t <- T.pack <$> readProcess "/opt/homebrew/bin/lp_solve" ["-S1"] (T.unpack (machineToLpSolveFormat machine))
   let number = head $ mapMaybe (T.stripPrefix "Value of objective function: ") (T.splitOn "\n" t)
    in return (read $ takeWhile (/= '.') $ T.unpack number)
 

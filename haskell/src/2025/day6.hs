@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day6 where
 
@@ -7,7 +8,7 @@ import Data.Char (digitToInt)
 import Data.Function (on)
 import Data.List (foldl1', maximumBy, transpose)
 import Data.Maybe (catMaybes, fromJust)
-import qualified Data.Text as T
+import Data.Text qualified as T
 import Util (trim, unsnoc)
 
 applyOperation :: [T.Text] -> Int

@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiWayIf #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day17 where
 

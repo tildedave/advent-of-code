@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiWayIf #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day14 where
 

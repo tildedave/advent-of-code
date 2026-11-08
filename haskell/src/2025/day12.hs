@@ -1,6 +1,6 @@
 module Day12 where
 
-import Data.List (foldl', uncons)
+import Data.List (uncons)
 import Data.Map qualified as M
 import Data.Maybe (fromJust)
 import Data.Text qualified as T

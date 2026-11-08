@@ -3,7 +3,7 @@
 
 module Day11 where
 
-import Data.List (foldl', sortBy, unfoldr)
+import Data.List (sortBy, unfoldr)
 import Data.Map ((!))
 import Data.Map qualified as M
 import Data.Text qualified as T

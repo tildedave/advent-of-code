@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day3 where
 
 import Data.Char (digitToInt)
 import Data.List (intercalate, sortBy)
-import qualified Data.Text as T
+import Data.Text qualified as T
 
 -- part2 is harder
 -- really it is just looking for, of all 12 digit substrings, which is the maximum

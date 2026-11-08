@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day5 where
 
-import Data.List (foldl', uncons)
+import Data.List (uncons)
 import Data.List.Split (splitOn)
 import Data.Map ((!))
 import qualified Data.Map as Map

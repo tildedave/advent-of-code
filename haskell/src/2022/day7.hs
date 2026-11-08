@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day7 where
 
-import qualified Data.Map as M
+import Data.Map qualified as M
 import Data.Maybe (fromJust)
-import qualified Data.Text as T
+import Data.Text qualified as T
 
 data FSEntry = File Int T.Text | Dir T.Text [FSEntry] deriving (Show)
 
