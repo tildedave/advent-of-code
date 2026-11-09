@@ -3,7 +3,9 @@
 
 module Day15 where
 
-import Data.Text (Text)
+import Data.List
+import Data.Maybe (mapMaybe)
+import Data.Text qualified as T
 import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec qualified as Parsec
@@ -57,7 +59,7 @@ merge i1 i2 =
 
 -- Void = no error messages
 -- Text = type of input stream
-type Parser = Parsec Void Text
+type Parser = Parsec Void T.Text
 
 pLine :: Parser (Coord Integer, Coord Integer)
 pLine = do
@@ -88,3 +90,36 @@ ruledOutInterval (x, y) (bx, by) destY =
    in if
         | diff < 0 -> Nothing
         | otherwise -> Just $ Interval (x - diff) (x + diff)
+
+mergeIntervalIn :: (Ord a) => List (Interval a) -> (Interval a) -> List (Interval a)
+mergeIntervalIn [] i = [i]
+mergeIntervalIn (x : xs) i =
+  if overlaps x i then mergeIntervalIn xs (merge x i) else x : (mergeIntervalIn xs i)
+
+lineToImpossibilityInterval :: Integer -> T.Text -> Maybe (Interval Integer)
+lineToImpossibilityInterval y t =
+  case Parsec.parse pLine "source" t of
+    Right (c1, c2) -> ruledOutInterval c1 c2 y
+    Left e -> error $ "parse error :-( " ++ show e
+
+-- | lineToImpossibilityInterval
+-- >>> lineToImpossibilityInterval 10 "Sensor at x=2, y=18: closest beacon is at x=-2, y=15"
+-- Nothing
+distance :: (Num p) => Interval p -> p
+distance (Interval x y) = y - x
+
+impossibilityDistance :: Integer -> T.Text -> Integer
+impossibilityDistance y t =
+  let intervals = mapMaybe (lineToImpossibilityInterval y) (T.splitOn "\n" t)
+   in sum $
+        map distance $
+          foldl
+            mergeIntervalIn
+            []
+            intervals
+
+-- | impossibilityDistance
+-- >>> impossibilityDistance 10 "Sensor at x=2, y=18: closest beacon is at x=-2, y=15\nSensor at x=9, y=16: closest beacon is at x=10, y=16\nSensor at x=13, y=2: closest beacon is at x=15, y=3\nSensor at x=12, y=14: closest beacon is at x=10, y=16\nSensor at x=10, y=20: closest beacon is at x=10, y=16\nSensor at x=14, y=17: closest beacon is at x=10, y=16\nSensor at x=8, y=7: closest beacon is at x=2, y=10\nSensor at x=2, y=0: closest beacon is at x=2, y=10\nSensor at x=0, y=11: closest beacon is at x=2, y=10\nSensor at x=20, y=14: closest beacon is at x=25, y=17\nSensor at x=17, y=20: closest beacon is at x=21, y=22\nSensor at x=16, y=7: closest beacon is at x=15, y=3\nSensor at x=14, y=3: closest beacon is at x=15, y=3\nSensor at x=20, y=1: closest beacon is at x=15, y=3"
+-- 26
+part1 :: T.Text -> Integer
+part1 t = impossibilityDistance 2000000 (T.stripEnd t)
