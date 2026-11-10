@@ -4,7 +4,7 @@
 module Day15 where
 
 import Data.List
-import Data.Maybe (catMaybes, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Data.Void
@@ -192,10 +192,11 @@ perimeter ((x, y), d) =
   -- (x, y + (d + 1))  [top]
   -- (x, y - (d + 1))  [bottom]
   -- so our lines are left -> top, top -> right, left -> bottom, bottom -> right
-  [ Positive (y - x + (d + 1)) (Interval (x - (d + 1)) x),
+  -- we ignore certain points to stop them from double-counting
+  [ Positive (y - x + (d + 1)) (Interval (x - (d + 1)) (x - 1)), -- ignore top
     Negative (x + y + (d + 1)) (Interval x (x + (d + 1))),
-    Negative (x + y - (d + 1)) (Interval (x - (d + 1)) x),
-    Positive (y - (d + 1) - x) (Interval x (x + (d + 1)))
+    Negative (x + y - (d + 1)) (Interval ((x - (d + 1)) + 1) x), -- ignore left
+    Positive (y - (d + 1) - x) (Interval (x + 1) (x + d)) -- ignore right and bottom
   ]
 
 -- so find all intersections of these lines - these are our candidates
@@ -211,16 +212,20 @@ isForbidden beacon (sensor, d) = manhattanDistance beacon sensor <= d
 checksum :: Coord Integer -> Integer
 checksum (x, y) = x * 4000000 + y
 
+inBounds :: (Ord a1, Ord a2, Num a1, Num a2) => (a1, a2) -> (a1, a2) -> Bool
+inBounds (xmax, ymax) (x, y) = 0 <= x && x <= xmax && 0 <= y && y <= ymax
+
 -- check each line list against another line list for intersections
 lineIntersections :: (Integer, Integer) -> [Line] -> [Line] -> S.Set (Coord Integer)
-lineIntersections (xmax, ymax) l1 l2 = foldr (\(x, y) s -> if 0 <= x && x <= xmax && 0 <= y && y <= ymax then (S.insert (x, y) s) else s) S.empty $ catMaybes [intersection x y | x <- l1, y <- l2]
+lineIntersections bounds l1 l2 =
+  S.fromList
+    [p | x <- l1, y <- l2, Just p <- [intersection x y], inBounds bounds p]
 
 _part2 :: (Integer, Integer) -> T.Text -> Integer
 _part2 bounds t =
   let coordsWithDistances = map lineToDistance (T.splitOn "\n" (T.strip t))
       perimeterLines = map perimeter coordsWithDistances
-      -- this includes 4 additional points for each diamond that are false candidates, but whatever
-      candidates = foldr S.union S.empty [lineIntersections bounds l1 l2 | l1 <- perimeterLines, l2 <- perimeterLines]
+      candidates = foldl' S.union S.empty [lineIntersections bounds l1 l2 | l1 <- perimeterLines, l2 <- perimeterLines]
    in checksum $ S.findMin $ S.filter (\c -> all (\x -> not (isForbidden c x)) coordsWithDistances) candidates
 
 part2 :: T.Text -> Integer
