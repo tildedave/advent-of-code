@@ -4,7 +4,7 @@
 module Day15 where
 
 import Data.List
-import Data.Maybe (mapMaybe)
+import Data.Maybe (catMaybes, mapMaybe)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Data.Void
@@ -26,7 +26,12 @@ manhattanDistance (x, y) (a, b) = abs (x - a) + abs (y - b)
 -- | manhattanDistance
 -- >>> manhattanDistance (1 :: Integer, 3) (6, 7)
 -- 9
+
+-- we'll say this is inclusive
 data Interval a = (Ord a) => Interval a a
+
+contained :: (Ord a) => Interval a -> a -> Bool
+contained (Interval xstart xend) x = xstart <= x && x <= xend
 
 deriving instance (Eq a) => Eq (Interval a)
 
@@ -145,9 +150,55 @@ lineToDistance t =
 -- we can just check the perimeters of every beacon to see if they're the
 -- answer.  that will work.
 
-perimeter :: Coord Integer -> (Coord Integer, Integer) -> [Coord Integer]
-perimeter (xmax, ymax) ((x, y), d) =
-  [(x + dx, y + dy) | dx <- [-d - 1 .. d + 1], dy <- [-d - 1 .. d + 1], abs (dx + dy) == d + 1, x + dx >= 0, x + dx <= xmax, y + dy >= 0, y + dy <= ymax]
+-- y = x + b in [x_start .. x_end] - let's say they're inclusive for now
+data Line = Positive Integer (Interval Integer) | Negative Integer (Interval Integer)
+
+intersection :: Line -> Line -> Maybe (Coord Integer)
+intersection (Negative _ _) (Negative _ _) = Nothing
+intersection (Positive _ _) (Positive _ _) = Nothing
+intersection l1 l2 =
+  case (l1, l2) of
+    (Negative _ _, Positive _ _) -> intersection l2 l1
+    (Positive a r1, Negative b r2) ->
+      -- no intersection in gridland if b - a is odd
+      if b - a `mod` 2 == 1
+        then
+          Nothing
+        else
+          let x = (b - a) `div` 2
+              y = (b + a) `div` 2
+           in if contained r1 x && contained r2 x
+                then
+                  Just (x, y)
+                else
+                  Nothing
+
+-- intersection (Negative b (xstart, xend)) (Positive _ _) =
+
+-- too inefficient
+-- perimeter :: Coord Integer -> (Coord Integer, Integer) -> [Coord Integer]
+-- perimeter (xmax, ymax) ((x, y), d) =
+--   [(x + dx, y + dy) | dx <- [-d - 1 .. d + 1], dy <- [-d - 1 .. d + 1], abs (dx + dy) == d + 1, x + dx >= 0, x + dx <= xmax, y + dy >= 0, y + dy <= ymax]
+
+perimeter :: (Coord Integer, Integer) -> [Line]
+perimeter ((x, y), d) =
+  -- this is the line around each of the sides, not within the beacon (distance
+  -- d + 1 from center)
+  -- Equation of a line through a point is generally: y - y0 = m(x - x0)
+  -- Positive lines look like y = x + y0 - x0
+  -- Negative lines look like y = -x + x0 + y0
+  -- (x - (d + 1), y)  [left]
+  -- (x + (d + 1), y)  [right]
+  -- (x, y + (d + 1))  [top]
+  -- (x, y - (d + 1))  [bottom]
+  -- so our lines are left -> top, top -> right, left -> bottom, bottom -> right
+  [ Positive (y - x + (d + 1)) (Interval (x - (d + 1)) x),
+    Negative (x + y + (d + 1)) (Interval x (x + (d + 1))),
+    Negative (x + y - (d + 1)) (Interval (x - (d + 1)) x),
+    Positive (y - (d + 1) - x) (Interval x (x + (d + 1)))
+  ]
+
+-- so find all intersections of these lines - these are our candidates
 
 isForbidden :: (Ord a, Num a) => Coord a -> (Coord a, a) -> Bool
 isForbidden beacon (sensor, d) = manhattanDistance beacon sensor <= d
@@ -155,13 +206,21 @@ isForbidden beacon (sensor, d) = manhattanDistance beacon sensor <= d
 -- so the possibilities are the perimeter of each one
 -- we combine them all into a set (sure?)
 
+-- brute force perimeter detection is bad, we are just too large
+
 checksum :: Coord Integer -> Integer
 checksum (x, y) = x * 4000000 + y
 
+-- check each line list against another line list for intersections
+lineIntersections :: (Integer, Integer) -> [Line] -> [Line] -> S.Set (Coord Integer)
+lineIntersections (xmax, ymax) l1 l2 = foldr (\(x, y) s -> if 0 <= x && x <= xmax && 0 <= y && y <= ymax then (S.insert (x, y) s) else s) S.empty $ catMaybes [intersection x y | x <- l1, y <- l2]
+
 _part2 :: (Integer, Integer) -> T.Text -> Integer
-_part2 (xmax, ymax) t =
+_part2 bounds t =
   let coordsWithDistances = map lineToDistance (T.splitOn "\n" (T.strip t))
-      candidates = foldl (\s x -> foldl (flip S.insert) s (perimeter (xmax, ymax) x)) S.empty coordsWithDistances
+      perimeterLines = map perimeter coordsWithDistances
+      -- this includes 4 additional points for each diamond that are false candidates, but whatever
+      candidates = foldr S.union S.empty [lineIntersections bounds l1 l2 | l1 <- perimeterLines, l2 <- perimeterLines]
    in checksum $ S.findMin $ S.filter (\c -> all (\x -> not (isForbidden c x)) coordsWithDistances) candidates
 
 part2 :: T.Text -> Integer
