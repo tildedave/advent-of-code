@@ -2,6 +2,7 @@
 
 module Search where
 
+import Control.Monad.Identity (Identity (runIdentity))
 import Data.Heap (MinPrioHeap)
 import Data.Heap qualified as H
 import Data.Map qualified as M
@@ -30,31 +31,45 @@ isNodeCloser node d state =
     Nothing -> True
     Just d' -> d + 1 < d'
 
-dijkstraSearch :: (Ord a) => a -> (a -> [a]) -> (a -> Bool) -> (a -> Bool) -> (M.Map a Int, Maybe (a, Int))
-dijkstraSearch start getNeighbors (isGoal :: a -> Bool) (shouldPrune :: a -> Bool) =
+dijkstraSearchM :: forall a m. (Ord a, Monad m) => a -> (a -> m [a]) -> (a -> m Bool) -> (a -> m Bool) -> m (M.Map a Int, Maybe (a, Int))
+dijkstraSearchM start getNeighbors (isGoal :: a -> m Bool) (shouldPrune :: a -> m Bool) =
   loop
     ( M.singleton start (0 :: Int),
       S.empty,
       H.fromList [(0 :: Int, start)]
     )
   where
-    loop :: DijkstraState a -> (M.Map a Int, Maybe (a, Int))
+    loop :: DijkstraState a -> m (M.Map a Int, Maybe (a, Int))
     loop (distances, visited, queue) =
       case H.viewHead queue of
-        Nothing -> (distances, Nothing)
+        -- apparently pure is the cool new way to write return
+        Nothing -> pure (distances, Nothing)
         Just (d, next) ->
           if
             | next `S.member` visited -> loop (distances, visited, H.drop 1 queue)
-            | shouldPrune next -> loop (distances, visited, H.drop 1 queue)
-            | isGoal next -> (distances, Just (next, fromJust $ M.lookup next distances))
-            | otherwise ->
-                loop $
-                  foldr
-                    ( \neighbor state ->
-                        if
-                          | isVisitedState neighbor state -> state
-                          | isNodeCloser neighbor (d + 1) state -> addNextState neighbor (d + 1) state
-                          | otherwise -> state
-                    )
-                    (distances, S.insert next visited, H.drop 1 queue)
-                    (getNeighbors next)
+            | otherwise -> do
+                prune <- shouldPrune next
+                if prune
+                  then
+                    loop (distances, visited, H.drop 1 queue)
+                  else do
+                    goal <- isGoal next
+                    if goal
+                      then
+                        pure (distances, Just (next, fromJust $ M.lookup next distances))
+                      else do
+                        neighbors <- getNeighbors next
+                        loop $
+                          foldr
+                            ( \neighbor state ->
+                                if
+                                  | isVisitedState neighbor state -> state
+                                  | isNodeCloser neighbor d state -> addNextState neighbor (d + 1) state
+                                  | otherwise -> state
+                            )
+                            (distances, S.insert next visited, H.drop 1 queue)
+                            neighbors
+
+dijkstraSearch :: (Ord a) => a -> (a -> [a]) -> (a -> Bool) -> (a -> Bool) -> (M.Map a Int, Maybe (a, Int))
+dijkstraSearch start getNeighbors isGoal shouldCutoff =
+  runIdentity $ dijkstraSearchM start (pure . getNeighbors) (pure . isGoal) (pure . shouldCutoff)
