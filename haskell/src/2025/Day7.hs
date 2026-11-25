@@ -1,6 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Day7 where
 
 -- import Data.Sequence (Seq (..), viewl)

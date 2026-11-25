@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Day11 where
 
 import Control.Monad (foldM)

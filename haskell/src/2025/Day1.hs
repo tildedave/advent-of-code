@@ -1,10 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Day1 where
 
-import qualified Data.Text as T
-import qualified Text.Parsec as Parsec
+import Data.Text qualified as T
+import Text.Parsec qualified as Parsec
 
 data Rotation = LeftRotation Int | RightRotation Int deriving (Show)
 

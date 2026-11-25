@@ -1,11 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Day3 where
 
 import Data.Char (isLower, isUpper, ord)
 import Data.List.Split (chunksOf)
-import qualified Data.Set as Set
-import qualified Data.Text as T
+import Data.Set qualified as Set
+import Data.Text qualified as T
 
 -- | parseRucksack
 -- >>> parseRucksack (T.pack "vJrwpWtwJgWrhcsFMMfFFhFp")

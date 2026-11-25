@@ -1,8 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Day4 where
 
-import qualified Data.Text as T
+import Data.Text qualified as T
 
 type Range = (Int, Int)
 

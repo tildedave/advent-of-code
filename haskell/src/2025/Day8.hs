@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Day8 where
 
 import Data.Heap (MinPrioHeap)

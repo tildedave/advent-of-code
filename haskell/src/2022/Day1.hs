@@ -1,11 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Day1 where
 
 -- import Data.List.Split (splitOn)
 import Data.List (sortBy)
 import Data.Text (splitOn, stripEnd, unpack)
-import qualified Data.Text as T
+import Data.Text qualified as T
 
 part1 :: T.Text -> Int
 part1 =

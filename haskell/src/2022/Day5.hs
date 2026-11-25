@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-x-partial -Wno-unrecognised-warning-flags #-}
 
 module Day5 where
@@ -6,9 +5,9 @@ module Day5 where
 import Data.List (uncons)
 import Data.List.Split (splitOn)
 import Data.Map ((!))
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Maybe (fromJust, mapMaybe)
-import qualified Data.Text as T
+import Data.Text qualified as T
 import Text.Read (readMaybe)
 import Util (trim)
 

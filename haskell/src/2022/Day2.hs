@@ -1,8 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Day2 where
 
-import qualified Data.Text as T
+import Data.Text qualified as T
 
 data Choice = Rock | Paper | Scissors deriving (Show, Eq)
 
