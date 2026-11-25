@@ -62,7 +62,7 @@ common libraries
 
 library aoc-common
     import:           warnings, extensions, libraries
-    exposed-modules:  Util Search
+    exposed-modules:  Util Search Graph
     hs-source-dirs:   src/common
     default-language: GHC2024
 
