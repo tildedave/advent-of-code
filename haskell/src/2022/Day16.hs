@@ -6,7 +6,7 @@ import Data.Maybe (fromJust, mapMaybe)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Data.Void
-import Graph (AdjacencyMatrix, DistanceMatrix)
+import Graph (DistanceMatrix, adjacencyToInitialWeights, allPairsShortestPaths)
 import Text.Megaparsec
 import Text.Megaparsec qualified as Parsec
 import Text.Megaparsec.Char
@@ -35,16 +35,30 @@ lineToAdjacency t =
 
 type FlowMapping = Map T.Text Int
 
-parseAdjacencyMatrix :: [T.Text] -> (FlowMapping, AdjacencyMatrix T.Text)
-parseAdjacencyMatrix l =
-  foldr
-    ( \(valve, flowRate, connections) (flowMap, adjacencyMap) ->
-        ( M.insert valve flowRate flowMap,
-          M.insert valve connections adjacencyMap
-        )
-    )
-    (M.empty, M.empty)
-    $ map lineToAdjacency l
+data ProblemConfig = ProblemConfig
+  { allValves :: [T.Text],
+    flowMap :: FlowMapping,
+    endTime :: Int,
+    distanceMatrix :: DistanceMatrix T.Text
+  }
+
+parseProblemConfig :: [T.Text] -> ProblemConfig
+parseProblemConfig l =
+  let (flowMap, adjacencyMatrix) =
+        foldr
+          ( \(valve, flowRate, connections) (fm, adjacencyMap) ->
+              ( M.insert valve flowRate fm,
+                M.insert valve connections adjacencyMap
+              )
+          )
+          (M.empty, M.empty)
+          $ map lineToAdjacency l
+   in ProblemConfig
+        { allValves = S.toList $ S.fromList (M.keys adjacencyMatrix),
+          flowMap = flowMap,
+          endTime = 30,
+          distanceMatrix = allPairsShortestPaths (adjacencyToInitialWeights adjacencyMatrix)
+        }
 
 data SearchState = SearchState
   { position :: T.Text,
@@ -64,19 +78,12 @@ totalFlow adjancencyMatrix openValves =
     0
     openValves
 
-data ProblemConfig = ProblemConfig
-  { allValves :: [T.Text],
-    flowMap :: FlowMapping,
-    endTime :: Int,
-    distanceMatrix :: DistanceMatrix T.Text
-  }
-
 standPat :: ProblemConfig -> SearchState -> SearchState
 standPat (ProblemConfig _ flowMap endTime _) ss =
   let remainingTime = endTime - (time ss)
    in ss
         { time = endTime,
-          totalPressureReleased = (pressureReleased * (remainingTime + 1)) + (totalPressureReleased ss)
+          totalPressureReleased = (pressureReleased * remainingTime) + (totalPressureReleased ss)
         }
   where
     pressureReleased = totalFlow flowMap (openValves ss)
@@ -84,7 +91,7 @@ standPat (ProblemConfig _ flowMap endTime _) ss =
 -- | standPat
 -- >>> config = ProblemConfig { allValves = ["AA"], flowMap = M.fromList ([("AA", 5)]), endTime = 30, distanceMatrix = M.empty }
 -- >>> standPat config  (SearchState { position = "AA", time = 29, openValves = S.fromList ["AA"], totalPressureReleased = 0})
--- SearchState {position = "AA", time = 30, openValves = fromList ["AA"], totalPressureReleased = 10}
+-- SearchState {position = "AA", time = 30, openValves = fromList ["AA"], totalPressureReleased = 5}
 openValve :: SearchState -> SearchState
 openValve ss = ss {openValves = (S.insert (position ss) (openValves ss)), time = (time ss) + 1}
 
@@ -92,7 +99,7 @@ neighbors :: ProblemConfig -> SearchState -> [SearchState]
 neighbors config@(ProblemConfig allValves flowMap endTime distanceMatrix) ss =
   if (time ss) == endTime
     then
-      [ss {time = endTime + 1}] -- we'll use > endTime as our goal checker
+      [] -- we'll need to add one more round of flow release to figure out the number to input
     else
       if (S.member (position ss) (openValves ss))
         then
