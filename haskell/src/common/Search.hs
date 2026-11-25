@@ -1,13 +1,12 @@
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Search where
 
 import Data.Heap (MinPrioHeap)
-import Data.Map qualified as M
 import Data.Heap qualified as H
-import Data.Set qualified as S
+import Data.Map qualified as M
 import Data.Maybe (fromJust)
+import Data.Set qualified as S
 
 type DijkstraState a = (Ord a) => (M.Map a Int, S.Set a, MinPrioHeap Int a)
 
