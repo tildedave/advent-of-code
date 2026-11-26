@@ -118,9 +118,6 @@ executable advent-of-code2022
 
     build-depends: advent-of-code:aoc-common
 
-    -- LANGUAGE extensions used by modules in this package.
-    other-extensions: MultiWayIf
-
     -- Directories containing source files.
     hs-source-dirs:   src/2022
 
