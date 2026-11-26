@@ -1,6 +1,7 @@
 module Day16 where
 
-import Control.Monad.State (gets, modify, runState)
+import Control.Monad.Identity (Identity)
+import Control.Monad.State (StateT, gets, modify, runState)
 import Data.Foldable (maximumBy)
 import Data.Map (Map)
 import Data.Map qualified as M
@@ -9,7 +10,6 @@ import Data.Ord (comparing)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Data.Void
-import Debug.Trace (trace)
 import Graph (DistanceMatrix, adjacencyToInitialWeights, allPairsShortestPaths)
 import Search (dijkstraSearchM)
 import Text.Megaparsec
@@ -101,7 +101,7 @@ openValve :: SearchState -> SearchState
 openValve ss = ss {openValves = (S.insert (position ss) (openValves ss)), time = (time ss) + 1}
 
 neighbors :: ProblemConfig -> SearchState -> [SearchState]
-neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
+neighbors config@(ProblemConfig allValves flowMap endTime distanceMatrix) ss =
   if
     | S.isSubsetOf allValves (openValves ss) -> [standPat config ss]
     | (time ss) == endTime -> [] -- we'll need to add one more round of flow release to figure out the number to input
@@ -117,18 +117,20 @@ neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
       mapMaybe
         ( \other ->
             let dist = fromJust $ M.lookup ((position ss), other) distanceMatrix
-                nextTime = (time ss) + dist
+                dt = dist + 1
              in if
                   -- moving to somewhere and doing nothing is the same as "standing pat"
-                  | nextTime > endTime -> Nothing
+                  | (time ss) + dt > endTime -> Nothing
                   | S.member other (openValves ss) -> Nothing -- don't go somewhere that doesn't matter
+                  | fromJust (M.lookup other flowMap) == 0 -> Nothing -- don't open valves that have no flow rate
                   | otherwise ->
+                      -- move to somewhere and open it, vs just moving for no reason
                       Just
                         SearchState
                           { position = other,
-                            time = nextTime,
-                            openValves = (openValves ss),
-                            totalPressureReleased = (totalPressureReleased ss) + pressureReleased * dist
+                            time = (time ss) + dt,
+                            openValves = (S.insert other (openValves ss)),
+                            totalPressureReleased = (totalPressureReleased ss) + pressureReleased * (dist + 1)
                           }
         )
         (S.toList $ allValves)
@@ -142,6 +144,29 @@ neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
 -- ("AA",0,["DD","II","BB"])
 -- >>> parseTest parseLine "Valve HH has flow rate=22; tunnel leads to valve GG"
 -- ("HH",22,["GG"])
+shouldCutoff :: SearchState -> StateT (Map (S.Set T.Text, T.Text, Int) (Map Int Int)) Identity Bool
+shouldCutoff =
+  ( \ss -> do
+      let hash = ((openValves ss), (position ss), (time ss))
+      -- This stores a time to best pressure map.  then if you're at a position
+      -- with certain open valves at time t and there's a <= t time
+      -- with a better pressure, cutoff
+      curr <- gets (M.lookup hash)
+      case curr of
+        Nothing -> do
+          modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
+          pure False
+        Just timeMap ->
+          do
+            let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
+            if any (\v -> v > (totalPressureReleased ss)) pressures
+              then
+                pure True
+              else do
+                modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
+                pure False
+  )
+
 part1 :: T.Text -> Int
 part1 t =
   let config = parseProblemConfig (T.splitOn "\n" t)
@@ -150,28 +175,8 @@ part1 t =
           ( dijkstraSearchM
               startState
               (pure . (neighbors config))
-              (pure . (\ss -> trace ("ss " ++ show ss) False))
-              ( \ss -> do
-                  let hash = ((openValves ss), (position ss), (time ss))
-                  -- I probably want to do this even smarter so that it stores a
-                  -- time to best pressure map.  then if you're at a position
-                  -- with certain open valves at time t and there's a <= t time
-                  -- with a better pressure, cutoff
-                  curr <- gets (M.lookup hash)
-                  case curr of
-                    Nothing -> do
-                      modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
-                      pure False
-                    Just timeMap ->
-                      do
-                        let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
-                        if any (\v -> v > (totalPressureReleased ss)) pressures
-                          then
-                            pure True
-                          else do
-                            modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
-                            pure False
-              )
+              (pure . const False)
+              shouldCutoff
           )
           (M.empty)
       maxPressureState = maximumBy (comparing totalPressureReleased) (M.keys final)
