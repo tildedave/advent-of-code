@@ -145,27 +145,25 @@ neighbors config@(ProblemConfig allValves flowMap endTime distanceMatrix) ss =
 -- >>> parseTest parseLine "Valve HH has flow rate=22; tunnel leads to valve GG"
 -- ("HH",22,["GG"])
 shouldCutoff :: SearchState -> StateT (Map (S.Set T.Text, T.Text, Int) (Map Int Int)) Identity Bool
-shouldCutoff =
-  ( \ss -> do
-      let hash = ((openValves ss), (position ss), (time ss))
-      -- This stores a time to best pressure map.  then if you're at a position
-      -- with certain open valves at time t and there's a <= t time
-      -- with a better pressure, cutoff
-      curr <- gets (M.lookup hash)
-      case curr of
-        Nothing -> do
-          modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
-          pure False
-        Just timeMap ->
-          do
-            let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
-            if any (\v -> v > (totalPressureReleased ss)) pressures
-              then
-                pure True
-              else do
-                modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
-                pure False
-  )
+shouldCutoff ss = do
+  let hash = ((openValves ss), (position ss), (time ss))
+  -- This stores a time to best pressure map.  then if you're at a position
+  -- with certain open valves at time t and there's a <= t time
+  -- with a better pressure, cutoff
+  curr <- gets (M.lookup hash)
+  case curr of
+    Nothing -> do
+      modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
+      pure False
+    Just timeMap ->
+      do
+        let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
+        if any (\v -> v > (totalPressureReleased ss)) pressures
+          then
+            pure True
+          else do
+            modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
+            pure False
 
 part1 :: T.Text -> Int
 part1 t =
@@ -185,5 +183,9 @@ part1 t =
 -- | part1
 -- >>> part1 "Valve AA has flow rate=0; tunnels lead to valves DD, II, BB\nValve BB has flow rate=13; tunnels lead to valves CC, AA\nValve CC has flow rate=2; tunnels lead to valves DD, BB\nValve DD has flow rate=20; tunnels lead to valves CC, AA, EE\nValve EE has flow rate=3; tunnels lead to valves FF, DD\nValve FF has flow rate=0; tunnels lead to valves EE, GG\nValve GG has flow rate=0; tunnels lead to valves FF, HH\nValve HH has flow rate=22; tunnel leads to valve GG\nValve II has flow rate=0; tunnels lead to valves AA, JJ\nValve JJ has flow rate=21; tunnel leads to valve II"
 -- 1
+
+-- OK, I how I did part2 is by converting traveling and opening a flow into a
+-- path.  I can do something like that again, sure.
+
 part2 :: T.Text -> Int
 part2 _ = 1
