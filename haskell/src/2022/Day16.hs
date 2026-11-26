@@ -10,6 +10,7 @@ import Data.Ord (comparing)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Data.Void
+import Debug.Trace (trace)
 import Graph (DistanceMatrix, adjacencyToInitialWeights, allPairsShortestPaths)
 import Search (dijkstraSearchM)
 import Text.Megaparsec
@@ -66,7 +67,8 @@ parseProblemConfig l =
         }
 
 data SearchState = SearchState
-  { position :: T.Text,
+  { position :: (T.Text, Int),
+    -- elephantPosition :: (T.Text, Int),
     time :: Int,
     openValves :: S.Set T.Text,
     totalPressureReleased :: Int
@@ -74,7 +76,14 @@ data SearchState = SearchState
   deriving (Show, Eq, Ord)
 
 startState :: SearchState
-startState = SearchState {position = "AA", time = 1, openValves = S.empty, totalPressureReleased = 0}
+startState =
+  SearchState
+    { position = ("AA", 0),
+      -- elephantPosition = ("AA", 0),
+      time = 1,
+      openValves = S.empty,
+      totalPressureReleased = 0
+    }
 
 totalFlow :: ProblemConfig -> SearchState -> Int
 totalFlow (ProblemConfig _ flowMap _ _) ss =
@@ -83,6 +92,7 @@ totalFlow (ProblemConfig _ flowMap _ _) ss =
     0
     (openValves ss)
 
+-- standPat needs to advance I believe
 standPat :: ProblemConfig -> SearchState -> SearchState
 standPat config@(ProblemConfig _ _ endTime _) ss =
   let remainingTime = endTime - (time ss)
@@ -97,26 +107,33 @@ standPat config@(ProblemConfig _ _ endTime _) ss =
 -- >>> config = ProblemConfig { allValves = ["AA"], flowMap = M.fromList ([("AA", 5)]), endTime = 30, distanceMatrix = M.empty }
 -- >>> standPat config  (SearchState { position = "AA", time = 29, openValves = S.fromList ["AA"], totalPressureReleased = 0})
 -- SearchState {position = "AA", time = 30, openValves = fromList ["AA"], totalPressureReleased = 5}
-openValve :: SearchState -> SearchState
-openValve ss = ss {openValves = (S.insert (position ss) (openValves ss)), time = (time ss) + 1}
+-- openValve :: SearchState -> SearchState
+-- openValve ss = ss {openValves = (S.insert (position ss) (openValves ss)), time = (time ss) + 1}
+advance :: ProblemConfig -> SearchState -> SearchState
+advance config ss@(SearchState (dest, t') time openValves totalPressureReleased) =
+  -- when elephantPosition is here, it may interfere with the advancement, need to somehow turn that off
+  ss
+    { position = (dest, 0),
+      time = time + t',
+      openValves = if currentFlow > 0 then (S.insert dest openValves) else openValves,
+      totalPressureReleased = totalPressureReleased + pressureReleased * t'
+    }
+  where
+    pressureReleased = totalFlow config ss
+    currentFlow = fromJust $ M.lookup dest (flowMap config)
 
 neighbors :: ProblemConfig -> SearchState -> [SearchState]
 neighbors config@(ProblemConfig allValves flowMap endTime distanceMatrix) ss =
   if
-    | S.isSubsetOf allValves (openValves ss) -> [standPat config ss]
     | (time ss) == endTime -> [] -- we'll need to add one more round of flow release to figure out the number to input
-    | otherwise ->
-        if (S.member (position ss) (openValves ss))
-          then
-            standPat config ss : travelMoves
-          else
-            standPat config ss : (openValve ss) : travelMoves
+    | S.isSubsetOf allValves (openValves ss) -> [standPat config ss]
+    | otherwise -> standPat config ss : travelMoves
   where
-    pressureReleased = totalFlow config ss
+    (p, _) = (position ss)
     travelMoves =
       mapMaybe
         ( \other ->
-            let dist = fromJust $ M.lookup ((position ss), other) distanceMatrix
+            let dist = fromJust $ M.lookup (p, other) distanceMatrix
                 dt = dist + 1
              in if
                   -- moving to somewhere and doing nothing is the same as "standing pat"
@@ -125,13 +142,8 @@ neighbors config@(ProblemConfig allValves flowMap endTime distanceMatrix) ss =
                   | fromJust (M.lookup other flowMap) == 0 -> Nothing -- don't open valves that have no flow rate
                   | otherwise ->
                       -- move to somewhere and open it, vs just moving for no reason
-                      Just
-                        SearchState
-                          { position = other,
-                            time = (time ss) + dt,
-                            openValves = (S.insert other (openValves ss)),
-                            totalPressureReleased = (totalPressureReleased ss) + pressureReleased * (dist + 1)
-                          }
+                      -- opening logic moved into advance
+                      Just $ advance config (ss {position = (other, dt)})
         )
         (S.toList $ allValves)
 
@@ -146,24 +158,26 @@ neighbors config@(ProblemConfig allValves flowMap endTime distanceMatrix) ss =
 -- ("HH",22,["GG"])
 shouldCutoff :: SearchState -> StateT (Map (S.Set T.Text, T.Text, Int) (Map Int Int)) Identity Bool
 shouldCutoff ss = do
-  let hash = ((openValves ss), (position ss), (time ss))
+  -- let hash = ((openValves ss), (position ss), (time ss))
   -- This stores a time to best pressure map.  then if you're at a position
   -- with certain open valves at time t and there's a <= t time
   -- with a better pressure, cutoff
-  curr <- gets (M.lookup hash)
-  case curr of
-    Nothing -> do
-      modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
-      pure False
-    Just timeMap ->
-      do
-        let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
-        if any (\v -> v > (totalPressureReleased ss)) pressures
-          then
-            pure True
-          else do
-            modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
-            pure False
+  pure False
+
+-- curr <- gets (M.lookup hash)
+-- case curr of
+--   Nothing -> do
+--     modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
+--     pure False
+--   Just timeMap ->
+--     do
+--       let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
+--       if any (\v -> v > (totalPressureReleased ss)) pressures
+--         then
+--           pure True
+--         else do
+--           modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
+--           pure False
 
 part1 :: T.Text -> Int
 part1 t =
@@ -178,7 +192,7 @@ part1 t =
           )
           (M.empty)
       maxPressureState = maximumBy (comparing totalPressureReleased) (M.keys final)
-   in ((totalPressureReleased maxPressureState) + (totalFlow config maxPressureState))
+   in trace ("final (best) position: " ++ show (maxPressureState)) ((totalPressureReleased maxPressureState) + (totalFlow config maxPressureState))
 
 -- | part1
 -- >>> part1 "Valve AA has flow rate=0; tunnels lead to valves DD, II, BB\nValve BB has flow rate=13; tunnels lead to valves CC, AA\nValve CC has flow rate=2; tunnels lead to valves DD, BB\nValve DD has flow rate=20; tunnels lead to valves CC, AA, EE\nValve EE has flow rate=3; tunnels lead to valves FF, DD\nValve FF has flow rate=0; tunnels lead to valves EE, GG\nValve GG has flow rate=0; tunnels lead to valves FF, HH\nValve HH has flow rate=22; tunnel leads to valve GG\nValve II has flow rate=0; tunnels lead to valves AA, JJ\nValve JJ has flow rate=21; tunnel leads to valve II"
