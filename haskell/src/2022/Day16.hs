@@ -118,18 +118,18 @@ neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
         ( \other ->
             let dist = fromJust $ M.lookup ((position ss), other) distanceMatrix
                 nextTime = (time ss) + dist
-             in if nextTime > endTime
-                  then
-                    -- moving to somewhere and doing nothing is the same as "standing pat"
-                    Nothing
-                  else
-                    Just
-                      SearchState
-                        { position = other,
-                          time = nextTime,
-                          openValves = (openValves ss),
-                          totalPressureReleased = (totalPressureReleased ss) + pressureReleased * dist
-                        }
+             in if
+                  -- moving to somewhere and doing nothing is the same as "standing pat"
+                  | nextTime > endTime -> Nothing
+                  | S.member other (openValves ss) -> Nothing -- don't go somewhere that doesn't matter
+                  | otherwise ->
+                      Just
+                        SearchState
+                          { position = other,
+                            time = nextTime,
+                            openValves = (openValves ss),
+                            totalPressureReleased = (totalPressureReleased ss) + pressureReleased * dist
+                          }
         )
         (S.toList $ allValves)
 
