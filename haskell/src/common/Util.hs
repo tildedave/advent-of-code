@@ -8,6 +8,9 @@ import Data.Char (isSpace)
 import Data.Map qualified as M
 import Data.Maybe (fromJust)
 import Data.Text qualified as T
+import Data.Void (Void)
+import Text.Megaparsec (Parsec, errorBundlePretty)
+import Text.Megaparsec qualified as Parsec
 
 trim :: String -> String
 trim = f . f
@@ -134,3 +137,28 @@ sub2 (x, y) (dx, dy) = (x - dx, y - dy)
 unsnoc :: [b] -> Maybe ([b], b)
 unsnoc [] = Nothing
 unsnoc l = Just (init l, last l)
+
+allUnique :: (Eq a) => [a] -> Bool
+allUnique [] = True
+allUnique (x : xs) = (x `notElem` xs) && allUnique xs
+
+allSame :: (Eq a) => [a] -> Bool
+allSame [] = True
+allSame (x : xs) = all (== x) xs
+
+fst3 :: (a, b, c) -> a
+fst3 (a, _, _) = a
+
+snd3 :: (a, b, c) -> b
+snd3 (_, b, _) = b
+
+thd3 :: (a, b, c) -> c
+thd3 (_, _, c) = c
+
+type Parser = Parsec Void T.Text
+
+parseOrDie :: Parser a -> T.Text -> a
+parseOrDie p t =
+  case Parsec.parse p "source" t of
+    Right x -> x
+    Left e -> error $ errorBundlePretty e

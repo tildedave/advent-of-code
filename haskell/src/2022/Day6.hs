@@ -2,11 +2,8 @@ module Day6 where
 
 import Data.List (findIndex)
 import Data.Maybe (fromJust)
-import qualified Data.Text as T
-
-allUnique :: (Eq a) => [a] -> Bool
-allUnique [] = True
-allUnique (x : xs) = (x `notElem` xs) && allUnique xs
+import Data.Text qualified as T
+import Util (allUnique)
 
 sections :: Int -> T.Text -> [T.Text]
 sections n s = filter (\s' -> T.length s' == n) $ T.transpose $ map (`T.drop` s) [0 .. n - 1]

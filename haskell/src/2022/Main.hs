@@ -10,6 +10,7 @@ import Day14 (part1, part2)
 import Day15 (part1, part2)
 import Day16 (part1, part2)
 import Day17 (part1, part2)
+import Day18 (part1, part2)
 import Day2 (part1, part2)
 import Day3 (part1, part2)
 import Day4 (part1, part2)
@@ -60,5 +61,7 @@ main = do
     ["day16", "2"] -> printf "%d\n" (Day16.part2 contents)
     ["day17", "1"] -> printf "%d\n" (Day17.part1 contents)
     ["day17", "2"] -> printf "%d\n" (Day17.part2 contents)
+    ["day18", "1"] -> printf "%d\n" (Day18.part1 contents)
+    ["day18", "2"] -> printf "%d\n" (Day18.part2 contents)
     _ -> do
       putStrLn "Not found"

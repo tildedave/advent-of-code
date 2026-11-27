@@ -7,34 +7,28 @@ import Data.Maybe (fromJust, mapMaybe)
 import Data.Ord (comparing)
 import Data.Set qualified as S
 import Data.Text qualified as T
-import Data.Void
 import Graph (DistanceMatrix, adjacencyToInitialWeights, allPairsShortestPaths)
 import Search (dijkstraSearch)
 import Text.Megaparsec
-import Text.Megaparsec qualified as Parsec
 import Text.Megaparsec.Char
 import Text.Megaparsec.Char.Lexer qualified as L
-
-type Parser = Parsec Void T.Text
+import Util (Parser, parseOrDie)
 
 valveName :: Parser (T.Text)
 valveName = T.pack <$> count 2 upperChar
 
 parseLine :: Parser (T.Text, Int, [T.Text])
-parseLine = do
-  _ <- string "Valve "
-  valve <- valveName
-  _ <- string " has flow rate="
-  flowRate <- L.decimal
-  _ <- (string "; tunnels lead to valves " <|> string "; tunnel leads to valve ")
-  connections <- valveName `sepBy1` (string ", ")
-  return (valve, flowRate, connections)
+parseLine =
+  (,,)
+    <$ string "Valve "
+    <*> valveName
+    <* string " has flow rate="
+    <*> L.decimal
+    <* (string "; tunnels lead to valves " <|> string "; tunnel leads to valve ")
+    <*> valveName `sepBy1` (string ", ")
 
 lineToAdjacency :: T.Text -> (T.Text, Int, [T.Text])
-lineToAdjacency t =
-  case Parsec.parse parseLine "source" t of
-    Right x -> x
-    Left e -> error $ "parse error :-( " ++ show e
+lineToAdjacency = parseOrDie parseLine
 
 type FlowMapping = Map T.Text Int
 
