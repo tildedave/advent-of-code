@@ -98,7 +98,7 @@ totalFlow (ProblemConfig _ flowMap _ _) ss =
 standPat :: ProblemConfig -> SearchState -> SearchState
 standPat config@(ProblemConfig _ _ endTime _) ss =
   let remainingTime = endTime - (time ss)
-   in ss
+   in (advance config (advance config ss)) -- this ensures both us + partner finish moving
         { time = endTime,
           totalPressureReleased = (pressureReleased * remainingTime) + (totalPressureReleased ss)
         }
@@ -243,26 +243,20 @@ neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
 -- ("AA",0,["DD","II","BB"])
 -- >>> parseTest parseLine "Valve HH has flow rate=22; tunnel leads to valve GG"
 -- ("HH",22,["GG"])
-shouldCutoff :: SearchState -> StateT (Map (S.Set T.Text, (T.Text, Int), (T.Text, Int), Int) (Map Int Int)) Identity Bool
-shouldCutoff ss = do
-  let hash = ((openValves ss), (position ss), (elephantPosition ss), (time ss))
-  -- This stores a time to best pressure map.  then if you're at a position
-  -- with certain open valves at time t and there's a <= t time
-  -- with a better pressure, cutoff
-  curr <- gets (M.lookup hash)
-  case curr of
-    Nothing -> do
-      modify (M.insert hash (M.singleton (time ss) (totalPressureReleased ss)))
+shouldCutoff :: ProblemConfig -> SearchState -> StateT (Int) Identity Bool
+shouldCutoff config ss = do
+  maxSoFar <- gets id
+  let ssEnd = standPat config ss
+  let dt = (time ssEnd) - (time ss)
+  let unopenedValves = S.difference (allValves config) (openValves ss)
+  let unaccountedForPressure = foldl' (\acc v -> acc + (fromJust $ M.lookup v (flowMap config))) 0 (S.toList unopenedValves)
+  let t' = (totalPressureReleased ssEnd) + (totalFlow config ssEnd) + unaccountedForPressure * dt
+  if t' < maxSoFar
+    then
+      pure True
+    else do
+      modify (const (totalPressureReleased ssEnd))
       pure False
-    Just timeMap ->
-      do
-        let pressures = (mapMaybe ((flip M.lookup) timeMap) [1 .. (time ss)])
-        if any (\v -> v > (totalPressureReleased ss)) pressures
-          then
-            pure True
-          else do
-            modify (M.adjust (M.insert (time ss) (totalPressureReleased ss)) hash)
-            pure False
 
 part1 :: T.Text -> Int
 part1 t =
@@ -273,9 +267,9 @@ part1 t =
               (startState False)
               (pure . (neighbors config))
               (pure . const False)
-              shouldCutoff
+              (shouldCutoff config)
           )
-          (M.empty)
+          (0)
       maxPressureState = maximumBy (comparing totalPressureReleased) (M.keys final)
    in ((totalPressureReleased maxPressureState) + (totalFlow config maxPressureState))
 
@@ -295,9 +289,9 @@ part2 t =
               (startState True)
               (pure . (neighbors config))
               (pure . const False)
-              shouldCutoff
+              (shouldCutoff config)
           )
-          (M.empty)
+          (0)
       maxPressureState = maximumBy (comparing totalPressureReleased) (M.keys final)
    in ((totalPressureReleased maxPressureState) + (totalFlow config maxPressureState))
 
