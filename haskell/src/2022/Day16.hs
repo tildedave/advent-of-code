@@ -1,9 +1,6 @@
 module Day16 where
 
-import Control.Monad.Identity (Identity)
-import Control.Monad.State (StateT, gets, modify, runState)
 import Data.Foldable (maximumBy)
-import Data.Function ((&))
 import Data.Map (Map)
 import Data.Map qualified as M
 import Data.Maybe (fromJust, mapMaybe)
@@ -11,9 +8,8 @@ import Data.Ord (comparing)
 import Data.Set qualified as S
 import Data.Text qualified as T
 import Data.Void
-import Debug.Trace (trace)
 import Graph (DistanceMatrix, adjacencyToInitialWeights, allPairsShortestPaths)
-import Search (dijkstraSearchM)
+import Search (dijkstraSearch)
 import Text.Megaparsec
 import Text.Megaparsec qualified as Parsec
 import Text.Megaparsec.Char
@@ -68,8 +64,7 @@ parseProblemConfig endTime l =
         }
 
 data SearchState = SearchState
-  { position :: (T.Text, Int),
-    elephantPosition :: (T.Text, Int),
+  { position :: T.Text,
     time :: Int,
     openValves :: S.Set T.Text,
     totalPressureReleased :: Int,
@@ -80,8 +75,7 @@ data SearchState = SearchState
 startState :: Bool -> SearchState
 startState isPart2 =
   SearchState
-    { position = ("AA", 0),
-      elephantPosition = ("AA", 0),
+    { position = "AA",
       time = 1,
       openValves = S.empty,
       totalPressureReleased = 0,
@@ -98,7 +92,7 @@ totalFlow (ProblemConfig _ flowMap _ _) ss =
 standPat :: ProblemConfig -> SearchState -> SearchState
 standPat config@(ProblemConfig _ _ endTime _) ss =
   let remainingTime = endTime - (time ss)
-   in (advance config (advance config ss)) -- this ensures both us + partner finish moving
+   in ss -- this ensures both us + partner finish moving
         { time = endTime,
           totalPressureReleased = (pressureReleased * remainingTime) + (totalPressureReleased ss)
         }
@@ -107,52 +101,8 @@ standPat config@(ProblemConfig _ _ endTime _) ss =
 
 -- | standPat
 -- >>> config = ProblemConfig { allValves = S.fromList ["AA"], flowMap = M.fromList ([("AA", 5)]), endTime = 30, distanceMatrix = M.empty }
--- >>> standPat config (SearchState { position = ("AA", 0), elephantPosition = ("AA", 0), time = 29, openValves = S.fromList ["AA"], totalPressureReleased = 0, isPart2 = False})
--- SearchState {position = ("AA",0), elephantPosition = ("AA",0), time = 30, openValves = fromList ["AA"], totalPressureReleased = 5, isPart2 = False}
-advance :: ProblemConfig -> SearchState -> SearchState
-advance config ss@(SearchState (dest, t') (eleDest, et') time openValves totalPressureReleased isPart2) =
-  if isPart2
-    then
-      -- OK so advancing a state needs to move whoever is currently moving forward.
-      -- if someone is not moving, then they can stay where they are, that is fine.
-      -- I can do this with a conditional I guess.
-      if
-        | t' == 0 ->
-            ss
-              { position = (dest, t'),
-                elephantPosition = (eleDest, 0),
-                openValves = S.insert eleDest openValves,
-                time = time + et',
-                totalPressureReleased = totalPressureReleased + pressureReleased * et'
-              }
-        | et' == 0 ->
-            ss
-              { position = (dest, 0),
-                elephantPosition = (eleDest, 0),
-                openValves = S.insert dest openValves,
-                time = time + t',
-                totalPressureReleased = totalPressureReleased + pressureReleased * t'
-              }
-        | otherwise ->
-            let dt = min t' et'
-             in ss
-                  { position = (dest, t' - dt),
-                    elephantPosition = (eleDest, et' - dt),
-                    time = time + dt,
-                    openValves = openValves & (if t' == dt then S.insert dest else id) & (if et' == dt then S.insert eleDest else id),
-                    totalPressureReleased = totalPressureReleased + pressureReleased * dt
-                  }
-    else
-      ss
-        { position = (dest, 0),
-          time = time + t',
-          openValves = if currentFlow > 0 then (S.insert dest openValves) else openValves,
-          totalPressureReleased = totalPressureReleased + pressureReleased * t'
-        }
-  where
-    pressureReleased = totalFlow config ss
-    currentFlow = fromJust $ M.lookup dest (flowMap config)
-
+-- >>> standPat config (SearchState { position = "AA", time = 29, openValves = S.fromList ["AA"], totalPressureReleased = 0, isPart2 = False})
+-- SearchState {position = "AA", time = 30, openValves = fromList ["AA"], totalPressureReleased = 5, isPart2 = False}
 shouldVisit :: ProblemConfig -> SearchState -> T.Text -> Int -> Bool
 shouldVisit config ss other dt =
   if
@@ -162,8 +112,6 @@ shouldVisit config ss other dt =
     | S.member other (openValves ss) -> False
     -- don't go to valves that have no flow rate
     | fromJust (M.lookup other (flowMap config)) == 0 -> False
-    -- no reason to travel to same place as partner
-    | (other == (fst (position ss))) || (other == (fst (elephantPosition ss))) -> False
     | otherwise -> True
 
 neighbors :: ProblemConfig -> SearchState -> [SearchState]
@@ -172,65 +120,30 @@ neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
     | (time ss) == endTime -> [] -- we'll need to add one more round of flow release to figure out the number to input
     | S.isSubsetOf allValves (openValves ss) -> [standPat config ss]
     | otherwise ->
-        standPat config ss : finalMoves
+        standPat config ss : travelMoves
   where
-    (p, pt) = (position ss)
-    -- (p', pt') = (elephantPosition ss)
-    -- OK we need to convert [ss] --> [next ss (my positions)] --> [next ss (my + elephant positions)]
-    -- if we CAN move, we always want to move, right?  no, I don't think so.
-    -- if we're not careful it's possible we'll filter out any move
-    myMoves =
-      ss -- represent us not moving here (elephant may move)
-        : if not (pt == 0)
-          then []
-          else
-            ( mapMaybe
-                ( \other ->
-                    ( let dist = fromJust $ M.lookup (p, other) distanceMatrix
-                          dt = dist + 1
-                       in if shouldVisit config ss other dt
-                            then
-                              (Just $ (ss {position = (other, dt)}))
-                            else Nothing
-                    )
-                )
-                (S.toList $ (S.difference allValves (openValves ss)))
-            )
-    partnerMoves =
-      if not (isPart2 ss)
-        then
-          myMoves
-        else
-          concatMap
-            ( \ss' ->
-                ss' -- represent elephant not moving
-                  : if not (snd (elephantPosition ss') == 0)
-                    then []
-                    else
-                      ( mapMaybe
-                          ( \other ->
-                              ( let (p', _) = (elephantPosition ss')
-                                    dist = fromJust $ M.lookup (p', other) distanceMatrix
-                                    dt = dist + 1
-                                 in if shouldVisit config ss' other dt
-                                      then
-                                        Just $ (ss' {elephantPosition = (other, dt)})
-                                      else Nothing
-                              )
-                          )
-                          (S.toList $ (S.difference allValves (openValves ss')))
-                      )
-            )
-            myMoves
-    finalMoves =
+    pressureReleased = totalFlow config ss
+    travelMoves =
       mapMaybe
-        ( \ss' ->
-            if
-              | fst (position ss') == fst (elephantPosition ss') -> Nothing
-              | (time ss') == (time ss) -> Nothing
-              | otherwise -> Just ss'
+        ( \other ->
+            let dist = fromJust $ M.lookup ((position ss), other) distanceMatrix
+                dt = dist + 1
+             in if
+                  -- moving to somewhere and doing nothing is the same as "standing pat"
+                  | (time ss) + dt > endTime -> Nothing
+                  | S.member other (openValves ss) -> Nothing -- don't go somewhere that doesn't matter
+                  | fromJust (M.lookup other (flowMap config)) == 0 -> Nothing -- don't open valves that have no flow rate
+                  | otherwise ->
+                      -- move to somewhere and open it, vs just moving for no reason
+                      Just
+                        ss
+                          { position = other,
+                            time = (time ss) + dt,
+                            openValves = (S.insert other (openValves ss)),
+                            totalPressureReleased = (totalPressureReleased ss) + pressureReleased * (dist + 1)
+                          }
         )
-        (map (advance config) partnerMoves)
+        (S.toList $ allValves)
 
 -- (trace ("partner moves " ++ (show partnerMoves)) (map (advance config) partnerMoves))
 
@@ -243,33 +156,16 @@ neighbors config@(ProblemConfig allValves _ endTime distanceMatrix) ss =
 -- ("AA",0,["DD","II","BB"])
 -- >>> parseTest parseLine "Valve HH has flow rate=22; tunnel leads to valve GG"
 -- ("HH",22,["GG"])
-shouldCutoff :: ProblemConfig -> SearchState -> StateT (Int) Identity Bool
-shouldCutoff config ss = do
-  maxSoFar <- gets id
-  let ssEnd = standPat config ss
-  let dt = (time ssEnd) - (time ss)
-  let unopenedValves = S.difference (allValves config) (openValves ss)
-  let unaccountedForPressure = foldl' (\acc v -> acc + (fromJust $ M.lookup v (flowMap config))) 0 (S.toList unopenedValves)
-  let t' = (totalPressureReleased ssEnd) + (totalFlow config ssEnd) + unaccountedForPressure * dt
-  if t' < maxSoFar
-    then
-      pure True
-    else do
-      modify (const (totalPressureReleased ssEnd))
-      pure False
-
 part1 :: T.Text -> Int
 part1 t =
   let config = parseProblemConfig 30 (T.splitOn "\n" t)
-      ((final, _), _) =
-        runState
-          ( dijkstraSearchM
-              (startState False)
-              (pure . (neighbors config))
-              (pure . const False)
-              (shouldCutoff config)
-          )
-          (0)
+      (final, _) =
+        ( dijkstraSearch
+            (startState False)
+            (neighbors config)
+            (const False)
+            (const False)
+        )
       maxPressureState = maximumBy (comparing totalPressureReleased) (M.keys final)
    in ((totalPressureReleased maxPressureState) + (totalFlow config maxPressureState))
 
@@ -277,23 +173,38 @@ part1 t =
 -- >>> part1 "Valve AA has flow rate=0; tunnels lead to valves DD, II, BB\nValve BB has flow rate=13; tunnels lead to valves CC, AA\nValve CC has flow rate=2; tunnels lead to valves DD, BB\nValve DD has flow rate=20; tunnels lead to valves CC, AA, EE\nValve EE has flow rate=3; tunnels lead to valves FF, DD\nValve FF has flow rate=0; tunnels lead to valves EE, GG\nValve GG has flow rate=0; tunnels lead to valves FF, HH\nValve HH has flow rate=22; tunnel leads to valve GG\nValve II has flow rate=0; tunnels lead to valves AA, JJ\nValve JJ has flow rate=21; tunnel leads to valve II"
 -- 1651
 
--- OK, I how I did part2 is by converting traveling and opening a flow into a
--- path.  I can do something like that again, sure.
-
+-- we'll do part2 more intelligently with some tips from Reddit - basically just
+-- keep track of the best "disjoint" search of open valves.
 part2 :: T.Text -> Int
 part2 t =
   let config = parseProblemConfig 26 (T.splitOn "\n" t)
-      ((final, _), _) =
-        runState
-          ( dijkstraSearchM
-              (startState True)
-              (pure . (neighbors config))
-              (pure . const False)
-              (shouldCutoff config)
+      (final, _) =
+        ( dijkstraSearch
+            (startState True)
+            ((neighbors config))
+            (const False)
+            (const False)
+        )
+      bestByOpenValves =
+        foldl'
+          ( \m ss ->
+              let result = (totalPressureReleased ss) + (totalFlow config ss)
+               in case (M.lookup (openValves ss) m) of
+                    Nothing -> M.insert (openValves ss) result m
+                    Just t' ->
+                      if result > t'
+                        then
+                          M.insert (openValves ss) result m
+                        else m
           )
-          (0)
-      maxPressureState = maximumBy (comparing totalPressureReleased) (M.keys final)
-   in ((totalPressureReleased maxPressureState) + (totalFlow config maxPressureState))
+          (M.empty)
+          (M.keys final)
+   in maximum
+        [ (fromJust $ (M.lookup s1 bestByOpenValves)) + (fromJust $ (M.lookup s2 bestByOpenValves))
+        | s1 <- M.keys bestByOpenValves,
+          s2 <- M.keys bestByOpenValves,
+          S.disjoint s1 s2
+        ]
 
 -- | part2
 -- >>> part2 "Valve AA has flow rate=0; tunnels lead to valves DD, II, BB\nValve BB has flow rate=13; tunnels lead to valves CC, AA\nValve CC has flow rate=2; tunnels lead to valves DD, BB\nValve DD has flow rate=20; tunnels lead to valves CC, AA, EE\nValve EE has flow rate=3; tunnels lead to valves FF, DD\nValve FF has flow rate=0; tunnels lead to valves EE, GG\nValve GG has flow rate=0; tunnels lead to valves FF, HH\nValve HH has flow rate=22; tunnel leads to valve GG\nValve II has flow rate=0; tunnels lead to valves AA, JJ\nValve JJ has flow rate=21; tunnel leads to valve II"
